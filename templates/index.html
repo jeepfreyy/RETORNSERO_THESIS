@@ -1,0 +1,1664 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SecureVision CCTV</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&amp;family=Orbitron:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    
+    * {
+      font-family: 'Rajdhani', sans-serif;
+    }
+    
+    .font-display {
+      font-family: 'Orbitron', monospace;
+    }
+    
+    @keyframes scan {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(100%); }
+    }
+    
+    @keyframes pulse-ring {
+      0% { transform: scale(0.8); opacity: 1; }
+      100% { transform: scale(1.2); opacity: 0; }
+    }
+    
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0.3; }
+    }
+    
+    @keyframes glitch {
+      0%, 90%, 100% { transform: translate(0); }
+      92% { transform: translate(-2px, 1px); }
+      94% { transform: translate(2px, -1px); }
+      96% { transform: translate(-1px, 2px); }
+      98% { transform: translate(1px, -2px); }
+    }
+    
+    .scan-line {
+      animation: scan 3s linear infinite;
+    }
+    
+    .pulse-ring {
+      animation: pulse-ring 2s ease-out infinite;
+    }
+    
+    .blink {
+      animation: blink 1s steps(1) infinite;
+    }
+    
+    .camera-feed {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .camera-feed::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #00ff88, transparent);
+      animation: scan 4s linear infinite;
+      z-index: 10;
+    }
+    
+    .camera-feed::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.1) 2px,
+        rgba(0, 0, 0, 0.1) 4px
+      );
+      pointer-events: none;
+      z-index: 5;
+    }
+    
+    .grid-bg {
+      background-image: 
+        linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    
+    .input-glow:focus {
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.3), inset 0 0 20px rgba(0, 255, 136, 0.05);
+    }
+    
+    .btn-glow {
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+      transition: all 0.3s ease;
+    }
+    
+    .btn-glow:hover {
+      box-shadow: 0 0 30px rgba(0, 255, 136, 0.6), 0 0 60px rgba(0, 255, 136, 0.3);
+      transform: translateY(-2px);
+    }
+    
+    .status-online {
+      box-shadow: 0 0 10px #00ff88;
+    }
+    
+    .card-border {
+      border: 1px solid rgba(0, 255, 136, 0.3);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8));
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full bg-slate-950 text-slate-100 overflow-auto">
+  <div id="app" class="h-full w-full grid-bg"><!-- Auth Screen -->
+   <div id="auth-screen" class="h-full w-full flex items-center justify-center p-4">
+    <div class="w-full max-w-md"><!-- Logo -->
+     <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-900 border-2 border-emerald-400 mb-4 relative">
+       <svg class="w-10 h-10 text-emerald-400" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /> <circle cx="8" cy="12" r="2" fill="currentColor" />
+       </svg>
+       <div class="absolute inset-0 rounded-full border-2 border-emerald-400 pulse-ring"></div>
+      </div>
+      <h1 id="system-title" class="font-display text-2xl font-bold text-emerald-400 tracking-wider">SECUREVISION</h1>
+      <p id="welcome-text" class="text-slate-400 mt-2 text-sm tracking-wide">ADVANCED SURVEILLANCE SYSTEM</p>
+     </div><!-- Auth Card -->
+     <div class="card-border rounded-2xl p-8 backdrop-blur-xl"><!-- Tabs -->
+      <div class="flex mb-6 bg-slate-900/50 rounded-lg p-1"><button id="login-tab" onclick="switchTab('login')" class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/50"> LOGIN </button> <button id="register-tab" onclick="switchTab('register')" class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all text-slate-400 hover:text-slate-300"> REGISTER </button>
+      </div><!-- Login Form -->
+      <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+       <div><label for="login-username" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">USERNAME</label>
+        <div class="relative">
+         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+         </svg><input type="text" id="login-username" required placeholder="Enter your username" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+        </div>
+       </div>
+       <div><label for="login-password" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">ACCESS CODE</label>
+        <div class="relative">
+         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+         </svg><input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+        </div>
+       </div>
+       <div class="flex items-center justify-between text-sm"><label class="flex items-center gap-2 cursor-pointer"> <input type="checkbox" class="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"> <span class="text-slate-400">Remember device</span> </label> <a href="#" onclick="openForgotPassword(event)" class="text-emerald-400 hover:text-emerald-300 transition-colors">Forgot access code?</a>
+       </div><button type="submit" id="login-btn" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider"> AUTHENTICATE </button>
+      </form><!-- Register Form -->
+      <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+       <div><label for="reg-username" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">USERNAME</label>
+        <div class="relative">
+         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+         </svg><input type="text" id="reg-username" required placeholder="Choose a username" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+        </div>
+       </div>
+       <div><label for="reg-email" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">EMAIL ADDRESS</label>
+        <div class="relative">
+         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+         </svg><input type="email" id="reg-email" required placeholder="operator@barangay.gov.ph" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+        </div>
+       </div>
+       <div><label for="reg-password" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CREATE ACCESS CODE</label>
+        <div class="relative">
+         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+         </svg><input type="password" id="reg-password" required placeholder="••••••••" minlength="6" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+        </div>
+       </div>
+       <div><label for="reg-confirm" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CONFIRM ACCESS CODE</label>
+        <div class="relative">
+         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+         </svg><input type="password" id="reg-confirm" required placeholder="••••••••" minlength="6" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+        </div>
+       </div><button type="submit" id="register-btn" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider"> CREATE ACCOUNT </button>
+      </form><!-- Error Message -->
+      <div id="auth-error" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center"></div><!-- Success Message -->
+      <div id="auth-success" class="hidden mt-4 p-3 bg-emerald-500/10 border border-emerald-500/50 rounded-lg text-emerald-400 text-sm text-center"></div>
+     </div><!-- Footer -->
+     <p class="text-center text-slate-500 text-xs mt-6 tracking-wider">🔒 256-BIT ENCRYPTED CONNECTION</p>
+    </div>
+   </div><!-- Forgot Password Modal -->
+   <div id="forgot-password-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="w-full max-w-md">
+     <div class="card-border rounded-2xl p-8 backdrop-blur-xl"><!-- Close Button --> <button onclick="closeForgotPassword()" class="float-right text-slate-400 hover:text-slate-200 transition-colors">
+       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+       </svg></button> <!-- Header -->
+      <div class="mb-6 clear-both">
+       <h2 class="font-display text-2xl font-bold text-emerald-400 tracking-wider mb-2">RECOVER ACCESS</h2>
+       <p class="text-slate-400 text-sm">Enter your email address to reset your access code</p>
+      </div><!-- Step 1: Email Verification -->
+      <div id="forgot-step-1" class="space-y-4">
+       <div><label for="forgot-email" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">EMAIL ADDRESS</label>
+        <div class="relative">
+         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+         </svg><input type="email" id="forgot-email" required placeholder="operator@securevision.com" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+        </div>
+       </div><button type="button" onclick="sendResetEmail()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider"> SEND RESET LINK </button>
+      </div><!-- Step 2: Verification Code -->
+      <div id="forgot-step-2" class="space-y-4 hidden">
+       <p class="text-slate-400 text-sm mb-4">We've sent a verification code to your email. Enter it below to continue.</p>
+       <div><label for="forgot-code" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">VERIFICATION CODE</label>
+        <div class="relative">
+         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+         </svg><input type="text" id="forgot-code" required placeholder="123456" maxlength="6" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all font-mono text-center text-lg tracking-widest">
+        </div>
+        <p class="text-xs text-slate-500 mt-2">Code expires in: <span id="code-timer">10:00</span></p>
+       </div><button type="button" onclick="verifyResetCode()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow tracking-wider"> VERIFY CODE </button> <button type="button" onclick="resendCode()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2 rounded-lg transition-all tracking-wider"> RESEND CODE </button>
+      </div><!-- Step 3: Reset Password -->
+      <div id="forgot-step-3" class="space-y-4 hidden">
+       <div><label for="forgot-new-password" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">NEW ACCESS CODE</label>
+        <div class="relative">
+         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+         </svg><input type="password" id="forgot-new-password" required placeholder="••••••••" minlength="6" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+        </div>
+       </div>
+       <div><label for="forgot-confirm-password" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CONFIRM ACCESS CODE</label>
+        <div class="relative">
+         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+         </svg><input type="password" id="forgot-confirm-password" required placeholder="••••••••" minlength="6" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+        </div>
+       </div><!-- Password Strength Indicator -->
+       <div class="space-y-2">
+        <p class="text-xs text-slate-400">Password strength:</p>
+        <div class="flex gap-1 h-1">
+         <div id="strength-bar-1" class="flex-1 rounded-full bg-slate-700"></div>
+         <div id="strength-bar-2" class="flex-1 rounded-full bg-slate-700"></div>
+         <div id="strength-bar-3" class="flex-1 rounded-full bg-slate-700"></div>
+        </div>
+        <p id="strength-text" class="text-xs text-slate-400">Type to see strength</p>
+       </div><button type="button" onclick="resetPassword()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider"> RESET ACCESS CODE </button>
+      </div><!-- Success Step -->
+      <div id="forgot-step-success" class="text-center space-y-4 hidden">
+       <div class="flex justify-center">
+        <div class="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center">
+         <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+         </svg>
+        </div>
+       </div>
+       <div>
+        <h3 class="text-xl font-bold text-emerald-400 font-display mb-2">ACCESS RESTORED</h3>
+        <p class="text-slate-400 text-sm">Your access code has been successfully reset. You can now login with your new credentials.</p>
+       </div><button type="button" onclick="backToLogin()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow tracking-wider"> RETURN TO LOGIN </button>
+      </div><!-- Error Message -->
+      <div id="forgot-error" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center"></div>
+     </div>
+    </div>
+   </div><!-- Dashboard Screen -->
+   <div id="dashboard-screen" class="h-full w-full hidden flex flex-col"><!-- Header -->
+    <header class="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 px-6 py-4">
+     <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+       <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-slate-800 border border-emerald-500/50 flex items-center justify-center">
+         <svg class="w-5 h-5 text-emerald-400" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+         </svg>
+        </div>
+        <div>
+         <h1 id="dashboard-title" class="font-display text-lg font-bold text-emerald-400 tracking-wider">SECUREVISION</h1>
+         <p class="text-xs text-slate-500">COMMAND CENTER</p>
+        </div>
+       </div>
+      </div>
+      <div class="flex items-center gap-6"><!-- View Toggle -->
+       <div class="flex gap-2 bg-slate-900/50 rounded-lg p-1"><button id="view-live-btn" onclick="switchView('live')" class="px-3 py-1 rounded-md text-xs font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/50"> LIVE </button> <button id="view-archive-btn" onclick="switchView('archive')" class="px-3 py-1 rounded-md text-xs font-semibold transition-all text-slate-400 hover:text-slate-300"> ARCHIVE </button>
+       </div><!-- Live Time -->
+       <div id="live-time-container" class="hidden sm:flex items-center gap-2 text-slate-400">
+        <div class="w-2 h-2 rounded-full bg-emerald-400 blink"></div><span id="live-time" class="font-mono text-sm">00:00:00</span>
+       </div><!-- Status -->
+       <div id="status-container" class="hidden md:flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
+        <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-emerald-400 text-xs font-semibold tracking-wider">ALL SYSTEMS ONLINE</span>
+       </div><!-- User Menu -->
+       <div class="flex items-center gap-3">
+        <div class="text-right hidden sm:block">
+         <p id="user-name" class="text-sm font-semibold text-slate-200">Operator</p>
+         <p class="text-xs text-slate-500">Security Level: Admin</p>
+        </div><button onclick="handleLogout()" class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-red-500/50 hover:bg-red-500/10 transition-all group">
+         <svg class="w-5 h-5 text-slate-400 group-hover:text-red-400 transition-colors" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+         </svg></button>
+       </div>
+      </div>
+     </div>
+    </header><!-- Main Content -->
+    <main class="flex-1 p-6 overflow-auto"><!-- Maximized Camera Modal -->
+     <div id="camera-maximize-modal" class="fixed inset-0 bg-black/90 backdrop-blur-xl hidden flex items-center justify-center z-50 p-4">
+      <div class="w-full max-w-6xl max-h-full flex flex-col"><!-- Close Button -->
+       <div class="flex justify-end mb-4"><button onclick="closeMaximizeCamera()" class="text-slate-400 hover:text-slate-200 transition-colors p-2 hover:bg-slate-800/50 rounded-lg">
+         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+         </svg></button>
+       </div><!-- Main Content -->
+       <div class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 overflow-auto"><!-- Camera Feed Section -->
+        <div class="lg:col-span-2 flex flex-col gap-4"><!-- Camera Display -->
+         <div class="card-border rounded-xl overflow-hidden">
+          <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative flex items-center justify-center"><!-- Simulated Feed -->
+           <div id="max-camera-svg" class="w-full h-full"></div><!-- Overlay Info -->
+           <div class="absolute top-4 left-4 right-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+             <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span id="max-camera-name" class="text-sm font-mono text-emerald-400 bg-slate-900/70 px-3 py-1 rounded">CAM-01</span>
+            </div>
+            <div class="flex gap-2"><span id="max-camera-resolution" class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-1 rounded">1080p</span> <span id="max-camera-time" class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-1 rounded">--:--:--</span>
+            </div>
+           </div>
+          </div><!-- Camera Info Card -->
+          <div class="p-4 border-t border-slate-700">
+           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+             <p class="text-xs text-slate-500 tracking-wider mb-1">LOCATION</p>
+             <p id="max-camera-location" class="text-sm font-semibold text-slate-200">Main Entrance</p>
+            </div>
+            <div>
+             <p class="text-xs text-slate-500 tracking-wider mb-1">DETECTED PEOPLE</p>
+             <p id="max-people-count" class="text-sm font-semibold text-emerald-400">0</p>
+            </div>
+            <div>
+             <p class="text-xs text-slate-500 tracking-wider mb-1">CROWD DENSITY</p>
+             <p id="max-density-level" class="text-sm font-semibold text-amber-400">Low</p>
+            </div>
+            <div>
+             <p class="text-xs text-slate-500 tracking-wider mb-1">ALERTS</p>
+             <p id="max-alerts-count" class="text-sm font-semibold text-red-400">0</p>
+            </div>
+           </div>
+          </div>
+         </div><!-- Crowd Density Timeline -->
+         <div class="card-border rounded-xl p-4">
+          <h3 class="font-display text-lg font-bold text-emerald-400 tracking-wider mb-4">CROWD DENSITY TIMELINE</h3><!-- Threshold Bar -->
+          <div class="space-y-3"><!-- Color Legend -->
+           <div class="flex gap-4 text-xs mb-3">
+            <div class="flex items-center gap-2">
+             <div class="w-4 h-4 rounded bg-emerald-500"></div><span class="text-slate-400">Low Density</span>
+            </div>
+            <div class="flex items-center gap-2">
+             <div class="w-4 h-4 rounded bg-amber-500"></div><span class="text-slate-400">Medium Density</span>
+            </div>
+            <div class="flex items-center gap-2">
+             <div class="w-4 h-4 rounded bg-red-500"></div><span class="text-slate-400">High Density</span>
+            </div>
+           </div><!-- Timeline Container -->
+           <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
+            <div id="density-timeline" class="flex gap-1 h-12 items-end"><!-- Density bars will be generated here -->
+            </div>
+           </div><!-- Timeline Labels -->
+           <div class="flex justify-between text-xs text-slate-500 px-1"><span id="timeline-start">4 hrs ago</span> <span id="timeline-mid">2 hrs ago</span> <span id="timeline-end">Now</span>
+           </div>
+          </div><!-- Stats -->
+          <div class="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-700">
+           <div>
+            <p class="text-xs text-slate-500 tracking-wider mb-1">PEAK DENSITY</p>
+            <p id="max-peak-density" class="text-sm font-semibold text-red-400">85%</p>
+           </div>
+           <div>
+            <p class="text-xs text-slate-500 tracking-wider mb-1">AVG PEOPLE</p>
+            <p id="max-avg-people" class="text-sm font-semibold text-emerald-400">24</p>
+           </div>
+           <div>
+            <p class="text-xs text-slate-500 tracking-wider mb-1">DURATION HIGH</p>
+            <p id="max-high-duration" class="text-sm font-semibold text-amber-400">28 min</p>
+           </div>
+          </div>
+         </div>
+        </div><!-- Activity Logs Section -->
+        <div class="lg:col-span-1 flex flex-col">
+         <div class="card-border rounded-xl p-4 flex-1 flex flex-col overflow-hidden">
+          <h3 class="font-display text-lg font-bold text-emerald-400 tracking-wider mb-4">ACTIVITY LOGS</h3><!-- Logs Container -->
+          <div id="camera-activity-logs" class="flex-1 overflow-y-auto space-y-2 pr-2"><!-- Activity logs will be generated here -->
+          </div><!-- Empty State -->
+          <div id="logs-empty-state" class="flex items-center justify-center h-full text-slate-500 text-center text-sm">
+           <div>
+            <p class="mb-1">📹 No activities logged yet</p>
+            <p class="text-xs">Activities will appear in real-time</p>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </div>
+     </div><!-- Archive View -->
+     <div id="archive-view" class="hidden"><!-- Archive Header -->
+      <div class="mb-6">
+       <h2 class="font-display text-2xl font-bold text-emerald-400 tracking-wider mb-4">ARCHIVE BROWSER</h2><!-- Archive Filters -->
+       <div class="card-border rounded-xl p-6 backdrop-blur-xl">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4"><!-- Date Picker -->
+         <div><label for="archive-date" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">SELECT DATE</label> <input type="date" id="archive-date" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+         </div><!-- Start Time -->
+         <div><label for="archive-start-time" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">START TIME</label> <input type="time" id="archive-start-time" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+         </div><!-- End Time -->
+         <div><label for="archive-end-time" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">END TIME</label> <input type="time" id="archive-end-time" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+         </div><!-- Camera Selection -->
+         <div><label for="archive-camera" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CAMERA</label> <select id="archive-camera" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all"> <option value="">All Cameras</option> <option value="CAM-01">CAM-01 - Main Entrance</option> <option value="CAM-02">CAM-02 - Parking Lot A</option> <option value="CAM-03">CAM-03 - Server Room</option> <option value="CAM-04">CAM-04 - Back Gate</option> <option value="CAM-05">CAM-05 - Lobby Area</option> <option value="CAM-06">CAM-06 - Control Room</option> </select>
+         </div>
+        </div><!-- Search Button -->
+        <div class="flex gap-3"><button onclick="searchArchive()" class="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold rounded-lg btn-glow transition-all tracking-wider"> SEARCH </button> <button onclick="resetArchiveFilters()" class="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-lg transition-all tracking-wider"> RESET </button>
+        </div><!-- Archive Info -->
+        <div id="archive-info" class="mt-4 p-3 bg-slate-900/50 border border-slate-700 rounded-lg hidden">
+         <p id="archive-info-text" class="text-sm text-slate-300"></p>
+        </div>
+       </div>
+      </div><!-- Archive Results -->
+      <div id="archive-results" class="space-y-4">
+       <p class="text-slate-400 text-center py-8">Select filters and click SEARCH to view archived recordings</p>
+      </div>
+     </div><!-- Live View -->
+     <div id="live-view" class="flex flex-col lg:flex-row gap-4"><!-- Main Content Area -->
+      <div class="flex-1">
+       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="card-border rounded-xl p-4">
+         <div class="flex items-center justify-between">
+          <div>
+           <p class="text-xs text-slate-500 tracking-wider">CAMERAS ONLINE</p>
+           <p class="text-2xl font-bold text-emerald-400 font-display">6/6</p>
+          </div>
+          <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+           <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+           </svg>
+          </div>
+         </div>
+        </div>
+        <div class="card-border rounded-xl p-4">
+         <div class="flex items-center justify-between">
+          <div>
+           <p class="text-xs text-slate-500 tracking-wider">ALERTS TODAY</p>
+           <p class="text-2xl font-bold text-amber-400 font-display">3</p>
+          </div>
+          <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+           <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+           </svg>
+          </div>
+         </div>
+        </div>
+        <div class="card-border rounded-xl p-4">
+         <div class="flex items-center justify-between">
+          <div>
+           <p class="text-xs text-slate-500 tracking-wider">STORAGE USED</p>
+           <p class="text-2xl font-bold text-blue-400 font-display">67%</p>
+          </div>
+          <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+           <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+           </svg>
+          </div>
+         </div>
+        </div>
+        <div class="card-border rounded-xl p-4">
+         <div class="flex items-center justify-between">
+          <div>
+           <p class="text-xs text-slate-500 tracking-wider">UPTIME</p>
+           <p class="text-2xl font-bold text-purple-400 font-display">99.9%</p>
+          </div>
+          <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+           <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+           </svg>
+          </div>
+         </div>
+        </div>
+       </div><!-- Camera Grid -->
+       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"><!-- Camera 1 -->
+        <div class="card-border rounded-xl overflow-hidden group">
+         <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
+          <div class="absolute inset-0 flex items-center justify-center">
+           <svg class="w-24 h-24 text-slate-700" viewbox="0 0 100 60" fill="currentColor"><rect x="10" y="40" width="15" height="20" rx="1" /> <rect x="30" y="30" width="18" height="30" rx="1" /> <rect x="53" y="25" width="12" height="35" rx="1" /> <rect x="70" y="35" width="20" height="25" rx="1" /> <circle cx="75" cy="15" r="8" fill="none" stroke="currentColor" stroke-width="2" />
+           </svg>
+          </div>
+          <div class="absolute top-3 left-3 flex items-center gap-2">
+           <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
+          </div>
+          <div class="absolute top-3 right-3"><span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
+          </div>
+          <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between"><span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-01</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time">--:--:--</span>
+          </div>
+         </div>
+         <div class="p-3 flex items-center justify-between">
+          <div>
+           <p class="text-sm font-semibold text-slate-200">Main Entrance</p>
+           <p class="text-xs text-slate-500">Building A • Ground Floor</p>
+          </div>
+          <div class="flex gap-2"><button onclick="maximizeCamera('CAM-01', 'Main Entrance', '1080p')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6v4m12 0h4v-4m0 10h-4v4m4-4v4m-12 0h4v4m-4-4v4M6 10h4m4 0h4" />
+            </svg></button> <button class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg></button>
+          </div>
+         </div>
+        </div><!-- Camera 2 -->
+        <div class="card-border rounded-xl overflow-hidden group">
+         <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
+          <div class="absolute inset-0 flex items-center justify-center">
+           <svg class="w-32 h-20 text-slate-700" viewbox="0 0 120 60"><rect x="5" y="50" width="110" height="10" fill="currentColor" rx="1" /> <rect x="20" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2" /> <rect x="70" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2" /> <line x1="35" y1="10" x2="35" y2="20" stroke="currentColor" stroke-width="2" /> <line x1="85" y1="10" x2="85" y2="20" stroke="currentColor" stroke-width="2" />
+           </svg>
+          </div>
+          <div class="absolute top-3 left-3 flex items-center gap-2">
+           <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
+          </div>
+          <div class="absolute top-3 right-3"><span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
+          </div>
+          <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between"><span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-02</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time">--:--:--</span>
+          </div>
+         </div>
+         <div class="p-3 flex items-center justify-between">
+          <div>
+           <p class="text-sm font-semibold text-slate-200">Parking Lot A</p>
+           <p class="text-xs text-slate-500">Exterior • North Side</p>
+          </div>
+          <div class="flex gap-2"><button onclick="maximizeCamera('CAM-02', 'Parking Lot A', '1080p')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6v4m12 0h4v-4m0 10h-4v4m4-4v4m-12 0h4v4m-4-4v4M6 10h4m4 0h4" />
+            </svg></button> <button class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg></button>
+          </div>
+         </div>
+        </div><!-- Camera 3 -->
+        <div class="card-border rounded-xl overflow-hidden group">
+         <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
+          <div class="absolute inset-0 flex items-center justify-center">
+           <svg class="w-28 h-20 text-slate-700" viewbox="0 0 100 60"><rect x="10" y="10" width="80" height="40" fill="none" stroke="currentColor" stroke-width="2" rx="2" /> <line x1="10" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="1" /> <rect x="20" y="35" width="15" height="10" fill="currentColor" rx="1" /> <rect x="42" y="35" width="15" height="10" fill="currentColor" rx="1" /> <rect x="65" y="35" width="15" height="10" fill="currentColor" rx="1" />
+           </svg>
+          </div>
+          <div class="absolute top-3 left-3 flex items-center gap-2">
+           <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
+          </div>
+          <div class="absolute top-3 right-3"><span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">4K</span>
+          </div>
+          <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between"><span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-03</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time">--:--:--</span>
+          </div>
+         </div>
+         <div class="p-3 flex items-center justify-between">
+          <div>
+           <p class="text-sm font-semibold text-slate-200">Server Room</p>
+           <p class="text-xs text-slate-500">Building B • Basement</p>
+          </div>
+          <div class="flex gap-2"><button onclick="maximizeCamera('CAM-03', 'Server Room', '4K')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6v4m12 0h4v-4m0 10h-4v4m4-4v4m-12 0h4v4m-4-4v4M6 10h4m4 0h4" />
+            </svg></button> <button class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg></button>
+          </div>
+         </div>
+        </div><!-- Camera 4 -->
+        <div class="card-border rounded-xl overflow-hidden group">
+         <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
+          <div class="absolute inset-0 flex items-center justify-center">
+           <svg class="w-28 h-20 text-slate-700" viewbox="0 0 100 60"><path d="M10 50 L50 20 L90 50" fill="none" stroke="currentColor" stroke-width="2" /> <rect x="35" y="30" width="30" height="20" fill="currentColor" rx="1" /> <rect x="42" y="35" width="6" height="10" fill="#1e293b" /> <rect x="52" y="35" width="6" height="10" fill="#1e293b" /> <rect x="15" y="35" width="12" height="15" fill="currentColor" rx="1" /> <rect x="73" y="35" width="12" height="15" fill="currentColor" rx="1" />
+           </svg>
+          </div>
+          <div class="absolute top-3 left-3 flex items-center gap-2">
+           <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
+          </div>
+          <div class="absolute top-3 right-3"><span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
+          </div>
+          <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between"><span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-04</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time">--:--:--</span>
+          </div>
+         </div>
+         <div class="p-3 flex items-center justify-between">
+          <div>
+           <p class="text-sm font-semibold text-slate-200">Back Gate</p>
+           <p class="text-xs text-slate-500">Exterior • South Perimeter</p>
+          </div>
+          <div class="flex gap-2"><button onclick="maximizeCamera('CAM-04', 'Back Gate', '1080p')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6v4m12 0h4v-4m0 10h-4v4m4-4v4m-12 0h4v4m-4-4v4M6 10h4m4 0h4" />
+            </svg></button> <button class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg></button>
+          </div>
+         </div>
+        </div><!-- Camera 5 -->
+        <div class="card-border rounded-xl overflow-hidden group">
+         <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
+          <div class="absolute inset-0 flex items-center justify-center">
+           <svg class="w-28 h-20 text-slate-700" viewbox="0 0 100 60"><rect x="5" y="45" width="90" height="10" fill="currentColor" rx="1" /> <rect x="15" y="15" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="1" /> <rect x="40" y="15" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="1" /> <rect x="65" y="15" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="1" /> <line x1="25" y1="25" x2="25" y2="35" stroke="currentColor" stroke-width="2" /> <line x1="50" y1="25" x2="50" y2="35" stroke="currentColor" stroke-width="2" /> <line x1="75" y1="25" x2="75" y2="35" stroke="currentColor" stroke-width="2" />
+           </svg>
+          </div>
+          <div class="absolute top-3 left-3 flex items-center gap-2">
+           <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
+          </div>
+          <div class="absolute top-3 right-3"><span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
+          </div>
+          <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between"><span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-05</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time">--:--:--</span>
+          </div>
+         </div>
+         <div class="p-3 flex items-center justify-between">
+          <div>
+           <p class="text-sm font-semibold text-slate-200">Lobby Area</p>
+           <p class="text-xs text-slate-500">Building A • 1st Floor</p>
+          </div>
+          <div class="flex gap-2"><button onclick="maximizeCamera('CAM-05', 'Lobby Area', '1080p')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6v4m12 0h4v-4m0 10h-4v4m4-4v4m-12 0h4v4m-4-4v4M6 10h4m4 0h4" />
+            </svg></button> <button class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg></button>
+          </div>
+         </div>
+        </div><!-- Camera 6 -->
+        <div class="card-border rounded-xl overflow-hidden group">
+         <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
+          <div class="absolute inset-0 flex items-center justify-center">
+           <svg class="w-28 h-20 text-slate-700" viewbox="0 0 100 60"><rect x="20" y="10" width="60" height="35" fill="none" stroke="currentColor" stroke-width="2" rx="2" /> <rect x="25" y="15" width="20" height="12" fill="currentColor" rx="1" /> <rect x="55" y="15" width="20" height="12" fill="currentColor" rx="1" /> <rect x="25" y="30" width="50" height="10" fill="currentColor" rx="1" /> <rect x="35" y="45" width="30" height="8" fill="currentColor" rx="1" />
+           </svg>
+          </div>
+          <div class="absolute top-3 left-3 flex items-center gap-2">
+           <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
+          </div>
+          <div class="absolute top-3 right-3"><span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">4K</span>
+          </div>
+          <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between"><span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-06</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time">--:--:--</span>
+          </div>
+         </div>
+         <div class="p-3 flex items-center justify-between">
+          <div>
+           <p class="text-sm font-semibold text-slate-200">Control Room</p>
+           <p class="text-xs text-slate-500">Building B • 2nd Floor</p>
+          </div>
+          <div class="flex gap-2"><button onclick="maximizeCamera('CAM-06', 'Control Room', '4K')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6v4m12 0h4v-4m0 10h-4v4m4-4v4m-12 0h4v4m-4-4v4M6 10h4m4 0h4" />
+            </svg></button> <button class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg></button>
+          </div>
+         </div>
+        </div>
+       </div>
+      </div><!-- Activity Logs Sidebar -->
+      <div class="lg:w-96 flex flex-col"><!-- Toggle Button (Mobile) -->
+       <div class="lg:hidden mb-4"><button id="toggle-activity-logs-mobile" onclick="toggleActivityLogsSidebar()" class="w-full px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-sm tracking-wider transition-all"> 📊 SHOW ACTIVITY LOGS </button>
+       </div><!-- Activity Logs Panel -->
+       <div id="activity-logs-sidebar" class="card-border rounded-xl p-4 backdrop-blur-xl flex-1 flex flex-col overflow-hidden hidden lg:flex"><!-- Header with Toggle -->
+        <div class="flex items-center justify-between mb-4 pb-4 border-b border-slate-700">
+         <h3 class="font-display text-lg font-bold text-emerald-400 tracking-wider">ALL ACTIVITY LOGS</h3><button id="toggle-activity-logs-desktop" onclick="toggleActivityLogsSidebar()" class="hidden lg:flex w-8 h-8 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-slate-600 items-center justify-center transition-all group">
+          <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-300 transition-colors" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg></button>
+        </div><!-- Filter Options -->
+        <div class="space-y-3 mb-4 pb-4 border-b border-slate-700"><!-- Filter by Camera -->
+         <div><label class="text-xs font-semibold text-slate-400 mb-2 tracking-wider block">FILTER BY CAMERA</label> <select id="activity-camera-filter" onchange="filterActivityLogs()" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-all"> <option value="">All Cameras</option> <option value="CAM-01">CAM-01 - Main Entrance</option> <option value="CAM-02">CAM-02 - Parking Lot A</option> <option value="CAM-03">CAM-03 - Server Room</option> <option value="CAM-04">CAM-04 - Back Gate</option> <option value="CAM-05">CAM-05 - Lobby Area</option> <option value="CAM-06">CAM-06 - Control Room</option> </select>
+         </div><!-- Filter by Type -->
+         <div><label class="text-xs font-semibold text-slate-400 mb-2 tracking-wider block">FILTER BY TYPE</label> <select id="activity-type-filter" onchange="filterActivityLogs()" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-all"> <option value="">All Types</option> <option value="ENTRY">Entry</option> <option value="EXIT">Exit</option> <option value="CROWDING">Crowding</option> <option value="ALERT">Alert</option> <option value="NORMAL">Normal</option> </select>
+         </div>
+        </div><!-- Activity Logs Container -->
+        <div id="all-activity-logs" class="flex-1 overflow-y-auto space-y-2 pr-2"><!-- Activity logs will be populated here -->
+        </div><!-- Empty State -->
+        <div id="logs-empty-state-global" class="flex items-center justify-center h-full text-slate-500 text-center text-sm hidden">
+         <div>
+          <p class="mb-1">📹 No activities logged</p>
+          <p class="text-xs">Live activities will appear here</p>
+         </div>
+        </div>
+       </div>
+      </div>
+     </div>
+    </main>
+   </div>
+   <script>
+    // Default configuration
+    const defaultConfig = {
+      system_title: 'SECUREVISION',
+      welcome_message: 'ADVANCED SURVEILLANCE SYSTEM'
+    };
+    
+    let config = { ...defaultConfig };
+    let currentUser = null;
+    
+    // Mock user database (for demo purposes)
+    const users = {};
+    
+    // Mock archive data (simulated past recordings)
+    const archiveData = generateMockArchiveData();
+    
+    // Global activity logs from all cameras
+    let allActivityLogs = [];
+    
+    function generateMockArchiveData() {
+      const data = [];
+      const cameras = ['CAM-01', 'CAM-02', 'CAM-03', 'CAM-04', 'CAM-05', 'CAM-06'];
+      const locations = {
+        'CAM-01': 'Main Entrance',
+        'CAM-02': 'Parking Lot A',
+        'CAM-03': 'Server Room',
+        'CAM-04': 'Back Gate',
+        'CAM-05': 'Lobby Area',
+        'CAM-06': 'Control Room'
+      };
+      
+      // Generate mock recordings for the past 7 days
+      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        const date = new Date();
+        date.setDate(date.getDate() - dayOffset);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        cameras.forEach(cam => {
+          // 4-6 recordings per camera per day at random times
+          const recordingsPerDay = Math.floor(Math.random() * 3) + 4;
+          for (let i = 0; i < recordingsPerDay; i++) {
+            const hour = Math.floor(Math.random() * 24);
+            const minute = Math.floor(Math.random() * 60);
+            const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+            const duration = Math.floor(Math.random() * 120) + 30; // 30-150 minutes
+            
+            data.push({
+              id: `${cam}-${dateStr}-${timeStr.replace(':', '')}`,
+              camera: cam,
+              location: locations[cam],
+              date: dateStr,
+              startTime: timeStr,
+              duration: duration,
+              fileSize: (Math.random() * 500 + 100).toFixed(1),
+              resolution: cam === 'CAM-03' || cam === 'CAM-06' ? '4K' : '1080p',
+              status: 'Available'
+            });
+          }
+        });
+      }
+      
+      return data;
+    }
+    
+    // View switching function
+    function switchView(view) {
+      const liveView = document.getElementById('live-view');
+      const archiveView = document.getElementById('archive-view');
+      const viewLiveBtn = document.getElementById('view-live-btn');
+      const viewArchiveBtn = document.getElementById('view-archive-btn');
+      const liveTimeContainer = document.getElementById('live-time-container');
+      const statusContainer = document.getElementById('status-container');
+      
+      if (view === 'live') {
+        liveView.classList.remove('hidden');
+        archiveView.classList.add('hidden');
+        liveTimeContainer.classList.remove('hidden');
+        statusContainer.classList.remove('hidden');
+        
+        viewLiveBtn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+        viewLiveBtn.classList.remove('text-slate-400');
+        viewArchiveBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+        viewArchiveBtn.classList.add('text-slate-400');
+      } else {
+        liveView.classList.add('hidden');
+        archiveView.classList.remove('hidden');
+        liveTimeContainer.classList.add('hidden');
+        statusContainer.classList.add('hidden');
+        
+        viewArchiveBtn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+        viewArchiveBtn.classList.remove('text-slate-400');
+        viewLiveBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+        viewLiveBtn.classList.add('text-slate-400');
+      }
+    }
+    
+    // Archive search function
+    function searchArchive() {
+      const date = document.getElementById('archive-date').value;
+      const startTime = document.getElementById('archive-start-time').value;
+      const endTime = document.getElementById('archive-end-time').value;
+      const camera = document.getElementById('archive-camera').value;
+      
+      if (!date) {
+        alert('Please select a date');
+        return;
+      }
+      
+      // Filter archive data based on criteria
+      let filtered = archiveData.filter(record => {
+        if (record.date !== date) return false;
+        if (camera && record.camera !== camera) return false;
+        
+        if (startTime || endTime) {
+          const recordTime = record.startTime;
+          if (startTime && recordTime < startTime) return false;
+          if (endTime && recordTime > endTime) return false;
+        }
+        
+        return true;
+      });
+      
+      // Display results
+      displayArchiveResults(filtered, date, startTime, endTime, camera);
+    }
+    
+    // Display archive results
+    function displayArchiveResults(results, date, startTime, endTime, camera) {
+      const resultsContainer = document.getElementById('archive-results');
+      const archiveInfo = document.getElementById('archive-info');
+      const archiveInfoText = document.getElementById('archive-info-text');
+      
+      // Show info
+      const dateObj = new Date(date);
+      const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      let infoText = `Found ${results.length} recording(s) on ${formattedDate}`;
+      if (camera) infoText += ` for ${camera}`;
+      if (startTime || endTime) {
+        infoText += ` between ${startTime || '00:00'} and ${endTime || '23:59'}`;
+      }
+      
+      archiveInfoText.textContent = infoText;
+      archiveInfo.classList.remove('hidden');
+      
+      // Build results HTML
+      if (results.length === 0) {
+        resultsContainer.innerHTML = '<div class="text-center py-8 text-slate-400">No recordings found for the selected criteria</div>';
+        return;
+      }
+      
+      // Sort by date and time
+      results.sort((a, b) => b.startTime.localeCompare(a.startTime));
+      
+      resultsContainer.innerHTML = results.map(record => `
+        <div class="card-border rounded-xl p-4 hover:border-emerald-500/50 transition-all cursor-pointer group">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <!-- Recording Info -->
+            <div class="flex-1">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center border border-slate-700 group-hover:border-emerald-500/50 transition-all">
+                  <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-slate-200 group-hover:text-emerald-400 transition-colors">${record.camera} - ${record.location}</h3>
+                  <p class="text-xs text-slate-500">${record.resolution} • ${record.duration} min</p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Recording Details -->
+            <div class="grid grid-cols-3 gap-4 md:gap-8">
+              <div>
+                <p class="text-xs text-slate-500 tracking-wider mb-1">START TIME</p>
+                <p class="font-mono text-sm text-emerald-400 font-semibold">${record.startTime}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500 tracking-wider mb-1">FILE SIZE</p>
+                <p class="font-mono text-sm text-slate-300">${record.fileSize} MB</p>
+              </div>
+              <div>
+                <button onclick="downloadRecording('${record.id}')" class="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-xs tracking-wider transition-all whitespace-nowrap">
+                  ↓ DOWNLOAD
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    // Reset archive filters
+    function resetArchiveFilters() {
+      document.getElementById('archive-date').value = '';
+      document.getElementById('archive-start-time').value = '';
+      document.getElementById('archive-end-time').value = '';
+      document.getElementById('archive-camera').value = '';
+      document.getElementById('archive-info').classList.add('hidden');
+      document.getElementById('archive-results').innerHTML = '<p class="text-slate-400 text-center py-8">Select filters and click SEARCH to view archived recordings</p>';
+    }
+    
+    // Download recording (simulation)
+    function downloadRecording(recordId) {
+      const record = archiveData.find(r => r.id === recordId);
+      if (record) {
+        // Simulate download
+        const message = `Starting download: ${record.camera} - ${record.location}\nFile: ${record.fileSize}MB\nDuration: ${record.duration} minutes`;
+        showSuccess(message);
+      }
+    }
+    
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange: async (newConfig) => {
+          config = { ...defaultConfig, ...newConfig };
+          
+          // Update auth screen
+          const systemTitle = document.getElementById('system-title');
+          const welcomeText = document.getElementById('welcome-text');
+          const dashboardTitle = document.getElementById('dashboard-title');
+          
+          if (systemTitle) systemTitle.textContent = config.system_title;
+          if (welcomeText) welcomeText.textContent = config.welcome_message;
+          if (dashboardTitle) dashboardTitle.textContent = config.system_title;
+        },
+        mapToCapabilities: (config) => ({
+          recolorables: [],
+          borderables: [],
+          fontEditable: undefined,
+          fontSizeable: undefined
+        }),
+        mapToEditPanelValues: (config) => new Map([
+          ['system_title', config.system_title || defaultConfig.system_title],
+          ['welcome_message', config.welcome_message || defaultConfig.welcome_message]
+        ])
+      });
+    }
+    
+    // Tab switching
+    function switchTab(tab) {
+      const loginTab = document.getElementById('login-tab');
+      const registerTab = document.getElementById('register-tab');
+      const loginForm = document.getElementById('login-form');
+      const registerForm = document.getElementById('register-form');
+      const authError = document.getElementById('auth-error');
+      const authSuccess = document.getElementById('auth-success');
+      
+      // Hide messages
+      authError.classList.add('hidden');
+      authSuccess.classList.add('hidden');
+      
+      if (tab === 'login') {
+        loginTab.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+        loginTab.classList.remove('text-slate-400');
+        registerTab.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+        registerTab.classList.add('text-slate-400');
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+      } else {
+        registerTab.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+        registerTab.classList.remove('text-slate-400');
+        loginTab.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+        loginTab.classList.add('text-slate-400');
+        registerForm.classList.remove('hidden');
+        loginForm.classList.add('hidden');
+      }
+    }
+    
+    // Show error message
+    function showError(message) {
+      const authError = document.getElementById('auth-error');
+      const authSuccess = document.getElementById('auth-success');
+      authSuccess.classList.add('hidden');
+      authError.textContent = message;
+      authError.classList.remove('hidden');
+    }
+    
+    // Show success message
+    function showSuccess(message) {
+      const authError = document.getElementById('auth-error');
+      const authSuccess = document.getElementById('auth-success');
+      authError.classList.add('hidden');
+      authSuccess.textContent = message;
+      authSuccess.classList.remove('hidden');
+    }
+    
+    // --- CONNECTED TO PYTHON BACKEND ---
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      
+      const usernameInput = document.getElementById('login-username');
+      const passwordInput = document.getElementById('login-password');
+      const btn = document.getElementById('login-btn');
+      
+      const originalText = btn.innerText;
+      btn.innerText = "AUTHENTICATING...";
+      btn.disabled = true;
+
+      try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: usernameInput.value,
+                password: passwordInput.value
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            currentUser = { name: data.username, username: data.username };
+            showDashboard();
+        } else {
+            showError(data.message || 'Login failed.');
+        }
+
+      } catch (error) {
+        console.error('Error:', error);
+        showError('System Error: Unable to connect to server.');
+      } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      
+      const username = document.getElementById('reg-username').value;
+      const email = document.getElementById('reg-email').value;
+      const password = document.getElementById('reg-password').value;
+      const confirm = document.getElementById('reg-confirm').value;
+      const btn = document.getElementById('register-btn');
+
+      if (password !== confirm) {
+        showError('Passwords do not match!');
+        return;
+      }
+
+      const originalText = btn.innerText;
+      btn.innerText = "REGISTERING...";
+      btn.disabled = true;
+
+      try {
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccess('Registration successful! Please login.');
+            document.getElementById('register-form').reset();
+            setTimeout(() => switchTab('login'), 1500);
+        } else {
+            showError(data.message || 'Registration failed.');
+        }
+
+      } catch (error) {
+        console.error('Error:', error);
+        showError('System Error: Unable to connect to server.');
+      } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }
+    }
+    
+    // Show dashboard
+    function showDashboard() {
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('dashboard-screen').classList.remove('hidden');
+      
+      // Update user name
+      if (currentUser) {
+        document.getElementById('user-name').textContent = currentUser.name;
+      }
+      
+      // Initialize global activity logs from all cameras
+      initializeGlobalActivityLogs();
+      populateGlobalActivityLogs();
+      
+      // Start time updates
+      updateTime();
+      setInterval(updateTime, 1000);
+      
+      // Simulate new activity logs every 5 seconds
+      setInterval(simulateNewActivity, 5000);
+    }
+    
+    // Update time display
+    function updateTime() {
+      const now = new Date();
+      document.getElementById('live-time').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+      
+      // Update camera times
+      document.querySelectorAll('.camera-time').forEach(el => {
+        el.textContent = now.toLocaleTimeString('en-US', { hour12: false });
+      });
+    }
+    
+    // Initialize global activity logs with data from all cameras
+    function initializeGlobalActivityLogs() {
+      allActivityLogs = [];
+      
+      Object.keys(cameraDatabase).forEach(camId => {
+        const data = cameraDatabase[camId];
+        const cameraLogs = data.activityLogs.map(log => ({
+          ...log,
+          camera: camId,
+          location: data.location,
+          timestamp: Date.now()
+        }));
+        allActivityLogs = [...allActivityLogs, ...cameraLogs];
+      });
+      
+      // Sort by time (most recent first)
+      allActivityLogs.sort((a, b) => b.time.localeCompare(a.time));
+    }
+    
+    // Populate activity logs display
+    function populateGlobalActivityLogs() {
+      const container = document.getElementById('all-activity-logs');
+      const emptyState = document.getElementById('logs-empty-state-global');
+      
+      // Apply filters
+      const cameraFilter = document.getElementById('activity-camera-filter')?.value || '';
+      const typeFilter = document.getElementById('activity-type-filter')?.value || '';
+      
+      let filteredLogs = allActivityLogs;
+      
+      if (cameraFilter) {
+        filteredLogs = filteredLogs.filter(log => log.camera === cameraFilter);
+      }
+      
+      if (typeFilter) {
+        filteredLogs = filteredLogs.filter(log => log.type === typeFilter);
+      }
+      
+      if (filteredLogs.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      
+      emptyState.classList.add('hidden');
+      container.innerHTML = filteredLogs.map(log => {
+        let iconEmoji = '📍';
+        let bgClass = 'bg-slate-800';
+        let textClass = 'text-slate-300';
+        
+        if (log.type === 'ENTRY') {
+          iconEmoji = '➡️';
+          bgClass = 'bg-emerald-500/10';
+          textClass = 'text-emerald-400';
+        } else if (log.type === 'EXIT') {
+          iconEmoji = '⬅️';
+          bgClass = 'bg-blue-500/10';
+          textClass = 'text-blue-400';
+        } else if (log.type === 'CROWDING') {
+          iconEmoji = '⚠️';
+          bgClass = 'bg-amber-500/10';
+          textClass = 'text-amber-400';
+        } else if (log.type === 'ALERT') {
+          iconEmoji = '🚨';
+          bgClass = 'bg-red-500/10';
+          textClass = 'text-red-400';
+        }
+        
+        return `
+          <div class="${bgClass} border border-slate-700 rounded-lg p-3 hover:border-slate-600 transition-all">
+            <div class="flex items-start gap-2">
+              <span class="text-lg mt-0.5">${iconEmoji}</span>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-mono ${textClass} font-semibold">${log.camera}</p>
+                <p class="text-xs text-slate-400 mt-0.5">${log.location}</p>
+                <p class="text-xs text-slate-500 mt-1">${log.description}</p>
+                <p class="text-xs text-slate-600 mt-1">${log.time}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Filter activity logs
+    function filterActivityLogs() {
+      populateGlobalActivityLogs();
+    }
+    
+    // Toggle activity logs sidebar
+    function toggleActivityLogsSidebar() {
+      const sidebar = document.getElementById('activity-logs-sidebar');
+      const mobileBtn = document.getElementById('toggle-activity-logs-mobile');
+      
+      sidebar.classList.toggle('hidden');
+      
+      if (sidebar.classList.contains('hidden')) {
+        if (mobileBtn) mobileBtn.textContent = '📊 SHOW ACTIVITY LOGS';
+      } else {
+        if (mobileBtn) mobileBtn.textContent = '📊 HIDE ACTIVITY LOGS';
+      }
+    }
+    
+    // Simulate new activity logs
+    function simulateNewActivity() {
+      const cameras = Object.keys(cameraDatabase);
+      const randomCamera = cameras[Math.floor(Math.random() * cameras.length)];
+      const randomType = ['ENTRY', 'EXIT', 'CROWDING', 'NORMAL'][Math.floor(Math.random() * 4)];
+      
+      let description = '';
+      switch(randomType) {
+        case 'ENTRY':
+          description = `${Math.floor(Math.random() * 5) + 1} person entered`;
+          break;
+        case 'EXIT':
+          description = `${Math.floor(Math.random() * 5) + 1} people left`;
+          break;
+        case 'CROWDING':
+          description = 'Crowd density increased';
+          break;
+        case 'NORMAL':
+          description = 'Normal activity';
+          break;
+      }
+      
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+      
+      const newLog = {
+        time: timeStr,
+        type: randomType,
+        description: description,
+        severity: randomType === 'ALERT' ? 'danger' : (randomType === 'CROWDING' ? 'warning' : 'normal'),
+        camera: randomCamera,
+        location: cameraDatabase[randomCamera].location,
+        timestamp: Date.now()
+      };
+      
+      // Add to beginning of array
+      allActivityLogs.unshift(newLog);
+      
+      // Keep only last 50 logs
+      if (allActivityLogs.length > 50) {
+        allActivityLogs.pop();
+      }
+      
+      populateGlobalActivityLogs();
+    }
+    
+    // Forgot Password Functions
+    let codeTimerInterval = null;
+    let codeTimeLeft = 600; // 10 minutes
+    
+    function openForgotPassword(event) {
+      event.preventDefault();
+      document.getElementById('forgot-password-modal').classList.remove('hidden');
+      resetForgotPasswordForm();
+    }
+    
+    function closeForgotPassword() {
+      document.getElementById('forgot-password-modal').classList.add('hidden');
+      resetForgotPasswordForm();
+    }
+    
+    function resetForgotPasswordForm() {
+      document.getElementById('forgot-email').value = '';
+      document.getElementById('forgot-code').value = '';
+      document.getElementById('forgot-new-password').value = '';
+      document.getElementById('forgot-confirm-password').value = '';
+      document.getElementById('forgot-error').classList.add('hidden');
+      
+      // Show step 1
+      showForgotStep(1);
+      
+      // Clear timer
+      if (codeTimerInterval) clearInterval(codeTimerInterval);
+    }
+    
+    function showForgotStep(step) {
+      document.getElementById('forgot-step-1').classList.add('hidden');
+      document.getElementById('forgot-step-2').classList.add('hidden');
+      document.getElementById('forgot-step-3').classList.add('hidden');
+      document.getElementById('forgot-step-success').classList.add('hidden');
+      
+      const stepElement = document.getElementById(`forgot-step-${step}`);
+      if (stepElement) {
+        stepElement.classList.remove('hidden');
+      }
+    }
+    
+    function showForgotError(message) {
+      const errorEl = document.getElementById('forgot-error');
+      errorEl.textContent = message;
+      errorEl.classList.remove('hidden');
+    }
+    
+    function sendResetEmail() {
+      const email = document.getElementById('forgot-email').value;
+      document.getElementById('forgot-error').classList.add('hidden');
+      
+      if (!email) {
+        showForgotError('Please enter your email address');
+        return;
+      }
+      
+      // Simulate sending email
+      showForgotStep(2);
+      startCodeTimer();
+    }
+    
+    function startCodeTimer() {
+      codeTimeLeft = 600; // 10 minutes
+      updateCodeTimer();
+      
+      if (codeTimerInterval) clearInterval(codeTimerInterval);
+      codeTimerInterval = setInterval(updateCodeTimer, 1000);
+    }
+    
+    function updateCodeTimer() {
+      const minutes = Math.floor(codeTimeLeft / 60);
+      const seconds = codeTimeLeft % 60;
+      document.getElementById('code-timer').textContent = 
+        `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      
+      codeTimeLeft--;
+      
+      if (codeTimeLeft < 0) {
+        clearInterval(codeTimerInterval);
+        showForgotError('Verification code has expired. Please request a new one.');
+        showForgotStep(1);
+      }
+    }
+    
+    function verifyResetCode() {
+      const code = document.getElementById('forgot-code').value;
+      document.getElementById('forgot-error').classList.add('hidden');
+      
+      if (!code || code.length !== 6) {
+        showForgotError('Please enter a valid 6-digit code');
+        return;
+      }
+      
+      // Simulate code verification (in real app, validate against backend)
+      if (code === '123456' || code === '000000') {
+        showForgotStep(3);
+        setupPasswordStrengthCheck();
+      } else {
+        showForgotError('Invalid verification code. Please try again.');
+      }
+    }
+    
+    function resendCode() {
+      document.getElementById('forgot-code').value = '';
+      document.getElementById('forgot-error').classList.add('hidden');
+      startCodeTimer();
+      showForgotError('A new verification code has been sent to your email.').classList.add('bg-emerald-500/10', 'border-emerald-500/50', 'text-emerald-400');
+      setTimeout(() => {
+        document.getElementById('forgot-error').classList.add('hidden');
+      }, 3000);
+    }
+    
+    function setupPasswordStrengthCheck() {
+      const newPassInput = document.getElementById('forgot-new-password');
+      const confirmPassInput = document.getElementById('forgot-confirm-password');
+      
+      newPassInput.addEventListener('input', checkPasswordStrength);
+      confirmPassInput.addEventListener('input', checkPasswordStrength);
+    }
+    
+    function checkPasswordStrength() {
+      const password = document.getElementById('forgot-new-password').value;
+      const confirm = document.getElementById('forgot-confirm-password').value;
+      
+      let strength = 0;
+      
+      // Length check
+      if (password.length >= 8) strength++;
+      // Uppercase check
+      if (/[A-Z]/.test(password)) strength++;
+      // Number/special char check
+      if (/[0-9!@#$%^&*]/.test(password)) strength++;
+      
+      // Update visual indicators
+      const bars = document.querySelectorAll('[id^="strength-bar-"]');
+      bars.forEach((bar, index) => {
+        if (index < strength) {
+          bar.classList.remove('bg-slate-700');
+          if (strength === 1) bar.classList.add('bg-red-500');
+          if (strength === 2) bar.classList.add('bg-amber-500');
+          if (strength === 3) bar.classList.add('bg-emerald-500');
+        } else {
+          bar.classList.add('bg-slate-700');
+          bar.classList.remove('bg-red-500', 'bg-amber-500', 'bg-emerald-500');
+        }
+      });
+      
+      // Update strength text
+      const strengthText = document.getElementById('strength-text');
+      if (strength === 0) strengthText.textContent = 'Type to see strength';
+      if (strength === 1) strengthText.textContent = 'Weak - add more characters';
+      if (strength === 2) strengthText.textContent = 'Good - add numbers or symbols';
+      if (strength === 3) strengthText.textContent = 'Strong - ready to use';
+    }
+    
+    function resetPassword() {
+      const newPassword = document.getElementById('forgot-new-password').value;
+      const confirmPassword = document.getElementById('forgot-confirm-password').value;
+      document.getElementById('forgot-error').classList.add('hidden');
+      
+      if (!newPassword || !confirmPassword) {
+        showForgotError('Please fill in all fields');
+        return;
+      }
+      
+      if (newPassword !== confirmPassword) {
+        showForgotError('Access codes do not match');
+        return;
+      }
+      
+      if (newPassword.length < 6) {
+        showForgotError('Access code must be at least 6 characters');
+        return;
+      }
+      
+      // Update user password (in real app, this would be sent to backend)
+      if (currentUser) {
+        currentUser.password = newPassword;
+        users[currentUser.email].password = newPassword;
+      }
+      
+      // Show success
+      showForgotStep('success');
+      if (codeTimerInterval) clearInterval(codeTimerInterval);
+    }
+    
+    function backToLogin() {
+      closeForgotPassword();
+    }
+    
+    // Handle logout
+    async function handleLogout() {
+      try {
+        await fetch('/api/logout', { method: 'POST' });
+      } catch (e) { /* ignore */ }
+      currentUser = null;
+      document.getElementById('dashboard-screen').classList.add('hidden');
+      document.getElementById('auth-screen').classList.remove('hidden');
+      document.getElementById('login-form').reset();
+      document.getElementById('auth-error').classList.add('hidden');
+      document.getElementById('auth-success').classList.add('hidden');
+    }
+    
+    // Mock camera data for maximize view
+    const cameraDatabase = {
+      'CAM-01': {
+        name: 'CAM-01',
+        location: 'Main Entrance',
+        resolution: '1080p',
+        densityData: generateDensityTimeline(),
+        activityLogs: generateActivityLogs()
+      },
+      'CAM-02': {
+        name: 'CAM-02',
+        location: 'Parking Lot A',
+        resolution: '1080p',
+        densityData: generateDensityTimeline(),
+        activityLogs: generateActivityLogs()
+      },
+      'CAM-03': {
+        name: 'CAM-03',
+        location: 'Server Room',
+        resolution: '4K',
+        densityData: generateDensityTimeline(),
+        activityLogs: generateActivityLogs()
+      },
+      'CAM-04': {
+        name: 'CAM-04',
+        location: 'Back Gate',
+        resolution: '1080p',
+        densityData: generateDensityTimeline(),
+        activityLogs: generateActivityLogs()
+      },
+      'CAM-05': {
+        name: 'CAM-05',
+        location: 'Lobby Area',
+        resolution: '1080p',
+        densityData: generateDensityTimeline(),
+        activityLogs: generateActivityLogs()
+      },
+      'CAM-06': {
+        name: 'CAM-06',
+        location: 'Control Room',
+        resolution: '4K',
+        densityData: generateDensityTimeline(),
+        activityLogs: generateActivityLogs()
+      }
+    };
+    
+    // Generate density timeline data (4 hours of data in 10-minute intervals)
+    function generateDensityTimeline() {
+      const data = [];
+      for (let i = 0; i < 24; i++) {
+        const density = Math.floor(Math.random() * 100);
+        const time = new Date();
+        time.setHours(time.getHours() - (24 - i) / 6);
+        
+        data.push({
+          time: time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          density: density,
+          peopleCount: Math.floor(density * 0.5)
+        });
+      }
+      return data;
+    }
+    
+    // Generate activity logs
+    function generateActivityLogs() {
+      const activities = [
+        { time: '14:32', type: 'ENTRY', description: '3 people entered', severity: 'normal' },
+        { time: '14:28', type: 'CROWDING', description: 'High density detected', severity: 'warning' },
+        { time: '14:15', type: 'EXIT', description: '5 people left', severity: 'normal' },
+        { time: '14:02', type: 'ALERT', description: 'Crowd clustering detected', severity: 'danger' },
+        { time: '13:45', type: 'ENTRY', description: '2 people entered', severity: 'normal' },
+        { time: '13:30', type: 'CROWDING', description: 'Medium density detected', severity: 'warning' },
+        { time: '13:10', type: 'NORMAL', description: 'Low activity', severity: 'normal' },
+        { time: '12:55', type: 'EXIT', description: '8 people left', severity: 'normal' }
+      ];
+      return activities;
+    }
+    
+    // Maximize camera function
+    function maximizeCamera(camId, location, resolution) {
+      const modal = document.getElementById('camera-maximize-modal');
+      const data = cameraDatabase[camId];
+      
+      if (!data) return;
+      
+      // Update header info
+      document.getElementById('max-camera-name').textContent = camId;
+      document.getElementById('max-camera-location').textContent = location;
+      document.getElementById('max-camera-resolution').textContent = resolution;
+      document.getElementById('max-camera-time').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+      
+      // Update stats
+      const currentDensity = data.densityData[data.densityData.length - 1].density;
+      const currentPeople = data.densityData[data.densityData.length - 1].peopleCount;
+      document.getElementById('max-people-count').textContent = currentPeople;
+      
+      // Determine density level
+      let densityLevel = 'Low';
+      let densityColor = 'text-emerald-400';
+      if (currentDensity > 66) {
+        densityLevel = 'High';
+        densityColor = 'text-red-400';
+      } else if (currentDensity > 33) {
+        densityLevel = 'Medium';
+        densityColor = 'text-amber-400';
+      }
+      
+      const densityEl = document.getElementById('max-density-level');
+      densityEl.textContent = densityLevel;
+      densityEl.className = `text-sm font-semibold ${densityColor}`;
+      
+      // Count alerts
+      const alertsCount = data.activityLogs.filter(log => log.severity === 'danger').length;
+      document.getElementById('max-alerts-count').textContent = alertsCount;
+      
+      // Populate density timeline
+      populateDensityTimeline(data.densityData);
+      
+      // Populate activity logs
+      populateActivityLogs(data.activityLogs);
+      
+      // Update statistics
+      const peakDensity = Math.max(...data.densityData.map(d => d.density));
+      const avgPeople = Math.round(data.densityData.reduce((sum, d) => sum + d.peopleCount, 0) / data.densityData.length);
+      const highDensityCount = data.densityData.filter(d => d.density > 66).length;
+      const highDurationMinutes = highDensityCount * 10; // Each interval is ~10 minutes
+      
+      document.getElementById('max-peak-density').textContent = peakDensity + '%';
+      document.getElementById('max-avg-people').textContent = avgPeople;
+      document.getElementById('max-high-duration').textContent = highDurationMinutes + ' min';
+      
+      // Draw camera SVG
+      drawCameraSVG(camId);
+      
+      // Show modal
+      modal.classList.remove('hidden');
+    }
+    
+    // Draw camera SVG representation
+    function drawCameraSVG(camId) {
+      const container = document.getElementById('max-camera-svg');
+      
+      const svgMap = {
+        'CAM-01': `<svg class="w-32 h-24 text-slate-700 mx-auto" viewBox="0 0 100 60"><rect x="10" y="40" width="15" height="20" rx="1" fill="currentColor"/><rect x="30" y="30" width="18" height="30" rx="1" fill="currentColor"/><rect x="53" y="25" width="12" height="35" rx="1" fill="currentColor"/><rect x="70" y="35" width="20" height="25" rx="1" fill="currentColor"/><circle cx="75" cy="15" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+        'CAM-02': `<svg class="w-40 h-24 text-slate-700 mx-auto" viewBox="0 0 120 60"><rect x="5" y="50" width="110" height="10" fill="currentColor" rx="1"/><rect x="20" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><rect x="70" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><line x1="35" y1="10" x2="35" y2="20" stroke="currentColor" stroke-width="2"/><line x1="85" y1="10" x2="85" y2="20" stroke="currentColor" stroke-width="2"/></svg>`,
+        'CAM-03': `<svg class="w-32 h-24 text-slate-700 mx-auto" viewBox="0 0 100 60"><rect x="10" y="10" width="80" height="40" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><line x1="10" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="1"/><rect x="20" y="35" width="15" height="10" fill="currentColor" rx="1"/><rect x="42" y="35" width="15" height="10" fill="currentColor" rx="1"/><rect x="65" y="35" width="15" height="10" fill="currentColor" rx="1"/></svg>`,
+        'CAM-04': `<svg class="w-32 h-24 text-slate-700 mx-auto" viewBox="0 0 100 60"><path d="M10 50 L50 20 L90 50" fill="none" stroke="currentColor" stroke-width="2"/><rect x="35" y="30" width="30" height="20" fill="currentColor" rx="1"/><rect x="42" y="35" width="6" height="10" fill="#1e293b"/><rect x="52" y="35" width="6" height="10" fill="#1e293b"/><rect x="15" y="35" width="12" height="15" fill="currentColor" rx="1"/><rect x="73" y="35" width="12" height="15" fill="currentColor" rx="1"/></svg>`,
+        'CAM-05': `<svg class="w-32 h-24 text-slate-700 mx-auto" viewBox="0 0 100 60"><rect x="5" y="45" width="90" height="10" fill="currentColor" rx="1"/><rect x="15" y="15" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="1"/><rect x="40" y="15" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="1"/><rect x="65" y="15" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="1"/><line x1="25" y1="25" x2="25" y2="35" stroke="currentColor" stroke-width="2"/><line x1="50" y1="25" x2="50" y2="35" stroke="currentColor" stroke-width="2"/><line x1="75" y1="25" x2="75" y2="35" stroke="currentColor" stroke-width="2"/></svg>`,
+        'CAM-06': `<svg class="w-32 h-24 text-slate-700 mx-auto" viewBox="0 0 100 60"><rect x="20" y="10" width="60" height="35" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><rect x="25" y="15" width="20" height="12" fill="currentColor" rx="1"/><rect x="55" y="15" width="20" height="12" fill="currentColor" rx="1"/><rect x="25" y="30" width="50" height="10" fill="currentColor" rx="1"/><rect x="35" y="45" width="30" height="8" fill="currentColor" rx="1"/></svg>`
+      };
+      
+      container.innerHTML = svgMap[camId] || '';
+    }
+    
+    // Populate density timeline
+    function populateDensityTimeline(densityData) {
+      const timeline = document.getElementById('density-timeline');
+      timeline.innerHTML = '';
+      
+      densityData.forEach((data, index) => {
+        const bar = document.createElement('div');
+        bar.className = 'flex-1 rounded-t-sm cursor-pointer group relative';
+        
+        // Determine color based on density
+        let bgColor = 'bg-emerald-500';
+        if (data.density > 66) {
+          bgColor = 'bg-red-500';
+        } else if (data.density > 33) {
+          bgColor = 'bg-amber-500';
+        }
+        
+        bar.className += ` ${bgColor} transition-all hover:opacity-80`;
+        bar.style.height = `${(data.density / 100) * 100}%`;
+        bar.style.minHeight = '4px';
+        
+        // Tooltip
+        const tooltip = document.createElement('div');
+        tooltip.className = 'absolute -top-8 left-0 right-0 bg-slate-800 text-slate-100 text-xs p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10';
+        tooltip.textContent = `${data.time} - ${data.density}% (${data.peopleCount} people)`;
+        bar.appendChild(tooltip);
+        
+        timeline.appendChild(bar);
+      });
+    }
+    
+    // Populate activity logs
+    function populateActivityLogs(logs) {
+      const logsContainer = document.getElementById('camera-activity-logs');
+      const emptyState = document.getElementById('logs-empty-state');
+      
+      if (logs.length === 0) {
+        logsContainer.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      
+      emptyState.classList.add('hidden');
+      logsContainer.innerHTML = logs.map(log => {
+        let iconEmoji = '📍';
+        let bgClass = 'bg-slate-800';
+        let textClass = 'text-slate-300';
+        
+        if (log.type === 'ENTRY') {
+          iconEmoji = '➡️';
+          bgClass = 'bg-emerald-500/10';
+          textClass = 'text-emerald-400';
+        } else if (log.type === 'EXIT') {
+          iconEmoji = '⬅️';
+          bgClass = 'bg-blue-500/10';
+          textClass = 'text-blue-400';
+        } else if (log.type === 'CROWDING') {
+          iconEmoji = '⚠️';
+          bgClass = 'bg-amber-500/10';
+          textClass = 'text-amber-400';
+        } else if (log.type === 'ALERT') {
+          iconEmoji = '🚨';
+          bgClass = 'bg-red-500/10';
+          textClass = 'text-red-400';
+        }
+        
+        return `
+          <div class="${bgClass} border border-slate-700 rounded-lg p-3 hover:border-slate-600 transition-all">
+            <div class="flex items-start gap-2">
+              <span class="text-lg mt-0.5">${iconEmoji}</span>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-mono ${textClass} font-semibold">${log.type}</p>
+                <p class="text-xs text-slate-400 mt-1 truncate">${log.description}</p>
+                <p class="text-xs text-slate-500 mt-1">${log.time}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Close maximize camera
+    function closeMaximizeCamera() {
+      document.getElementById('camera-maximize-modal').classList.add('hidden');
+    }
+    
+    // Close modal when clicking outside
+    document.addEventListener('click', function(event) {
+      const modal = document.getElementById('camera-maximize-modal');
+      if (event.target === modal) {
+        closeMaximizeCamera();
+      }
+    });
+    
+  </script>
+  </div>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9c97d7e5d410c7b1',t:'MTc3MDM1MTUwNC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
