@@ -1,4 +1,4 @@
-Flask
-Flask-SQLAlchemy
-psycopg[binary]
-Werkzeug
+Flask>=3.0,<4
+Flask-SQLAlchemy>=3.1,<4
+psycopg[binary]>=3.2,<4
+Werkzeug>=3.0,<4
