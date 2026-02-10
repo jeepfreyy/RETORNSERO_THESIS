@@ -7,9 +7,15 @@ app = Flask(__name__)
 
 # CONFIGURATION
 # Secret key for session management (Keep this secret in production!)
-app.secret_key = 'barangay_sentinel_secure_key' 
-# Database configuration (SQLite)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sentinel_users.db'
+app.secret_key = os.environ.get('SECRET_KEY', 'barangay_sentinel_secure_key')
+
+# Database configuration
+# Use PostgreSQL if DATABASE_URL is set; otherwise fall back to SQLite for local dev.
+# Example (Postgres): postgresql+psycopg://user:password@localhost:5432/sentinel_db
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    'DATABASE_URL',
+    'sqlite:///sentinel_users.db'
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
