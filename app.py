@@ -5,6 +5,7 @@ import os
 
 app = Flask(__name__)
 
+#push postgress
 # CONFIGURATION
 # Secret key for session management (Keep this secret in production!)
 app.secret_key = os.environ.get('SECRET_KEY', 'barangay_sentinel_secure_key')
