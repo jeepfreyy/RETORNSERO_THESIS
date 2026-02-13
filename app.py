@@ -1,15 +1,48 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, Response
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
+import threading
+import time
 
 app = Flask(__name__)
 
+# Vision engine: CAM-01 stream (video_feed + api/stats)
+_vision_started = False
+
+
+def _ensure_vision_started():
+    """
+    Lazily start the CAM-01 vision engine loop in a background thread.
+    """
+    global _vision_started
+    if not _vision_started:
+        _vision_started = True
+        try:
+            from vision_engine import _cam1_update_loop
+
+            t = threading.Thread(
+                target=_cam1_update_loop,
+                args=("video1.mp4",),
+                daemon=True,
+            )
+            t.start()
+        except Exception:
+            # If something goes wrong, allow retry on next request
+            _vision_started = False
+
+#push postgress
 # CONFIGURATION
 # Secret key for session management (Keep this secret in production!)
-app.secret_key = 'barangay_sentinel_secure_key' 
-# Database configuration (SQLite)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sentinel_users.db'
+app.secret_key = os.environ.get('SECRET_KEY', 'barangay_sentinel_secure_key')
+
+# Database configuration
+# Use PostgreSQL if DATABASE_URL is set; otherwise fall back to SQLite for local dev.
+# Example (Postgres): postgresql+psycopg://user:password@localhost:5432/sentinel_db
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    'DATABASE_URL',
+    'sqlite:///sentinel_users.db'
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -79,6 +112,70 @@ def login():
 def logout():
     session.clear()
     return jsonify({'success': True})
+
+
+@app.route('/video_feed')
+def video_feed():
+    """
+    MJPEG stream for CAM-01, backed by vision_engine._cam1_latest_jpeg.
+    """
+    _ensure_vision_started()
+
+    def generate():
+        from vision_engine import _cam1_latest_jpeg
+
+        while True:
+            if _cam1_latest_jpeg is None:
+                time.sleep(0.05)
+                continue
+            yield (
+                b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
+                + _cam1_latest_jpeg
+                + b"\r\n"
+            )
+            time.sleep(0.033)
+
+    return Response(
+        generate(),
+        mimetype="multipart/x-mixed-replace; boundary=frame",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.route('/cam1_frame')
+def cam1_frame():
+    """
+    Single JPEG frame for CAM-01. This is useful in environments where
+    multipart/x-mixed-replace streams are not handled correctly; the
+    frontend can poll this endpoint to simulate video.
+    """
+    _ensure_vision_started()
+    try:
+        from vision_engine import _cam1_latest_jpeg
+    except Exception:
+        return Response(status=503)
+
+    if _cam1_latest_jpeg is None:
+        return Response(status=204)
+
+    return Response(
+        _cam1_latest_jpeg,
+        mimetype="image/jpeg",
+        headers={"Cache-Control": "no-store"},
+    )
+
+@app.route('/api/stats')
+def api_stats():
+    """
+    JSON stats for CAM-01 (people count, density, status).
+    """
+    _ensure_vision_started()
+    try:
+        from vision_engine import _cam1_latest_stats
+
+        return jsonify(_cam1_latest_stats)
+    except Exception:
+        return jsonify({"count": 0, "density": 0, "status": "SAFE", "locations": []})
 
 if __name__ == '__main__':
     # Create database tables if they don't exist
