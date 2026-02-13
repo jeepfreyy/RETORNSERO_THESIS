@@ -542,13 +542,17 @@
         </div>
        </div><!-- Camera Grid -->
        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        <!-- Camera 1 -->
-        <div class="card-border rounded-xl overflow-hidden group">
+        <!-- Camera 1 (vision_engine.py live stream) -->
+        <div class="card-border rounded-xl overflow-hidden group" id="cam01-card">
          <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
-          <div class="absolute inset-0 flex items-center justify-center">
-           <svg class="w-24 h-24 text-slate-700" viewbox="0 0 100 60" fill="currentColor">
-            <rect x="10" y="40" width="15" height="20" rx="1" /> <rect x="30" y="30" width="18" height="30" rx="1" /> <rect x="53" y="25" width="12" height="35" rx="1" /> <rect x="70" y="35" width="20" height="25" rx="1" /> <circle cx="75" cy="15" r="8" fill="none" stroke="currentColor" stroke-width="2" />
-           </svg>
+          <div class="absolute inset-0 flex items-center justify-center bg-slate-900/80">
+           <!-- NOTE: src will be periodically refreshed via JS from /cam1_frame -->
+           <img id="cam01-video" src="/cam1_frame" alt="CAM-01 Live" class="w-full h-full object-contain" />
+          </div>
+          <div id="cam01-stats-overlay" class="absolute top-12 left-3 right-3 flex items-center gap-2 flex-wrap text-xs font-mono">
+           <span class="bg-slate-900/80 px-2 py-1 rounded text-amber-300">People: <strong id="cam01-count">0</strong></span>
+           <span class="bg-slate-900/80 px-2 py-1 rounded text-slate-300">Density: <strong id="cam01-density">0</strong>%</span>
+           <span class="bg-slate-900/80 px-2 py-1 rounded" id="cam01-status-wrap"><strong id="cam01-status">SAFE</strong></span>
           </div>
           <div class="absolute top-3 left-3 flex items-center gap-2">
            <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
@@ -557,7 +561,7 @@
            <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
           </div>
           <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-           <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-01</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time">--:--:--</span>
+           <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-01</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time" id="cam01-time">--:--:--</span>
           </div>
          </div>
          <div class="p-3 flex items-center justify-between">
@@ -1174,6 +1178,48 @@
       updateTime();
       setInterval(updateTime, 1000);
       setInterval(simulateNewActivity, 5000);
+      setInterval(updateCam01Stats, 500);
+      updateCam01Stats();
+      startCam01FrameUpdates();
+    }
+
+    // Periodically refresh CAM-01 frame so it appears as smooth video
+    function startCam01FrameUpdates() {
+      // Avoid creating multiple timers
+      if (window._cam01FrameInterval) return;
+      const update = () => {
+        const ts = Date.now();
+        const mainImg = document.getElementById('cam01-video');
+        if (mainImg) {
+          mainImg.src = '/cam1_frame?t=' + ts;
+        }
+        const maxImg = document.getElementById('max-cam01-video');
+        if (maxImg) {
+          maxImg.src = '/cam1_frame?t=' + ts;
+        }
+      };
+      // Initial kick
+      update();
+      // ~8 FPS; adjust if needed
+      window._cam01FrameInterval = setInterval(update, 125);
+    }
+
+    function updateCam01Stats() {
+      fetch('/api/stats').then(r => r.json()).then(data => {
+        const countEl = document.getElementById('cam01-count');
+        const densityEl = document.getElementById('cam01-density');
+        const statusEl = document.getElementById('cam01-status');
+        const statusWrap = document.getElementById('cam01-status-wrap');
+        if (!countEl || !densityEl || !statusEl) return;
+        countEl.textContent = data.count != null ? data.count : 0;
+        densityEl.textContent = data.density != null ? data.density : 0;
+        const status = (data.status || 'SAFE').toUpperCase();
+        statusEl.textContent = status;
+        statusWrap.className = 'bg-slate-900/80 px-2 py-1 rounded ';
+        if (status === 'CRITICAL') statusWrap.classList.add('text-red-400');
+        else if (status === 'WARNING') statusWrap.classList.add('text-amber-400');
+        else statusWrap.classList.add('text-emerald-400');
+      }).catch(() => {});
     }
     
     function updateTime() {
@@ -1667,7 +1713,11 @@
     
     function drawCameraSVG(camId) {
       const container = document.getElementById('max-camera-svg');
-      
+      if (camId === 'CAM-01') {
+        // This image is also driven by startCam01FrameUpdates()
+        container.innerHTML = '<img id="max-cam01-video" src="/cam1_frame" alt="CAM-01 Live" class="w-full h-full object-contain" />';
+        return;
+      }
       const svgMap = {
         'CAM-01': `<svg class="w-32 h-24 text-slate-700 mx-auto" viewBox="0 0 100 60"><rect x="10" y="40" width="15" height="20" rx="1" fill="currentColor"/><rect x="30" y="30" width="18" height="30" rx="1" fill="currentColor"/><rect x="53" y="25" width="12" height="35" rx="1" fill="currentColor"/><rect x="70" y="35" width="20" height="25" rx="1" fill="currentColor"/><circle cx="75" cy="15" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
         'CAM-02': `<svg class="w-40 h-24 text-slate-700 mx-auto" viewBox="0 0 120 60"><rect x="5" y="50" width="110" height="10" fill="currentColor" rx="1"/><rect x="20" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><rect x="70" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><line x1="35" y1="10" x2="35" y2="20" stroke="currentColor" stroke-width="2"/><line x1="85" y1="10" x2="85" y2="20" stroke="currentColor" stroke-width="2"/></svg>`,
