@@ -73,12 +73,35 @@ class RobustSentinelTracker:
         self.tracks[self.next_id] = {'box': box, 'ghost': 0}
         self.next_id += 1
 
+def count_people_in_box(roi, box_width):
+    avg_person_width = 50 
+    max_possible_people = max(1, int(box_width / avg_person_width))
+    
+    if roi is None or roi.size == 0:
+        return 0
+    
+    kernel = np.ones((3,3), np.uint8)
+    eroded = cv2.erode(roi, kernel, iterations=1)
+    
+    dist = cv2.distanceTransform(eroded, cv2.DIST_L2, 5)
+    
+    _, sure_fg = cv2.threshold(dist, 0.4 * dist.max(), 255, 0)
+    
+    sure_fg = np.uint8(sure_fg)
+    
+    contours, _ = cv2.findContours(sure_fg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    valid_blobs = 0
+    for c in contours:
+        if cv2.contourArea(c) > 50: 
+            valid_blobs += 1
+            
+    final_count = min(valid_blobs, max_possible_people)
+    return max(1, final_count)
 
 class SentinelStream:
     """
     Thread-safe class that reads an RTSP stream (or video file),
-    applies MOG2 and Watershed segmentation, tracks objects natively, 
-    and exposes the latest JPEG/stats frame.
+    applies MOG2, extracts coarse tracking blobs, and measures density.
     """
     def __init__(self, stream_id, source="video1.mp4", mask_path="mask_layer.png"):
         self.stream_id = stream_id
@@ -93,8 +116,9 @@ class SentinelStream:
             "locations": []
         }
         
-        # 1. Initialize MOG2
-        self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=16, detectShadows=True)
+        # Initialize MOG2
+        # varThreshold=50 works better against minor changes, detectShadows=True handles dark marks
+        self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50, detectShadows=True)
         
         # Set Zones (Will be moved to database/configuration later)
         self.z7_x1, self.z7_y1, self.z7_x2, self.z7_y2 = 240, 290, 325, 625
@@ -106,10 +130,7 @@ class SentinelStream:
         
     def _process_loop(self):
         tracker = RobustSentinelTracker()
-        
-        # Watershed logic kernels
-        kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        kernel_bg = np.ones((7, 7), np.uint8)
+        fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 85))
 
         while self.running:
             cap = cv2.VideoCapture(self.source)
@@ -118,7 +139,6 @@ class SentinelStream:
                 time.sleep(2.0)
                 continue
                 
-            # Attempt to read mask
             ret, first_frame = cap.read()
             if not ret:
                 cap.release()
@@ -129,7 +149,6 @@ class SentinelStream:
             
             roi_mask = cv2.imread(self.mask_path, 0)
             if roi_mask is None or roi_mask.shape[:2] != (frame_height, frame_width):
-                # Fallback to pure white mask if not found
                 roi_mask = np.ones((frame_height, frame_width), dtype=np.uint8) * 255
                 
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -137,63 +156,25 @@ class SentinelStream:
             while self.running:
                 ret, frame = cap.read()
                 if not ret:
-                    # Video ended or stream disconnected
                     break
                     
-                # ### PHASE 1: MOG2 & Shadow Removal ###
+                # 1. Processing (MOG2 replaces static absdiff)
                 fg_mask = self.bg_subtractor.apply(frame)
-                # Strict thresholding removes shadows (gray pixels)
+                # Filter out shadows (value 127) to maintain sharp people blobs
                 _, thresh = cv2.threshold(fg_mask, 254, 255, cv2.THRESH_BINARY)
-                
                 thresh = cv2.bitwise_and(thresh, thresh, mask=roi_mask)
                 
-                # ### PHASE 2: True Marker-Based Watershed Algorithm ###
+                # 2. Fusion (Restore original solid mega-blobs)
+                fused = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, fusion_k)
+                fused = cv2.dilate(fused, np.ones((5,5), np.uint8), iterations=1)
                 
-                # 1. Noise Removal
-                opened = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel_open, iterations=1)
-                closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel_open, iterations=2)
-                
-                # 2. Sure Background (dilate the blobs)
-                sure_bg = cv2.dilate(closed, kernel_bg, iterations=3)
-                
-                # 3. Sure Foreground (Distance transform peaks)
-                dist_transform = cv2.distanceTransform(closed, cv2.DIST_L2, 5)
-                # Threshold at 40% of max - optimal classical separation point for crowds
-                max_val = dist_transform.max()
-                if max_val > 0:
-                    _, sure_fg = cv2.threshold(dist_transform, 0.4 * max_val, 255, 0)
-                else:
-                    sure_fg = np.zeros_like(dist_transform)
-                sure_fg = np.uint8(sure_fg)
-                
-                # 4. Unknown Region
-                unknown = cv2.subtract(sure_bg, sure_fg)
-                
-                # 5. Marker Generation
-                ret_markers, markers = cv2.connectedComponents(sure_fg)
-                # Background should not be 0, we set it to 1
-                markers = markers + 1
-                # Mark the unknown region with 0
-                markers[unknown == 255] = 0
-                
-                # 6. Apply Watershed
-                cv2.watershed(frame, markers)
-                
-                # ### PHASE 3: Detection & Tracking ###
+                # 3. Detection
+                conts, _ = cv2.findContours(fused, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 detections = []
-                # Loop through all detected unique markers (ignoring background=1)
-                for label in range(2, ret_markers + 1):
-                    # Isolate the specific object segmented by watershed
-                    obj_mask = np.zeros_like(markers, dtype=np.uint8)
-                    obj_mask[markers == label] = 255
-                    
-                    conts, _ = cv2.findContours(obj_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                    if conts:
-                        c = max(conts, key=cv2.contourArea)
-                        if cv2.contourArea(c) > 100:  # Minimum acceptable size for a person
-                            x, y, w_box, h_box = cv2.boundingRect(c)
-                            detections.append([x, y, w_box, h_box])
-                            
+                for c in conts:
+                    if cv2.contourArea(c) > 1500:
+                        detections.append(list(cv2.boundingRect(c)))
+                        
                 tracks = tracker.update(detections)
                 
                 # Reset counts
@@ -204,20 +185,32 @@ class SentinelStream:
                 cv2.rectangle(frame, (self.z7_x1, self.z7_y1), (self.z7_x2, self.z7_y2), (0, 255, 0), 2)
                 cv2.rectangle(frame, (self.z6_x1, self.z6_y1), (self.z6_x2, self.z6_y2), (0, 255, 0), 2)
                 
-                # Analyze tracks
+                # 4. Analyze Tracks
                 for tid, data in tracks.items():
                     if data['ghost'] == 0:
                         x, y, w_box, h_box = data['box']
                         cx, cy = int(x + w_box/2), int(y + h_box/2)
                         
-                        # Draw bounding box derived from watershed
-                        cv2.rectangle(frame, (x, y), (x+w_box, y+h_box), (0, 255, 255), 2)
-                        cv2.putText(frame, f"ID {tid}", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                        # Extract ROI from RAW thresh containing exactly this object box
+                        roi = thresh[y:y+h_box, x:x+w_box]
                         
+                        # Apply local counting logic inside the stable tracker box
+                        people_in_this_box = count_people_in_box(roi, w_box)
+                        
+                        # Draw Visuals
+                        cv2.rectangle(frame, (x, y), (x+w_box, y+h_box), (0, 255, 255), 2)
+                        
+                        label_text = f"ID {tid}"
+                        if people_in_this_box > 1:
+                            label_text += f" ({people_in_this_box})"
+                            
+                        cv2.putText(frame, label_text, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                        
+                        # Add to Zone Totals
                         if (self.z7_x1 < cx < self.z7_x2) and (self.z7_y1 < cy < self.z7_y2):
-                            count_z7 += 1
+                            count_z7 += people_in_this_box
                         elif (self.z6_x1 < cx < self.z6_x2) and (self.z6_y1 < cy < self.z6_y2):
-                            count_z6 += 1
+                            count_z6 += people_in_this_box
                             
                 # Calculate Status
                 total_count = count_z7 + count_z6
@@ -260,9 +253,8 @@ class SentinelStream:
                 if ok:
                     self.latest_jpeg = buf.tobytes()
                     
-                time.sleep(0.033) # Simulate ~30 FPS if reading from fast file
+                time.sleep(0.033) 
                 
-            # If we break, release and retry
             cap.release()
             print(f"[SentinelStream {self.stream_id}] Stream disconnected. Retrying...")
             time.sleep(2.0)
