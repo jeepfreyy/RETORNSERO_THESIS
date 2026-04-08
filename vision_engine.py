@@ -3,6 +3,7 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import distance
 import time
+import threading
 
 class RobustSentinelTracker:
     def __init__(self, max_ghost=30, dist_thresh=100):
@@ -15,7 +16,6 @@ class RobustSentinelTracker:
         return (int(box[0] + box[2]/2), int(box[1] + box[3]/2))
 
     def update(self, detections):
-        # Standard tracking logic...
         detections = self.merge_nearby_boxes(detections)
         track_ids = list(self.tracks.keys())
         track_centers = [self.get_center(self.tracks[tid]['box']) for tid in track_ids]
@@ -73,242 +73,202 @@ class RobustSentinelTracker:
         self.tracks[self.next_id] = {'box': box, 'ghost': 0}
         self.next_id += 1
 
-# --- NEW: IMPROVED SUB-COUNTING FUNCTION ---
-def count_people_in_box(roi, box_width):
-    # 1. Sanity Check: If box is too small, it's just 1 person
-    # Assuming an average person is at least 40-50 pixels wide
-    avg_person_width = 50 
-    max_possible_people = max(1, int(box_width / avg_person_width))
-    
-    if roi is None or roi.size == 0:
-        return 0
-    
-    # 2. Stronger Noise Removal (Erosion separates connected blobs)
-    kernel = np.ones((3,3), np.uint8)
-    eroded = cv2.erode(roi, kernel, iterations=1)
-    
-    # 3. Distance Transform
-    dist = cv2.distanceTransform(eroded, cv2.DIST_L2, 5)
-    
-    # 4. Strict Thresholding (0.6 instead of 0.4)
-    # Only counts the "thickest" centers (torsos), ignoring arms/legs
-    _, sure_fg = cv2.threshold(dist, 0.6 * dist.max(), 255, 0)
-    
-    sure_fg = np.uint8(sure_fg)
-    
-    # 5. Filter by Area (Ignore tiny specks)
-    contours, _ = cv2.findContours(sure_fg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    valid_blobs = 0
-    for c in contours:
-        if cv2.contourArea(c) > 50: # Minimum area to be a "person core"
-            valid_blobs += 1
-            
-    # Result: The count is the detected blobs, but clamped by physical width limits
-    final_count = min(valid_blobs, max_possible_people)
-    
-    # Fallback: If watershed fails (0 detected), but tracker saw a box, return 1
-    return max(1, final_count)
 
-# --- SHARED STATE FOR FLASK STREAMING ---
-# Latest JPEG frame for CAM-01 (used by /video_feed)
-_cam1_latest_jpeg = None
-
-# Latest stats for CAM-01 (used by /api/stats)
-_cam1_latest_stats = {
-    "count": 0,
-    "density": 0,
-    "status": "SAFE",
-    "locations": []
-}
-
-
-def _cam1_update_loop(video_path='video1.mp4', mask_path='mask_layer.png'):
+class SentinelStream:
     """
-    Long-running loop that reads frames from video_path, runs the robust
-    sentinel pipeline, draws the green and yellow boxes, and updates:
-      - _cam1_latest_jpeg (JPEG-encoded frame)
-      - _cam1_latest_stats (count, density, status)
-
-    This is intended to be run in a background thread from app.py.
+    Thread-safe class that reads an RTSP stream (or video file),
+    applies MOG2 and Watershed segmentation, tracks objects natively, 
+    and exposes the latest JPEG/stats frame.
     """
-    global _cam1_latest_jpeg, _cam1_latest_stats
+    def __init__(self, stream_id, source="video1.mp4", mask_path="mask_layer.png"):
+        self.stream_id = stream_id
+        self.source = source
+        self.mask_path = mask_path
+        
+        self.latest_jpeg = None
+        self.latest_stats = {
+            "count": 0,
+            "density": 0,
+            "status": "SAFE",
+            "locations": []
+        }
+        
+        # 1. Initialize MOG2
+        self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=16, detectShadows=True)
+        
+        # Set Zones (Will be moved to database/configuration later)
+        self.z7_x1, self.z7_y1, self.z7_x2, self.z7_y2 = 240, 290, 325, 625
+        self.z6_x1, self.z6_y1, self.z6_x2, self.z6_y2 = 340, 280, 855, 990
+        
+        self.running = True
+        self.thread = threading.Thread(target=self._process_loop, daemon=True)
+        self.thread.start()
+        
+    def _process_loop(self):
+        tracker = RobustSentinelTracker()
+        
+        # Watershed logic kernels
+        kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        kernel_bg = np.ones((7, 7), np.uint8)
 
-    # Zones (copied from original pipeline)
-    z7_x1, z7_y1, z7_x2, z7_y2 = 240, 290, 325, 625
-    z6_x1, z6_y1, z6_x2, z6_y2 = 340, 280, 855, 990
-
-    # Fusion kernel
-    fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 85))
-
-    tracker = RobustSentinelTracker()
-
-    while True:
-        cap = cv2.VideoCapture(video_path)
-        if not cap.isOpened():
-            print(f"[vision_engine] Error: Cannot open video source '{video_path}'")
-            time.sleep(1.0)
-            continue
-
-        # Use the first frame as the background reference
-        ret, bg = cap.read()
-        if not ret:
-            print(f"[vision_engine] Error: Cannot read first frame from '{video_path}'")
-            cap.release()
-            time.sleep(1.0)
-            continue
-
-        frame_height, frame_width = bg.shape[:2]
-
-        # Load ROI mask; if missing or mismatched, fall back to full-frame mask
-        roi_mask = cv2.imread(mask_path, 0)
-        if roi_mask is None or roi_mask.shape[:2] != (frame_height, frame_width):
-            roi_mask = np.ones((frame_height, frame_width), dtype="uint8") * 255
-
-        bg_gray = cv2.cvtColor(bg, cv2.COLOR_BGR2GRAY)
-
-        # Rewind to the start so we process all frames
-        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-
-        while True:
-            ret, frame = cap.read()
+        while self.running:
+            cap = cv2.VideoCapture(self.source)
+            if not cap.isOpened():
+                print(f"[SentinelStream {self.stream_id}] Error: Cannot open source '{self.source}'")
+                time.sleep(2.0)
+                continue
+                
+            # Attempt to read mask
+            ret, first_frame = cap.read()
             if not ret:
-                # End of video; break inner loop to restart from the beginning
-                break
+                cap.release()
+                time.sleep(2.0)
+                continue
+            
+            frame_height, frame_width = first_frame.shape[:2]
+            
+            roi_mask = cv2.imread(self.mask_path, 0)
+            if roi_mask is None or roi_mask.shape[:2] != (frame_height, frame_width):
+                # Fallback to pure white mask if not found
+                roi_mask = np.ones((frame_height, frame_width), dtype=np.uint8) * 255
+                
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            
+            while self.running:
+                ret, frame = cap.read()
+                if not ret:
+                    # Video ended or stream disconnected
+                    break
+                    
+                # ### PHASE 1: MOG2 & Shadow Removal ###
+                fg_mask = self.bg_subtractor.apply(frame)
+                # Strict thresholding removes shadows (gray pixels)
+                _, thresh = cv2.threshold(fg_mask, 254, 255, cv2.THRESH_BINARY)
+                
+                thresh = cv2.bitwise_and(thresh, thresh, mask=roi_mask)
+                
+                # ### PHASE 2: True Marker-Based Watershed Algorithm ###
+                
+                # 1. Noise Removal
+                opened = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel_open, iterations=1)
+                closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel_open, iterations=2)
+                
+                # 2. Sure Background (dilate the blobs)
+                sure_bg = cv2.dilate(closed, kernel_bg, iterations=3)
+                
+                # 3. Sure Foreground (Distance transform peaks)
+                dist_transform = cv2.distanceTransform(closed, cv2.DIST_L2, 5)
+                # Threshold at 40% of max - optimal classical separation point for crowds
+                max_val = dist_transform.max()
+                if max_val > 0:
+                    _, sure_fg = cv2.threshold(dist_transform, 0.4 * max_val, 255, 0)
+                else:
+                    sure_fg = np.zeros_like(dist_transform)
+                sure_fg = np.uint8(sure_fg)
+                
+                # 4. Unknown Region
+                unknown = cv2.subtract(sure_bg, sure_fg)
+                
+                # 5. Marker Generation
+                ret_markers, markers = cv2.connectedComponents(sure_fg)
+                # Background should not be 0, we set it to 1
+                markers = markers + 1
+                # Mark the unknown region with 0
+                markers[unknown == 255] = 0
+                
+                # 6. Apply Watershed
+                cv2.watershed(frame, markers)
+                
+                # ### PHASE 3: Detection & Tracking ###
+                detections = []
+                # Loop through all detected unique markers (ignoring background=1)
+                for label in range(2, ret_markers + 1):
+                    # Isolate the specific object segmented by watershed
+                    obj_mask = np.zeros_like(markers, dtype=np.uint8)
+                    obj_mask[markers == label] = 255
+                    
+                    conts, _ = cv2.findContours(obj_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    if conts:
+                        c = max(conts, key=cv2.contourArea)
+                        if cv2.contourArea(c) > 100:  # Minimum acceptable size for a person
+                            x, y, w_box, h_box = cv2.boundingRect(c)
+                            detections.append([x, y, w_box, h_box])
+                            
+                tracks = tracker.update(detections)
+                
+                # Reset counts
+                count_z7 = 0
+                count_z6 = 0
+                
+                # Draw Zones
+                cv2.rectangle(frame, (self.z7_x1, self.z7_y1), (self.z7_x2, self.z7_y2), (0, 255, 0), 2)
+                cv2.rectangle(frame, (self.z6_x1, self.z6_y1), (self.z6_x2, self.z6_y2), (0, 255, 0), 2)
+                
+                # Analyze tracks
+                for tid, data in tracks.items():
+                    if data['ghost'] == 0:
+                        x, y, w_box, h_box = data['box']
+                        cx, cy = int(x + w_box/2), int(y + h_box/2)
+                        
+                        # Draw bounding box derived from watershed
+                        cv2.rectangle(frame, (x, y), (x+w_box, y+h_box), (0, 255, 255), 2)
+                        cv2.putText(frame, f"ID {tid}", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                        
+                        if (self.z7_x1 < cx < self.z7_x2) and (self.z7_y1 < cy < self.z7_y2):
+                            count_z7 += 1
+                        elif (self.z6_x1 < cx < self.z6_x2) and (self.z6_y1 < cy < self.z6_y2):
+                            count_z6 += 1
+                            
+                # Calculate Status
+                total_count = count_z7 + count_z6
+                
+                # Render Totals
+                text = f"Count of people: {total_count}"
+                (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)
+                tx = frame_width - tw - 20
+                ty = 50
+                
+                cv2.rectangle(frame, (tx - 10, ty - 30), (tx + tw + 10, ty + 10), (0, 0, 0), -1)
+                cv2.putText(frame, text, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                
+                # Display individual zone counts
+                cv2.putText(frame, f"Z7: {count_z7}", (self.z7_x1, self.z7_y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                cv2.putText(frame, f"Z6: {count_z6}", (self.z6_x1, self.z6_y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-            # 1. Processing
-            frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            diff = cv2.absdiff(bg_gray, frame_gray)
-            _, thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
-            thresh = cv2.bitwise_and(thresh, thresh, mask=roi_mask)
+                # Shared Stats Update
+                area_z7 = (self.z7_x2 - self.z7_x1) * (self.z7_y2 - self.z7_y1)
+                area_z6 = (self.z6_x2 - self.z6_x1) * (self.z6_y2 - self.z6_y1)
+                norm_area = max(1.0, (area_z7 + area_z6) / 10000.0)
+                density = int(min(100, (total_count / norm_area)))
 
-            # 2. Fusion
-            fused = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, fusion_k)
-            fused = cv2.dilate(fused, np.ones((5, 5), np.uint8), iterations=1)
+                if total_count == 0:
+                    status = "SAFE"
+                elif total_count < 10:
+                    status = "WARNING"
+                else:
+                    status = "CRITICAL"
 
-            # 3. Detection
-            conts, _ = cv2.findContours(fused, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            detections = []
-            for c in conts:
-                if cv2.contourArea(c) > 1500:
-                    detections.append(list(cv2.boundingRect(c)))
-
-            tracks = tracker.update(detections)
-
-            # --- RESET COUNTS ---
-            count_z7 = 0
-            count_z6 = 0
-
-            # Draw Zones (green boxes)
-            cv2.rectangle(frame, (z7_x1, z7_y1), (z7_x2, z7_y2), (0, 255, 0), 2)
-            cv2.rectangle(frame, (z6_x1, z6_y1), (z6_x2, z6_y2), (0, 255, 0), 2)
-
-            # 4. ANALYZE TRACKS
-            for tid, data in tracks.items():
-                if data['ghost'] == 0:
-                    x, y, w, h = data['box']
-                    cx, cy = int(x + w / 2), int(y + h / 2)
-
-                    # Extract ROI from RAW thresh
-                    roi = thresh[y:y + h, x:x + w]
-
-                    # --- APPLY NEW COUNTING LOGIC ---
-                    people_in_this_box = count_people_in_box(roi, w)
-
-                    # Draw Visuals (yellow boxes)
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
-
-                    # Label Logic: only show count if > 1 to keep it clean
-                    label_text = f"ID {tid}"
-                    if people_in_this_box > 1:
-                        label_text += f" ({people_in_this_box})"
-
-                    cv2.putText(
-                        frame,
-                        label_text,
-                        (x, y - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6,
-                        (0, 255, 255),
-                        2,
-                    )
-
-                    # Add to Zone Totals
-                    if (z7_x1 < cx < z7_x2) and (z7_y1 < cy < z7_y2):
-                        count_z7 += people_in_this_box
-                    elif (z6_x1 < cx < z6_x2) and (z6_y1 < cy < z6_y2):
-                        count_z6 += people_in_this_box
-
-            # --- DISPLAY TOTALS ON FRAME ---
-            total_count = count_z7 + count_z6
-            text = f"Count of people: {total_count}"
-
-            (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)
-            tx = frame_width - tw - 20
-            ty = 50
-
-            cv2.rectangle(frame, (tx - 10, ty - 30), (tx + tw + 10, ty + 10), (0, 0, 0), -1)
-            cv2.putText(
-                frame,
-                text,
-                (tx, ty),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (255, 255, 255),
-                2,
-            )
-
-            # Display individual zone counts
-            cv2.putText(
-                frame,
-                f"Z7: {count_z7}",
-                (z7_x1, z7_y1 - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (0, 255, 0),
-                2,
-            )
-            cv2.putText(
-                frame,
-                f"Z6: {count_z6}",
-                (z6_x1, z6_y1 - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (0, 255, 0),
-                2,
-            )
-
-            # --- UPDATE SHARED STATS ---
-            # Approximate density as people per normalized area unit of the two zones
-            area_z7 = (z7_x2 - z7_x1) * (z7_y2 - z7_y1)
-            area_z6 = (z6_x2 - z6_x1) * (z6_y2 - z6_y1)
-            norm_area = max(1.0, (area_z7 + area_z6) / 10000.0)
-            density = int(min(100, (total_count / norm_area)))
-
-            if total_count == 0:
-                status = "SAFE"
-            elif total_count < 10:
-                status = "WARNING"
-            else:
-                status = "CRITICAL"
-
-            _cam1_latest_stats = {
-                "count": int(total_count),
-                "density": int(density),
-                "status": status,
-                "locations": [],
-            }
-
-            # --- ENCODE FRAME AS JPEG FOR MJPEG STREAM ---
-            ok, buf = cv2.imencode(".jpg", frame)
-            if ok:
-                _cam1_latest_jpeg = buf.tobytes()
-
-            # Target ~30 FPS
-            time.sleep(0.033)
-
-        cap.release()
-
-
-if __name__ == "__main__":
-    # Optional: run the loop directly for debugging (no Flask)
-    _cam1_update_loop("video1.mp4")
+                self.latest_stats = {
+                    "count": int(total_count),
+                    "density": int(density),
+                    "status": status,
+                    "locations": []
+                }
+                
+                # Encode Buffer
+                ok, buf = cv2.imencode(".jpg", frame)
+                if ok:
+                    self.latest_jpeg = buf.tobytes()
+                    
+                time.sleep(0.033) # Simulate ~30 FPS if reading from fast file
+                
+            # If we break, release and retry
+            cap.release()
+            print(f"[SentinelStream {self.stream_id}] Stream disconnected. Retrying...")
+            time.sleep(2.0)
+            
+    def get_latest_jpeg(self):
+        return self.latest_jpeg
+        
+    def get_latest_stats(self):
+        return self.latest_stats
