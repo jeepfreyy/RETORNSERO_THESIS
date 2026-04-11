@@ -469,7 +469,7 @@
           <label for="archive-end-time" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">END TIME</label> <input type="time" id="archive-end-time" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
          </div><!-- Camera Selection -->
          <div>
-          <label for="archive-camera" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CAMERA</label> <select id="archive-camera" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all"> <option value="">All Cameras</option> <option value="CAM-01">CAM-01 - Main Entrance</option> <option value="CAM-02">CAM-02 - Parking Lot A</option> <option value="CAM-03">CAM-03 - Server Room</option> <option value="CAM-04">CAM-04 - Back Gate</option> <option value="CAM-05">CAM-05 - Lobby Area</option> <option value="CAM-06">CAM-06 - Control Room</option> </select>
+          <label for="archive-camera" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CAMERA</label> <select id="archive-camera" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all"> <option value="">All Cameras</option> <option value="CAM-01">CAM-01 - Main Entrance</option> <option value="CAM-02">CAM-02 - Secondary Entrance</option> </select>
          </div>
         </div><!-- Search Button -->
         <div class="flex gap-3">
@@ -492,7 +492,7 @@
          <div class="flex items-center justify-between">
           <div>
            <p class="text-xs text-slate-500 tracking-wider">CAMERAS ONLINE</p>
-           <p class="text-2xl font-bold text-emerald-400 font-display">6/6</p>
+           <p class="text-2xl font-bold text-emerald-400 font-display">2/2</p>
           </div>
           <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
@@ -541,7 +541,7 @@
          </div>
         </div>
        </div><!-- Camera Grid -->
-       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- Camera 1 (vision_engine.py live stream) -->
         <div class="card-border rounded-xl overflow-hidden group" id="cam01-card">
          <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
@@ -577,12 +577,15 @@
           </div>
          </div>
         </div><!-- Camera 2 -->
-        <div class="card-border rounded-xl overflow-hidden group">
+        <div class="card-border rounded-xl overflow-hidden group" id="cam02-card">
          <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
-          <div class="absolute inset-0 flex items-center justify-center">
-           <svg class="w-32 h-20 text-slate-700" viewbox="0 0 120 60">
-            <rect x="5" y="50" width="110" height="10" fill="currentColor" rx="1" /> <rect x="20" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2" /> <rect x="70" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2" /> <line x1="35" y1="10" x2="35" y2="20" stroke="currentColor" stroke-width="2" /> <line x1="85" y1="10" x2="85" y2="20" stroke="currentColor" stroke-width="2" />
-           </svg>
+          <div class="absolute inset-0 flex items-center justify-center bg-slate-900/80">
+           <img id="cam02-video" src="/cam1_frame" alt="CAM-02 Live" class="w-full h-full object-contain" />
+          </div>
+          <div id="cam02-stats-overlay" class="absolute top-12 left-3 right-3 flex items-center gap-2 flex-wrap text-xs font-mono">
+           <span class="bg-slate-900/80 px-2 py-1 rounded text-amber-300">People: <strong id="cam02-count">0</strong></span>
+           <span class="bg-slate-900/80 px-2 py-1 rounded text-slate-300">Density: <strong id="cam02-density">0</strong>%</span>
+           <span class="bg-slate-900/80 px-2 py-1 rounded" id="cam02-status-wrap"><strong id="cam02-status">SAFE</strong></span>
           </div>
           <div class="absolute top-3 left-3 flex items-center gap-2">
            <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
@@ -591,136 +594,16 @@
            <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
           </div>
           <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-           <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-02</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time">--:--:--</span>
+           <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-02</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time" id="cam02-time">--:--:--</span>
           </div>
          </div>
          <div class="p-3 flex items-center justify-between">
           <div>
-           <p class="text-sm font-semibold text-slate-200">Parking Lot A</p>
-           <p class="text-xs text-slate-500">Exterior • North Side</p>
+           <p class="text-sm font-semibold text-slate-200">Secondary Entrance</p>
+           <p class="text-xs text-slate-500">Building A • Side Access</p>
           </div>
           <div class="flex gap-2">
-           <button onclick="maximizeCamera('CAM-02', 'Parking Lot A', '1080p')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all group" title="Maximize">
-            <svg class="w-4 h-4 text-slate-400 group-hover:text-emerald-400 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6v4m12-4h4v4M6 14v4h4m8-4v4h-4" />
-            </svg></button>
-          </div>
-         </div>
-        </div><!-- Camera 3 -->
-        <div class="card-border rounded-xl overflow-hidden group">
-         <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
-          <div class="absolute inset-0 flex items-center justify-center">
-           <svg class="w-28 h-20 text-slate-700" viewbox="0 0 100 60">
-            <rect x="10" y="10" width="80" height="40" fill="none" stroke="currentColor" stroke-width="2" rx="2" /> <line x1="10" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="1" /> <rect x="20" y="35" width="15" height="10" fill="currentColor" rx="1" /> <rect x="42" y="35" width="15" height="10" fill="currentColor" rx="1" /> <rect x="65" y="35" width="15" height="10" fill="currentColor" rx="1" />
-           </svg>
-          </div>
-          <div class="absolute top-3 left-3 flex items-center gap-2">
-           <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
-          </div>
-          <div class="absolute top-3 right-3">
-           <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">4K</span>
-          </div>
-          <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-           <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-03</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time">--:--:--</span>
-          </div>
-         </div>
-         <div class="p-3 flex items-center justify-between">
-          <div>
-           <p class="text-sm font-semibold text-slate-200">Server Room</p>
-           <p class="text-xs text-slate-500">Building B • Basement</p>
-          </div>
-          <div class="flex gap-2">
-           <button onclick="maximizeCamera('CAM-03', 'Server Room', '4K')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all group" title="Maximize">
-            <svg class="w-4 h-4 text-slate-400 group-hover:text-emerald-400 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6v4m12-4h4v4M6 14v4h4m8-4v4h-4" />
-            </svg></button>
-          </div>
-         </div>
-        </div><!-- Camera 4 -->
-        <div class="card-border rounded-xl overflow-hidden group">
-         <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
-          <div class="absolute inset-0 flex items-center justify-center">
-           <svg class="w-28 h-20 text-slate-700" viewbox="0 0 100 60">
-            <path d="M10 50 L50 20 L90 50" fill="none" stroke="currentColor" stroke-width="2" /> <rect x="35" y="30" width="30" height="20" fill="currentColor" rx="1" /> <rect x="42" y="35" width="6" height="10" fill="#1e293b" /> <rect x="52" y="35" width="6" height="10" fill="#1e293b" /> <rect x="15" y="35" width="12" height="15" fill="currentColor" rx="1" /> <rect x="73" y="35" width="12" height="15" fill="currentColor" rx="1" />
-           </svg>
-          </div>
-          <div class="absolute top-3 left-3 flex items-center gap-2">
-           <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
-          </div>
-          <div class="absolute top-3 right-3">
-           <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
-          </div>
-          <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-           <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-04</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time">--:--:--</span>
-          </div>
-         </div>
-         <div class="p-3 flex items-center justify-between">
-          <div>
-           <p class="text-sm font-semibold text-slate-200">Back Gate</p>
-           <p class="text-xs text-slate-500">Exterior • South Perimeter</p>
-          </div>
-          <div class="flex gap-2">
-           <button onclick="maximizeCamera('CAM-04', 'Back Gate', '1080p')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all group" title="Maximize">
-            <svg class="w-4 h-4 text-slate-400 group-hover:text-emerald-400 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6v4m12-4h4v4M6 14v4h4m8-4v4h-4" />
-            </svg></button>
-          </div>
-         </div>
-        </div><!-- Camera 5 -->
-        <div class="card-border rounded-xl overflow-hidden group">
-         <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
-          <div class="absolute inset-0 flex items-center justify-center">
-           <svg class="w-28 h-20 text-slate-700" viewbox="0 0 100 60">
-            <rect x="5" y="45" width="90" height="10" fill="currentColor" rx="1" /> <rect x="15" y="15" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="1" /> <rect x="40" y="15" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="1" /> <rect x="65" y="15" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="1" /> <line x1="25" y1="25" x2="25" y2="35" stroke="currentColor" stroke-width="2" /> <line x1="50" y1="25" x2="50" y2="35" stroke="currentColor" stroke-width="2" /> <line x1="75" y1="25" x2="75" y2="35" stroke="currentColor" stroke-width="2" />
-           </svg>
-          </div>
-          <div class="absolute top-3 left-3 flex items-center gap-2">
-           <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
-          </div>
-          <div class="absolute top-3 right-3">
-           <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
-          </div>
-          <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-           <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-05</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time">--:--:--</span>
-          </div>
-         </div>
-         <div class="p-3 flex items-center justify-between">
-          <div>
-           <p class="text-sm font-semibold text-slate-200">Lobby Area</p>
-           <p class="text-xs text-slate-500">Building A • 1st Floor</p>
-          </div>
-          <div class="flex gap-2">
-           <button onclick="maximizeCamera('CAM-05', 'Lobby Area', '1080p')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all group" title="Maximize">
-            <svg class="w-4 h-4 text-slate-400 group-hover:text-emerald-400 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6v4m12-4h4v4M6 14v4h4m8-4v4h-4" />
-            </svg></button>
-          </div>
-         </div>
-        </div><!-- Camera 6 -->
-        <div class="card-border rounded-xl overflow-hidden group">
-         <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
-          <div class="absolute inset-0 flex items-center justify-center">
-           <svg class="w-28 h-20 text-slate-700" viewbox="0 0 100 60">
-            <rect x="20" y="10" width="60" height="35" fill="none" stroke="currentColor" stroke-width="2" rx="2" /> <rect x="25" y="15" width="20" height="12" fill="currentColor" rx="1" /> <rect x="55" y="15" width="20" height="12" fill="currentColor" rx="1" /> <rect x="25" y="30" width="50" height="10" fill="currentColor" rx="1" /> <rect x="35" y="45" width="30" height="8" fill="currentColor" rx="1" />
-           </svg>
-          </div>
-          <div class="absolute top-3 left-3 flex items-center gap-2">
-           <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
-          </div>
-          <div class="absolute top-3 right-3">
-           <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">4K</span>
-          </div>
-          <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-           <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-06</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time">--:--:--</span>
-          </div>
-         </div>
-         <div class="p-3 flex items-center justify-between">
-          <div>
-           <p class="text-sm font-semibold text-slate-200">Control Room</p>
-           <p class="text-xs text-slate-500">Building B • 2nd Floor</p>
-          </div>
-          <div class="flex gap-2">
-           <button onclick="maximizeCamera('CAM-06', 'Control Room', '4K')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all group" title="Maximize">
+           <button onclick="maximizeCamera('CAM-02', 'Secondary Entrance', '1080p')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all group" title="Maximize">
             <svg class="w-4 h-4 text-slate-400 group-hover:text-emerald-400 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
              <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6v4m12-4h4v4M6 14v4h4m8-4v4h-4" />
             </svg></button>
@@ -745,7 +628,7 @@
         <div class="space-y-3 mb-4 pb-4 border-b border-slate-700">
          <!-- Filter by Camera -->
          <div>
-          <label class="text-xs font-semibold text-slate-400 mb-2 tracking-wider block">FILTER BY CAMERA</label> <select id="activity-camera-filter" onchange="filterActivityLogs()" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-all"> <option value="">All Cameras</option> <option value="CAM-01">CAM-01 - Main Entrance</option> <option value="CAM-02">CAM-02 - Parking Lot A</option> <option value="CAM-03">CAM-03 - Server Room</option> <option value="CAM-04">CAM-04 - Back Gate</option> <option value="CAM-05">CAM-05 - Lobby Area</option> <option value="CAM-06">CAM-06 - Control Room</option> </select>
+          <label class="text-xs font-semibold text-slate-400 mb-2 tracking-wider block">FILTER BY CAMERA</label> <select id="activity-camera-filter" onchange="filterActivityLogs()" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-all"> <option value="">All Cameras</option> <option value="CAM-01">CAM-01 - Main Entrance</option> <option value="CAM-02">CAM-02 - Secondary Entrance</option> </select>
          </div><!-- Filter by Type -->
          <div>
           <label class="text-xs font-semibold text-slate-400 mb-2 tracking-wider block">FILTER BY TYPE</label> <select id="activity-type-filter" onchange="filterActivityLogs()" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-all"> <option value="">All Types</option> <option value="ENTRY">Entry</option> <option value="EXIT">Exit</option> <option value="CROWDING">Crowding</option> <option value="ALERT">Alert</option> <option value="NORMAL">Normal</option> </select>
@@ -785,66 +668,25 @@
     
     // Global activity logs
     let allActivityLogs = [];
-    
-    // Mock camera data
+
     const cameraDatabase = {
-      'CAM-01': {
-        location: 'Main Entrance',
-        resolution: '1080p',
-        activityLogs: [
-          { time: '14:32:15', type: 'ENTRY', description: '3 people entered', severity: 'normal' },
-          { time: '14:28:02', type: 'NORMAL', description: 'Crowd density low', severity: 'normal' },
-          { time: '14:15:45', type: 'ENTRY', description: '1 person entered', severity: 'normal' }
-        ]
-      },
-      'CAM-02': {
-        location: 'Parking Lot A',
-        resolution: '1080p',
-        activityLogs: [
-          { time: '14:35:22', type: 'NORMAL', description: 'Stable crowd density', severity: 'normal' },
-          { time: '14:20:08', type: 'EXIT', description: '5 people left', severity: 'normal' }
-        ]
-      },
-      'CAM-03': {
-        location: 'Server Room',
-        resolution: '4K',
-        activityLogs: [
-          { time: '14:33:40', type: 'ALERT', description: 'Unauthorized access attempt detected', severity: 'danger' },
-          { time: '14:10:25', type: 'NORMAL', description: 'Access granted - Admin', severity: 'normal' }
-        ]
-      },
-      'CAM-04': {
-        location: 'Back Gate',
-        resolution: '1080p',
-        activityLogs: [
-          { time: '14:31:12', type: 'ENTRY', description: '2 people entered', severity: 'normal' },
-          { time: '14:05:33', type: 'NORMAL', description: 'Gate secure', severity: 'normal' }
-        ]
-      },
-      'CAM-05': {
-        location: 'Lobby Area',
-        resolution: '1080p',
-        activityLogs: [
-          { time: '14:34:18', type: 'CROWDING', description: 'High crowd density detected', severity: 'warning' },
-          { time: '14:25:50', type: 'NORMAL', description: 'Crowd density normal', severity: 'normal' }
-        ]
-      },
-      'CAM-06': {
-        location: 'Control Room',
-        resolution: '4K',
-        activityLogs: [
-          { time: '14:36:05', type: 'NORMAL', description: 'System monitoring active', severity: 'normal' },
-          { time: '14:12:44', type: 'ENTRY', description: '1 person entered', severity: 'normal' }
-        ]
-      }
+      'CAM-01': { location: 'Main Entrance', resolution: '1080p' },
+      'CAM-02': { location: 'Secondary Entrance', resolution: '1080p' }
     };
+
+    const cameraHistory = {
+      'CAM-01': [],
+      'CAM-02': []
+    };
+
+    const cameraRuntimeState = {};
     
     function generateMockArchiveData() {
       const data = [];
-      const cameras = ['CAM-01', 'CAM-02', 'CAM-03', 'CAM-04', 'CAM-05', 'CAM-06'];
+      const cameras = ['CAM-01', 'CAM-02'];
       const locations = {
-        'CAM-01': 'Main Entrance', 'CAM-02': 'Parking Lot A', 'CAM-03': 'Server Room',
-        'CAM-04': 'Back Gate', 'CAM-05': 'Lobby Area', 'CAM-06': 'Control Room'
+        'CAM-01': 'Main Entrance',
+        'CAM-02': 'Secondary Entrance'
       };
       
       for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
@@ -868,7 +710,7 @@
               startTime: timeStr,
               duration: duration,
               fileSize: (Math.random() * 500 + 100).toFixed(1),
-              resolution: cam === 'CAM-03' || cam === 'CAM-06' ? '4K' : '1080p',
+              resolution: '1080p',
               status: 'Available'
             });
           }
@@ -1177,7 +1019,6 @@
       
       updateTime();
       setInterval(updateTime, 1000);
-      setInterval(simulateNewActivity, 5000);
       setInterval(updateCam01Stats, 500);
       updateCam01Stats();
       startCam01FrameUpdates();
@@ -1193,6 +1034,10 @@
         if (mainImg) {
           mainImg.src = '/cam1_frame?t=' + ts;
         }
+        const secondaryImg = document.getElementById('cam02-video');
+        if (secondaryImg) {
+          secondaryImg.src = '/cam1_frame?t=' + ts;
+        }
         const maxImg = document.getElementById('max-cam01-video');
         if (maxImg) {
           maxImg.src = '/cam1_frame?t=' + ts;
@@ -1204,21 +1049,97 @@
       window._cam01FrameInterval = setInterval(update, 125);
     }
 
+    function classifyDensityByPeople(count) {
+      if (count <= 4) return 'LOW';
+      if (count <= 7) return 'MEDIUM';
+      return 'HIGH';
+    }
+
+    function densityColorClass(level) {
+      if (level === 'HIGH') return 'text-red-400';
+      if (level === 'MEDIUM') return 'text-amber-400';
+      return 'text-emerald-400';
+    }
+
+    function buildRealtimeLog(camId, type, description, severity, now) {
+      return {
+        time: now.toLocaleTimeString('en-US', { hour12: false }),
+        type,
+        description,
+        severity,
+        camera: camId,
+        location: cameraDatabase[camId].location,
+        timestamp: now.getTime()
+      };
+    }
+
+    function pushActivityLog(log) {
+      allActivityLogs.unshift(log);
+      if (allActivityLogs.length > 80) allActivityLogs.pop();
+      populateGlobalActivityLogs();
+    }
+
+    function updateCameraOverlay(camId, stats) {
+      const camKey = camId.toLowerCase().replace('-', '');
+      const countEl = document.getElementById(`${camKey}-count`);
+      const densityEl = document.getElementById(`${camKey}-density`);
+      const statusEl = document.getElementById(`${camKey}-status`);
+      const statusWrap = document.getElementById(`${camKey}-status-wrap`);
+      if (!countEl || !densityEl || !statusEl || !statusWrap) return;
+
+      const level = classifyDensityByPeople(stats.count);
+      countEl.textContent = stats.count;
+      densityEl.textContent = stats.density;
+      statusEl.textContent = level;
+      statusWrap.className = `bg-slate-900/80 px-2 py-1 rounded ${densityColorClass(level)}`;
+    }
+
+    function updateRealtimeDetections(camId, stats, now) {
+      const state = cameraRuntimeState[camId] || { previousCount: null, previousLevel: null };
+      const level = classifyDensityByPeople(stats.count);
+
+      const camHistory = cameraHistory[camId];
+      camHistory.push({
+        timestamp: now.getTime(),
+        time: now.toLocaleTimeString('en-US', { hour12: false }),
+        density: stats.density,
+        peopleCount: stats.count,
+        level
+      });
+      if (camHistory.length > 120) camHistory.shift();
+
+      if (state.previousCount != null) {
+        const delta = stats.count - state.previousCount;
+        if (delta > 0) {
+          pushActivityLog(buildRealtimeLog(camId, 'ENTRY', `${delta} people entered`, 'normal', now));
+        } else if (delta < 0) {
+          pushActivityLog(buildRealtimeLog(camId, 'EXIT', `${Math.abs(delta)} people left`, 'normal', now));
+        }
+      }
+
+      if (state.previousLevel && state.previousLevel !== level) {
+        if (level === 'HIGH' || level === 'MEDIUM') {
+          pushActivityLog(buildRealtimeLog(camId, 'CROWDING', `${level.toLowerCase()} density detected (${stats.count} people)`, 'warning', now));
+        } else if (level === 'LOW') {
+          pushActivityLog(buildRealtimeLog(camId, 'NORMAL', 'Low density restored', 'normal', now));
+        }
+      }
+
+      cameraRuntimeState[camId] = { previousCount: stats.count, previousLevel: level };
+    }
+
     function updateCam01Stats() {
       fetch('/api/stats').then(r => r.json()).then(data => {
-        const countEl = document.getElementById('cam01-count');
-        const densityEl = document.getElementById('cam01-density');
-        const statusEl = document.getElementById('cam01-status');
-        const statusWrap = document.getElementById('cam01-status-wrap');
-        if (!countEl || !densityEl || !statusEl) return;
-        countEl.textContent = data.count != null ? data.count : 0;
-        densityEl.textContent = data.density != null ? data.density : 0;
-        const status = (data.status || 'SAFE').toUpperCase();
-        statusEl.textContent = status;
-        statusWrap.className = 'bg-slate-900/80 px-2 py-1 rounded ';
-        if (status === 'CRITICAL') statusWrap.classList.add('text-red-400');
-        else if (status === 'WARNING') statusWrap.classList.add('text-amber-400');
-        else statusWrap.classList.add('text-emerald-400');
+        const stats = {
+          count: data.count != null ? data.count : 0,
+          density: data.density != null ? data.density : 0
+        };
+        const now = new Date();
+
+        updateCameraOverlay('CAM-01', stats);
+        updateCameraOverlay('CAM-02', stats);
+        updateRealtimeDetections('CAM-01', stats, now);
+        updateRealtimeDetections('CAM-02', stats, now);
       }).catch(() => {});
     }
     
@@ -1233,19 +1154,10 @@
     
     function initializeGlobalActivityLogs() {
       allActivityLogs = [];
-      
-      Object.keys(cameraDatabase).forEach(camId => {
-        const data = cameraDatabase[camId];
-        const cameraLogs = data.activityLogs.map(log => ({
-          ...log,
-          camera: camId,
-          location: data.location,
-          timestamp: Date.now()
-        }));
-        allActivityLogs = [...allActivityLogs, ...cameraLogs];
+      Object.keys(cameraHistory).forEach(camId => {
+        cameraHistory[camId] = [];
+        cameraRuntimeState[camId] = { previousCount: null, previousLevel: null };
       });
-      
-      allActivityLogs.sort((a, b) => b.time.localeCompare(a.time));
     }
     
     function populateGlobalActivityLogs() {
@@ -1290,7 +1202,7 @@
           bgClass = 'bg-amber-500/10';
           textClass = 'text-amber-400';
         } else if (log.type === 'ALERT') {
-          iconEmoji = '����';
+          iconEmoji = '🚨';
           bgClass = 'bg-red-500/10';
           textClass = 'text-red-400';
         }
@@ -1328,48 +1240,7 @@
       }
     }
     
-    function simulateNewActivity() {
-      const cameras = Object.keys(cameraDatabase);
-      const randomCamera = cameras[Math.floor(Math.random() * cameras.length)];
-      const randomType = ['ENTRY', 'EXIT', 'CROWDING', 'NORMAL'][Math.floor(Math.random() * 4)];
-      
-      let description = '';
-      switch(randomType) {
-        case 'ENTRY':
-          description = `${Math.floor(Math.random() * 5) + 1} person entered`;
-          break;
-        case 'EXIT':
-          description = `${Math.floor(Math.random() * 5) + 1} people left`;
-          break;
-        case 'CROWDING':
-          description = 'Crowd density increased';
-          break;
-        case 'NORMAL':
-          description = 'Normal activity';
-          break;
-      }
-      
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-      
-      const newLog = {
-        time: timeStr,
-        type: randomType,
-        description: description,
-        severity: randomType === 'ALERT' ? 'danger' : (randomType === 'CROWDING' ? 'warning' : 'normal'),
-        camera: randomCamera,
-        location: cameraDatabase[randomCamera].location,
-        timestamp: Date.now()
-      };
-      
-      allActivityLogs.unshift(newLog);
-      
-      if (allActivityLogs.length > 50) {
-        allActivityLogs.pop();
-      }
-      
-      populateGlobalActivityLogs();
-    }
+    
     
     function openForgotPassword(event) {
       event.preventDefault();
@@ -1556,48 +1427,18 @@
       document.getElementById('auth-success').classList.add('hidden');
     }
     
-    function generateDensityTimeline() {
-      const data = [];
-      for (let i = 0; i < 24; i++) {
-        const density = Math.floor(Math.random() * 100);
-        const time = new Date();
-        time.setHours(time.getHours() - (24 - i) / 6);
-        
-        data.push({
-          time: time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-          density: density,
-          peopleCount: Math.floor(density * 0.5)
-        });
-      }
-      return data;
-    }
-    
-    function generateActivityLogs() {
-      const activities = [
-        { time: '14:32', type: 'ENTRY', description: '3 people entered', severity: 'normal' },
-        { time: '14:28', type: 'CROWDING', description: 'High density detected', severity: 'warning' },
-        { time: '14:15', type: 'EXIT', description: '5 people left', severity: 'normal' },
-        { time: '14:02', type: 'ALERT', description: 'Crowd clustering detected', severity: 'danger' },
-        { time: '13:45', type: 'ENTRY', description: '2 people entered', severity: 'normal' },
-        { time: '13:30', type: 'CROWDING', description: 'Medium density detected', severity: 'warning' },
-        { time: '13:10', type: 'NORMAL', description: 'Low activity', severity: 'normal' },
-        { time: '12:55', type: 'EXIT', description: '8 people left', severity: 'normal' }
-      ];
-      return activities;
-    }
-    
     function populateDensityTimeline(densityData) {
       const timeline = document.getElementById('density-timeline');
       timeline.innerHTML = '';
       
-      densityData.forEach((data, index) => {
+      densityData.forEach((data) => {
         const bar = document.createElement('div');
         bar.className = 'flex-1 rounded-t-sm cursor-pointer group relative';
         
         let bgColor = 'bg-emerald-500';
-        if (data.density > 66) {
+        if (data.peopleCount >= 8) {
           bgColor = 'bg-red-500';
-        } else if (data.density > 33) {
+        } else if (data.peopleCount >= 5) {
           bgColor = 'bg-amber-500';
         }
         
@@ -1671,41 +1512,50 @@
       document.getElementById('max-camera-resolution').textContent = resolution;
       document.getElementById('max-camera-time').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
       
-      const densityData = generateDensityTimeline();
-      const activityLogs = generateActivityLogs();
+      const densityData = cameraHistory[camId] || [];
+      const activityLogs = allActivityLogs.filter(log => log.camera === camId);
       
-      const currentDensity = densityData[densityData.length - 1].density;
-      const currentPeople = densityData[densityData.length - 1].peopleCount;
+      const latest = densityData[densityData.length - 1] || { density: 0, peopleCount: 0, level: 'LOW' };
+      const currentPeople = latest.peopleCount;
       document.getElementById('max-people-count').textContent = currentPeople;
       
-      let densityLevel = 'Low';
-      let densityColor = 'text-emerald-400';
-      if (currentDensity > 66) {
-        densityLevel = 'High';
-        densityColor = 'text-red-400';
-      } else if (currentDensity > 33) {
-        densityLevel = 'Medium';
-        densityColor = 'text-amber-400';
-      }
+      const densityLevel = latest.level.charAt(0) + latest.level.slice(1).toLowerCase();
+      const densityColor = densityColorClass(latest.level);
       
       const densityEl = document.getElementById('max-density-level');
       densityEl.textContent = densityLevel;
       densityEl.className = `text-sm font-semibold ${densityColor}`;
       
-      const alertsCount = activityLogs.filter(log => log.severity === 'danger').length;
+      const alertsCount = activityLogs.filter(log => log.type === 'CROWDING').length;
       document.getElementById('max-alerts-count').textContent = alertsCount;
       
       populateDensityTimeline(densityData);
       populateActivityLogs(activityLogs);
       
-      const peakDensity = Math.max(...densityData.map(d => d.density));
-      const avgPeople = Math.round(densityData.reduce((sum, d) => sum + d.peopleCount, 0) / densityData.length);
-      const highDensityCount = densityData.filter(d => d.density > 66).length;
-      const highDurationMinutes = highDensityCount * 10;
+      const peakDensity = densityData.length ? Math.max(...densityData.map(d => d.density)) : 0;
+      const avgPeople = densityData.length ? Math.round(densityData.reduce((sum, d) => sum + d.peopleCount, 0) / densityData.length) : 0;
+      const highDurationSeconds = densityData.reduce((acc, point, idx) => {
+        if (idx === 0) return acc;
+        if (point.peopleCount >= 8) {
+          return acc + Math.max(0, Math.round((point.timestamp - densityData[idx - 1].timestamp) / 1000));
+        }
+        return acc;
+      }, 0);
+      const highDurationMinutes = Math.round(highDurationSeconds / 60);
       
       document.getElementById('max-peak-density').textContent = peakDensity + '%';
       document.getElementById('max-avg-people').textContent = avgPeople;
       document.getElementById('max-high-duration').textContent = highDurationMinutes + ' min';
+
+      if (densityData.length > 0) {
+        const startEl = document.getElementById('timeline-start');
+        const midEl = document.getElementById('timeline-mid');
+        const endEl = document.getElementById('timeline-end');
+        const midIndex = Math.floor(densityData.length / 2);
+        startEl.textContent = densityData[0].time;
+        midEl.textContent = densityData[midIndex].time;
+        endEl.textContent = densityData[densityData.length - 1].time;
+      }
       
       drawCameraSVG(camId);
       modal.classList.remove('hidden');
@@ -1713,18 +1563,14 @@
     
     function drawCameraSVG(camId) {
       const container = document.getElementById('max-camera-svg');
-      if (camId === 'CAM-01') {
+      if (camId === 'CAM-01' || camId === 'CAM-02') {
         // This image is also driven by startCam01FrameUpdates()
-        container.innerHTML = '<img id="max-cam01-video" src="/cam1_frame" alt="CAM-01 Live" class="w-full h-full object-contain" />';
+        container.innerHTML = '<img id="max-cam01-video" src="/cam1_frame" alt="Live Camera Feed" class="w-full h-full object-contain" />';
         return;
       }
       const svgMap = {
         'CAM-01': `<svg class="w-32 h-24 text-slate-700 mx-auto" viewBox="0 0 100 60"><rect x="10" y="40" width="15" height="20" rx="1" fill="currentColor"/><rect x="30" y="30" width="18" height="30" rx="1" fill="currentColor"/><rect x="53" y="25" width="12" height="35" rx="1" fill="currentColor"/><rect x="70" y="35" width="20" height="25" rx="1" fill="currentColor"/><circle cx="75" cy="15" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
-        'CAM-02': `<svg class="w-40 h-24 text-slate-700 mx-auto" viewBox="0 0 120 60"><rect x="5" y="50" width="110" height="10" fill="currentColor" rx="1"/><rect x="20" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><rect x="70" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><line x1="35" y1="10" x2="35" y2="20" stroke="currentColor" stroke-width="2"/><line x1="85" y1="10" x2="85" y2="20" stroke="currentColor" stroke-width="2"/></svg>`,
-        'CAM-03': `<svg class="w-32 h-24 text-slate-700 mx-auto" viewBox="0 0 100 60"><rect x="10" y="10" width="80" height="40" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><line x1="10" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="1"/><rect x="20" y="35" width="15" height="10" fill="currentColor" rx="1"/><rect x="42" y="35" width="15" height="10" fill="currentColor" rx="1"/><rect x="65" y="35" width="15" height="10" fill="currentColor" rx="1"/></svg>`,
-        'CAM-04': `<svg class="w-32 h-24 text-slate-700 mx-auto" viewBox="0 0 100 60"><path d="M10 50 L50 20 L90 50" fill="none" stroke="currentColor" stroke-width="2"/><rect x="35" y="30" width="30" height="20" fill="currentColor" rx="1"/><rect x="42" y="35" width="6" height="10" fill="#1e293b"/><rect x="52" y="35" width="6" height="10" fill="#1e293b"/><rect x="15" y="35" width="12" height="15" fill="currentColor" rx="1"/><rect x="73" y="35" width="12" height="15" fill="currentColor" rx="1"/></svg>`,
-        'CAM-05': `<svg class="w-32 h-24 text-slate-700 mx-auto" viewBox="0 0 100 60"><rect x="5" y="45" width="90" height="10" fill="currentColor" rx="1"/><rect x="15" y="15" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="1"/><rect x="40" y="15" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="1"/><rect x="65" y="15" width="20" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="1"/><line x1="25" y1="25" x2="25" y2="35" stroke="currentColor" stroke-width="2"/><line x1="50" y1="25" x2="50" y2="35" stroke="currentColor" stroke-width="2"/><line x1="75" y1="25" x2="75" y2="35" stroke="currentColor" stroke-width="2"/></svg>`,
-        'CAM-06': `<svg class="w-32 h-24 text-slate-700 mx-auto" viewBox="0 0 100 60"><rect x="20" y="10" width="60" height="35" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><rect x="25" y="15" width="20" height="12" fill="currentColor" rx="1"/><rect x="55" y="15" width="20" height="12" fill="currentColor" rx="1"/><rect x="25" y="30" width="50" height="10" fill="currentColor" rx="1"/><rect x="35" y="45" width="30" height="8" fill="currentColor" rx="1"/></svg>`
+        'CAM-02': `<svg class="w-40 h-24 text-slate-700 mx-auto" viewBox="0 0 120 60"><rect x="5" y="50" width="110" height="10" fill="currentColor" rx="1"/><rect x="20" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><rect x="70" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><line x1="35" y1="10" x2="35" y2="20" stroke="currentColor" stroke-width="2"/><line x1="85" y1="10" x2="85" y2="20" stroke="currentColor" stroke-width="2"/></svg>`
       };
       
       container.innerHTML = svgMap[camId] || '';
