@@ -968,21 +968,31 @@
       }
     }
     
-    function handleLogin(event) {
+    async function handleLogin(event) {
       event.preventDefault();
       const email = document.getElementById('login-email').value;
       const password = document.getElementById('login-password').value;
       
-      if ((email === 'demo@securevision.com' && password === 'demo123') || 
-          (users[email] && users[email].password === password)) {
-        currentUser = users[email] || { name: 'Demo Operator', email };
-        showDashboard();
-      } else {
-        showError('Invalid credentials. Try demo@securevision.com / demo123');
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, password: password })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+          currentUser = { name: result.username, email: email };
+          showDashboard();
+        } else {
+          showError(result.message || 'Invalid credentials.');
+        }
+      } catch (err) {
+        showError('Network error connecting to Sentinel database.');
       }
     }
     
-    function handleRegister(event) {
+    async function handleRegister(event) {
       event.preventDefault();
       const name = document.getElementById('register-name').value;
       const email = document.getElementById('register-email').value;
@@ -994,16 +1004,24 @@
         return;
       }
       
-      if (users[email]) {
-        showError('An account with this email already exists');
-        return;
+      try {
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: name, email: email, password: password })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            showSuccess('Account created successfully! You can now login.');
+            document.getElementById('register-form').reset();
+            setTimeout(() => switchTab('login'), 1500);
+        } else {
+            showError(result.message || 'Registration failed.');
+        }
+      } catch (err) {
+          showError('Network error connecting to Sentinel database.');
       }
-      
-      users[email] = { name, email, password };
-      showSuccess('Account created successfully! You can now login.');
-      
-      document.getElementById('register-form').reset();
-      setTimeout(() => switchTab('login'), 1500);
     }
     
     function showDashboard() {

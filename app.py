@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, Response
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import time
 
@@ -34,8 +33,8 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(20), default='Tanod') # Future-proofing for Admin/Tanod roles
+    password = db.Column(db.String(200), nullable=False)  # PLAIN TEXT FOR TESTING
+    role = db.Column(db.String(20), default='Tanod')
 
 # --- ROUTES ---
 
@@ -62,9 +61,8 @@ def register():
     if User.query.filter_by(email=email).first():
         return jsonify({'success': False, 'message': 'Email already registered.'}), 409
 
-    # Create new user with Hashed Password (Security requirement)
-    hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
-    new_user = User(username=username, email=email, password_hash=hashed_pw)
+    # Create new user WITH UNENCRYPTED PASSWORD FOR TESTING
+    new_user = User(username=username, email=email, password=password)
     
     try:
         db.session.add(new_user)
@@ -77,18 +75,18 @@ def register():
 def login():
     """Handles user login."""
     data = request.json
-    username = data.get('username')
-    password = data.get('password')
+    email = data.get('email')
+    password_attempt = data.get('password')
 
-    user = User.query.filter_by(username=username).first()
+    user = User.query.filter_by(email=email).first()
 
-    # Verify user exists and password matches hash
-    if user and check_password_hash(user.password_hash, password):
+    # Plaintext testing check
+    if user and user.password == password_attempt:
         session['user_id'] = user.id
         session['username'] = user.username
         return jsonify({'success': True, 'message': 'Login successful!', 'username': user.username})
     
-    return jsonify({'success': False, 'message': 'Invalid username or password.'}), 401
+    return jsonify({'success': False, 'message': 'Invalid email or password.'}), 401
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
