@@ -3,19 +3,20 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import distance
 import time
+import threading
+
 
 class RobustSentinelTracker:
     def __init__(self, max_ghost=30, dist_thresh=100):
         self.next_id = 1
-        self.tracks = {} 
+        self.tracks = {}
         self.max_ghost = max_ghost
         self.dist_thresh = dist_thresh
 
     def get_center(self, box):
-        return (int(box[0] + box[2]/2), int(box[1] + box[3]/2))
+        return (int(box[0] + box[2] / 2), int(box[1] + box[3] / 2))
 
     def update(self, detections):
-        # Standard tracking logic...
         detections = self.merge_nearby_boxes(detections)
         track_ids = list(self.tracks.keys())
         track_centers = [self.get_center(self.tracks[tid]['box']) for tid in track_ids]
@@ -33,19 +34,25 @@ class RobustSentinelTracker:
                     assigned_tracks.add(tid)
                     assigned_dets.add(c)
             for i, tid in enumerate(track_ids):
-                if tid not in assigned_tracks: self.tracks[tid]['ghost'] += 1
+                if tid not in assigned_tracks:
+                    self.tracks[tid]['ghost'] += 1
             for i in range(len(detections)):
-                if i not in assigned_dets: self.register(detections[i])
+                if i not in assigned_dets:
+                    self.register(detections[i])
         else:
-            for tid in self.tracks: self.tracks[tid]['ghost'] += 1
-            for det in detections: self.register(det)
+            for tid in self.tracks:
+                self.tracks[tid]['ghost'] += 1
+            for det in detections:
+                self.register(det)
 
         for tid in list(self.tracks.keys()):
-            if self.tracks[tid]['ghost'] > self.max_ghost: del self.tracks[tid]
+            if self.tracks[tid]['ghost'] > self.max_ghost:
+                del self.tracks[tid]
         return self.tracks
 
     def merge_nearby_boxes(self, boxes, thresh=15):
-        if not boxes: return []
+        if not boxes:
+            return []
         merged = []
         while len(boxes) > 0:
             curr = boxes.pop(0)
@@ -55,260 +62,363 @@ class RobustSentinelTracker:
                     merged[i] = self.combine_boxes(curr, other)
                     combined = True
                     break
-            if not combined: merged.append(curr)
+            if not combined:
+                merged.append(curr)
         return merged
 
     def is_close(self, b1, b2, t):
-        return not (b1[0]+b1[2]+t < b2[0] or b2[0]+b2[2]+t < b1[0] or 
-                    b1[1]+b1[3]+t < b2[1] or b2[1]+b2[3]+t < b1[1])
+        return not (
+            b1[0] + b1[2] + t < b2[0]
+            or b2[0] + b2[2] + t < b1[0]
+            or b1[1] + b1[3] + t < b2[1]
+            or b2[1] + b2[3] + t < b1[1]
+        )
 
     def combine_boxes(self, b1, b2):
         x = min(b1[0], b2[0])
         y = min(b1[1], b2[1])
-        w = max(b1[0]+b1[2], b2[0]+b2[2]) - x
-        h = max(b1[1]+b1[3], b2[1]+b2[3]) - y
+        w = max(b1[0] + b1[2], b2[0] + b2[2]) - x
+        h = max(b1[1] + b1[3], b2[1] + b2[3]) - y
         return [x, y, w, h]
 
     def register(self, box):
         self.tracks[self.next_id] = {'box': box, 'ghost': 0}
         self.next_id += 1
 
-# --- NEW: IMPROVED SUB-COUNTING FUNCTION ---
-def count_people_in_box(roi, box_width):
-    # 1. Sanity Check: If box is too small, it's just 1 person
-    # Assuming an average person is at least 40-50 pixels wide
-    avg_person_width = 50 
-    max_possible_people = max(1, int(box_width / avg_person_width))
-    
+
+# ---------------------------------------------------------------------------
+# Perspective Scaling
+# ---------------------------------------------------------------------------
+def get_perspective_weight(y_coord, frame_height):
+    """
+    Returns a scaling factor (0.3 to 1.0) based on where the object sits
+    on the Y-axis. Objects near the top of the frame (far away) get a low
+    weight, objects near the bottom (close) get a high weight.
+    This is used to dynamically adjust minimum area and aspect-ratio
+    thresholds so nearby objects are not over-filtered and distant objects
+    are not under-filtered.
+    """
+    ratio = y_coord / max(1, frame_height)
+    # Clamp between 0.3 (very top) and 1.0 (very bottom)
+    return max(0.3, min(1.0, 0.3 + 0.7 * ratio))
+
+
+# ---------------------------------------------------------------------------
+# Structural Blob Validation (uses Distance Transform profile)
+# ---------------------------------------------------------------------------
+def is_human_blob(roi_thresh, x, y, w, h, frame_height):
+    """
+    Validates whether a detected blob is likely a human using:
+      1. Aspect Ratio  –  people are generally taller than wide
+      2. Distance Transform peak profile  –  people have a narrow/round peak,
+         vehicles and boxes have a wide, flat peak
+      3. Perspective-scaled minimum area
+    Returns True if the blob passes all checks.
+    """
+    if roi_thresh is None or roi_thresh.size == 0:
+        return False
+
+    pw = get_perspective_weight(y + h, frame_height)
+
+    # 1. Minimum area scales with perspective
+    min_area = int(800 * pw)
+    area = w * h
+    if area < min_area:
+        return False
+
+    # 2. Aspect ratio check (width / height)
+    #    Standing/walking people:   ratio < 1.3
+    #    Sitting/bending people:    ratio < 1.8 (more lenient)
+    #    Cars / wide objects:       ratio > 1.8  → reject
+    aspect = w / max(1, h)
+    max_aspect = 1.8  # lenient to allow crouching / off-angle people
+    if aspect > max_aspect:
+        return False
+
+    # 3. Distance transform peak flatness check
+    #    A human body produces a narrow peak in the distance transform.
+    #    A vehicle/box produces a wide, flat plateau.
+    dist = cv2.distanceTransform(roi_thresh, cv2.DIST_L2, 5)
+    max_val = dist.max()
+    if max_val < 3:
+        return False  # too thin / noisy
+
+    # Measure "peak sharpness": ratio of peak value to blob half-width
+    # Humans typically have peak_ratio > 0.15; flat boxes are < 0.10
+    peak_ratio = max_val / max(1, min(w, h) / 2.0)
+    if peak_ratio < 0.08:
+        return False
+
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Sub-Counting inside a Validated Blob (Watershed-based)
+# ---------------------------------------------------------------------------
+def count_people_in_box(roi, box_width, box_y, frame_height):
+    """
+    Given the thresholded ROI of a validated human blob, estimate
+    how many people are clustered inside it using distance-transform
+    peaks and perspective-scaled person width.
+    """
+    pw = get_perspective_weight(box_y, frame_height)
+    avg_person_width = int(50 * pw)
+    max_possible_people = max(1, int(box_width / max(1, avg_person_width)))
+
     if roi is None or roi.size == 0:
-        return 0
-    
-    # 2. Stronger Noise Removal (Erosion separates connected blobs)
-    kernel = np.ones((3,3), np.uint8)
+        return 1
+
+    kernel = np.ones((3, 3), np.uint8)
     eroded = cv2.erode(roi, kernel, iterations=1)
-    
-    # 3. Distance Transform
+
     dist = cv2.distanceTransform(eroded, cv2.DIST_L2, 5)
-    
-    # 4. Strict Thresholding (0.6 instead of 0.4)
-    # Only counts the "thickest" centers (torsos), ignoring arms/legs
-    _, sure_fg = cv2.threshold(dist, 0.6 * dist.max(), 255, 0)
-    
+    if dist.max() == 0:
+        return 1
+
+    _, sure_fg = cv2.threshold(dist, 0.4 * dist.max(), 255, 0)
     sure_fg = np.uint8(sure_fg)
-    
-    # 5. Filter by Area (Ignore tiny specks)
+
     contours, _ = cv2.findContours(sure_fg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    valid_blobs = 0
-    for c in contours:
-        if cv2.contourArea(c) > 50: # Minimum area to be a "person core"
-            valid_blobs += 1
-            
-    # Result: The count is the detected blobs, but clamped by physical width limits
+    valid_blobs = sum(1 for c in contours if cv2.contourArea(c) > 50)
+
     final_count = min(valid_blobs, max_possible_people)
-    
-    # Fallback: If watershed fails (0 detected), but tracker saw a box, return 1
     return max(1, final_count)
 
-# --- SHARED STATE FOR FLASK STREAMING ---
-# Latest JPEG frame for CAM-01 (used by /video_feed)
-_cam1_latest_jpeg = None
 
-# Latest stats for CAM-01 (used by /api/stats)
-_cam1_latest_stats = {
-    "count": 0,
-    "density": 0,
-    "status": "SAFE",
-    "locations": []
-}
-
-
-def _cam1_update_loop(video_path='video1.mp4', mask_path='mask_layer.png'):
+# ---------------------------------------------------------------------------
+# Sleek Dot Overlay Rendering
+# ---------------------------------------------------------------------------
+def draw_person_marker(frame, cx, cy, count, in_zone7=False):
     """
-    Long-running loop that reads frames from video_path, runs the robust
-    sentinel pipeline, draws the green and yellow boxes, and updates:
-      - _cam1_latest_jpeg (JPEG-encoded frame)
-      - _cam1_latest_stats (count, density, status)
-
-    This is intended to be run in a background thread from app.py.
+    Draws a clean, glowing dot at the person's foot-center position.
+    If count > 1 it draws a small numeric badge above the dot.
+    
+    Colors:
+        Zone 7 (z7):  Cyan   (#00FFFF)
+        Zone 6 (z6):  Green  (#00FF88)
+        Outside zones: Amber (#FFD700)
     """
-    global _cam1_latest_jpeg, _cam1_latest_stats
+    if in_zone7:
+        color_inner = (255, 255, 0)   # Cyan  (BGR)
+        color_outer = (200, 200, 0)
+    else:
+        color_inner = (136, 255, 0)   # Green (BGR)
+        color_outer = (100, 200, 0)
 
-    # Zones (copied from original pipeline)
-    z7_x1, z7_y1, z7_x2, z7_y2 = 240, 290, 325, 625
-    z6_x1, z6_y1, z6_x2, z6_y2 = 340, 280, 855, 990
+    # Outer glow ring
+    cv2.circle(frame, (cx, cy), 14, color_outer, 2, cv2.LINE_AA)
+    # Solid inner dot
+    cv2.circle(frame, (cx, cy), 7, color_inner, -1, cv2.LINE_AA)
 
-    # Fusion kernel
-    fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 85))
+    # Badge for clusters
+    if count > 1:
+        badge_text = str(count)
+        (tw, th), _ = cv2.getTextSize(badge_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
+        bx = cx - tw // 2
+        by = cy - 22
+        # Dark background pill
+        cv2.rectangle(frame, (bx - 4, by - th - 4), (bx + tw + 4, by + 4), (0, 0, 0), -1)
+        cv2.rectangle(frame, (bx - 4, by - th - 4), (bx + tw + 4, by + 4), color_inner, 1)
+        cv2.putText(frame, badge_text, (bx, by), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
 
-    tracker = RobustSentinelTracker()
 
-    while True:
-        cap = cv2.VideoCapture(video_path)
-        if not cap.isOpened():
-            print(f"[vision_engine] Error: Cannot open video source '{video_path}'")
-            time.sleep(1.0)
-            continue
+# ---------------------------------------------------------------------------
+# Main Stream Class
+# ---------------------------------------------------------------------------
+class SentinelStream:
+    """
+    Thread-safe class that reads an RTSP stream (or video file),
+    applies MOG2 background subtraction, validates blobs structurally,
+    counts people via distance-transform watershed logic, and renders
+    sleek dot overlays.
+    """
 
-        # Use the first frame as the background reference
-        ret, bg = cap.read()
-        if not ret:
-            print(f"[vision_engine] Error: Cannot read first frame from '{video_path}'")
-            cap.release()
-            time.sleep(1.0)
-            continue
+    def __init__(self, stream_id, source="video1.mp4", mask_path="mask_layer.png"):
+        self.stream_id = stream_id
+        self.source = source
+        self.mask_path = mask_path
 
-        frame_height, frame_width = bg.shape[:2]
+        self.latest_jpeg = None
+        self.latest_stats = {
+            "count": 0,
+            "density": 0,
+            "status": "SAFE",
+            "locations": [],
+        }
 
-        # Load ROI mask; if missing or mismatched, fall back to full-frame mask
-        roi_mask = cv2.imread(mask_path, 0)
-        if roi_mask is None or roi_mask.shape[:2] != (frame_height, frame_width):
-            roi_mask = np.ones((frame_height, frame_width), dtype="uint8") * 255
+        # MOG2 with higher variance threshold to reduce micro-noise
+        self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
+            history=500, varThreshold=50, detectShadows=True
+        )
 
-        bg_gray = cv2.cvtColor(bg, cv2.COLOR_BGR2GRAY)
+        # Zone definitions (will be moved to DB/config later)
+        self.z7_x1, self.z7_y1, self.z7_x2, self.z7_y2 = 240, 290, 325, 625
+        self.z6_x1, self.z6_y1, self.z6_x2, self.z6_y2 = 340, 280, 855, 990
 
-        # Rewind to the start so we process all frames
-        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        self.running = True
+        self.thread = threading.Thread(target=self._process_loop, daemon=True)
+        self.thread.start()
 
-        while True:
-            ret, frame = cap.read()
+    # ------------------------------------------------------------------
+    def _process_loop(self):
+        tracker = RobustSentinelTracker()
+        fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 85))
+
+        while self.running:
+            cap = cv2.VideoCapture(self.source)
+            if not cap.isOpened():
+                print(f"[SentinelStream {self.stream_id}] Error: Cannot open '{self.source}'")
+                time.sleep(2.0)
+                continue
+
+            ret, first_frame = cap.read()
             if not ret:
-                # End of video; break inner loop to restart from the beginning
-                break
+                cap.release()
+                time.sleep(2.0)
+                continue
 
-            # 1. Processing
-            frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            diff = cv2.absdiff(bg_gray, frame_gray)
-            _, thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
-            thresh = cv2.bitwise_and(thresh, thresh, mask=roi_mask)
+            frame_height, frame_width = first_frame.shape[:2]
 
-            # 2. Fusion
-            fused = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, fusion_k)
-            fused = cv2.dilate(fused, np.ones((5, 5), np.uint8), iterations=1)
+            roi_mask = cv2.imread(self.mask_path, 0)
+            if roi_mask is None or roi_mask.shape[:2] != (frame_height, frame_width):
+                roi_mask = np.ones((frame_height, frame_width), dtype=np.uint8) * 255
 
-            # 3. Detection
-            conts, _ = cv2.findContours(fused, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            detections = []
-            for c in conts:
-                if cv2.contourArea(c) > 1500:
-                    detections.append(list(cv2.boundingRect(c)))
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
-            tracks = tracker.update(detections)
+            while self.running:
+                ret, frame = cap.read()
+                if not ret:
+                    break
 
-            # --- RESET COUNTS ---
-            count_z7 = 0
-            count_z6 = 0
+                # ── PHASE 1: MOG2 & Shadow Removal ──────────────────
+                fg_mask = self.bg_subtractor.apply(frame)
+                _, thresh = cv2.threshold(fg_mask, 254, 255, cv2.THRESH_BINARY)
+                thresh = cv2.bitwise_and(thresh, thresh, mask=roi_mask)
 
-            # Draw Zones (green boxes)
-            cv2.rectangle(frame, (z7_x1, z7_y1), (z7_x2, z7_y2), (0, 255, 0), 2)
-            cv2.rectangle(frame, (z6_x1, z6_y1), (z6_x2, z6_y2), (0, 255, 0), 2)
+                # ── PHASE 2: Fusion (stable mega-blobs) ─────────────
+                fused = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, fusion_k)
+                fused = cv2.dilate(fused, np.ones((5, 5), np.uint8), iterations=1)
 
-            # 4. ANALYZE TRACKS
-            for tid, data in tracks.items():
-                if data['ghost'] == 0:
-                    x, y, w, h = data['box']
-                    cx, cy = int(x + w / 2), int(y + h / 2)
+                # ── PHASE 3: Detection with Structural Validation ───
+                conts, _ = cv2.findContours(fused, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                detections = []
+                for c in conts:
+                    x, y, w_box, h_box = cv2.boundingRect(c)
+                    # Extract ROI from raw thresh for structural analysis
+                    roi_check = thresh[y : y + h_box, x : x + w_box]
+                    if is_human_blob(roi_check, x, y, w_box, h_box, frame_height):
+                        detections.append([x, y, w_box, h_box])
 
-                    # Extract ROI from RAW thresh
-                    roi = thresh[y:y + h, x:x + w]
+                tracks = tracker.update(detections)
 
-                    # --- APPLY NEW COUNTING LOGIC ---
-                    people_in_this_box = count_people_in_box(roi, w)
+                # ── PHASE 4: Counting & Rendering ───────────────────
+                count_z7 = 0
+                count_z6 = 0
 
-                    # Draw Visuals (yellow boxes)
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
+                # Draw zone boundaries (thin, subtle green lines)
+                cv2.rectangle(
+                    frame,
+                    (self.z7_x1, self.z7_y1),
+                    (self.z7_x2, self.z7_y2),
+                    (0, 180, 0),
+                    1,
+                    cv2.LINE_AA,
+                )
+                cv2.rectangle(
+                    frame,
+                    (self.z6_x1, self.z6_y1),
+                    (self.z6_x2, self.z6_y2),
+                    (0, 180, 0),
+                    1,
+                    cv2.LINE_AA,
+                )
 
-                    # Label Logic: only show count if > 1 to keep it clean
-                    label_text = f"ID {tid}"
-                    if people_in_this_box > 1:
-                        label_text += f" ({people_in_this_box})"
+                for tid, data in tracks.items():
+                    if data['ghost'] == 0:
+                        x, y, w_box, h_box = data['box']
+                        cx = int(x + w_box / 2)
+                        # Place the dot at the bottom-center (feet position)
+                        cy = int(y + h_box)
 
-                    cv2.putText(
-                        frame,
-                        label_text,
-                        (x, y - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6,
-                        (0, 255, 255),
-                        2,
-                    )
+                        roi = thresh[y : y + h_box, x : x + w_box]
+                        people_in_box = count_people_in_box(roi, w_box, y + h_box, frame_height)
 
-                    # Add to Zone Totals
-                    if (z7_x1 < cx < z7_x2) and (z7_y1 < cy < z7_y2):
-                        count_z7 += people_in_this_box
-                    elif (z6_x1 < cx < z6_x2) and (z6_y1 < cy < z6_y2):
-                        count_z6 += people_in_this_box
+                        in_z7 = (self.z7_x1 < cx < self.z7_x2) and (self.z7_y1 < cy < self.z7_y2)
+                        in_z6 = (self.z6_x1 < cx < self.z6_x2) and (self.z6_y1 < cy < self.z6_y2)
 
-            # --- DISPLAY TOTALS ON FRAME ---
-            total_count = count_z7 + count_z6
-            text = f"Count of people: {total_count}"
+                        if in_z7:
+                            count_z7 += people_in_box
+                            draw_person_marker(frame, cx, cy, people_in_box, in_zone7=True)
+                        elif in_z6:
+                            count_z6 += people_in_box
+                            draw_person_marker(frame, cx, cy, people_in_box, in_zone7=False)
 
-            (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)
-            tx = frame_width - tw - 20
-            ty = 50
+                total_count = count_z7 + count_z6
 
-            cv2.rectangle(frame, (tx - 10, ty - 30), (tx + tw + 10, ty + 10), (0, 0, 0), -1)
-            cv2.putText(
-                frame,
-                text,
-                (tx, ty),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (255, 255, 255),
-                2,
-            )
+                # ── HUD Overlay ─────────────────────────────────────
+                text = f"Count of people: {total_count}"
+                (tw, th_t), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)
+                tx = frame_width - tw - 20
+                ty = 50
+                cv2.rectangle(
+                    frame, (tx - 10, ty - 30), (tx + tw + 10, ty + 10), (0, 0, 0), -1
+                )
+                cv2.putText(
+                    frame, text, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2
+                )
 
-            # Display individual zone counts
-            cv2.putText(
-                frame,
-                f"Z7: {count_z7}",
-                (z7_x1, z7_y1 - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (0, 255, 0),
-                2,
-            )
-            cv2.putText(
-                frame,
-                f"Z6: {count_z6}",
-                (z6_x1, z6_y1 - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (0, 255, 0),
-                2,
-            )
+                cv2.putText(
+                    frame,
+                    f"Z7: {count_z7}",
+                    (self.z7_x1, self.z7_y1 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 0),
+                    2,
+                )
+                cv2.putText(
+                    frame,
+                    f"Z6: {count_z6}",
+                    (self.z6_x1, self.z6_y1 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 0),
+                    2,
+                )
 
-            # --- UPDATE SHARED STATS ---
-            # Approximate density as people per normalized area unit of the two zones
-            area_z7 = (z7_x2 - z7_x1) * (z7_y2 - z7_y1)
-            area_z6 = (z6_x2 - z6_x1) * (z6_y2 - z6_y1)
-            norm_area = max(1.0, (area_z7 + area_z6) / 10000.0)
-            density = int(min(100, (total_count / norm_area)))
+                # Stats
+                area_z7 = (self.z7_x2 - self.z7_x1) * (self.z7_y2 - self.z7_y1)
+                area_z6 = (self.z6_x2 - self.z6_x1) * (self.z6_y2 - self.z6_y1)
+                norm_area = max(1.0, (area_z7 + area_z6) / 10000.0)
+                density = int(min(100, (total_count / norm_area)))
 
-            if total_count == 0:
-                status = "SAFE"
-            elif total_count < 10:
-                status = "WARNING"
-            else:
-                status = "CRITICAL"
+                if total_count == 0:
+                    status = "SAFE"
+                elif total_count < 10:
+                    status = "WARNING"
+                else:
+                    status = "CRITICAL"
 
-            _cam1_latest_stats = {
-                "count": int(total_count),
-                "density": int(density),
-                "status": status,
-                "locations": [],
-            }
+                self.latest_stats = {
+                    "count": int(total_count),
+                    "density": int(density),
+                    "status": status,
+                    "locations": [],
+                }
 
-            # --- ENCODE FRAME AS JPEG FOR MJPEG STREAM ---
-            ok, buf = cv2.imencode(".jpg", frame)
-            if ok:
-                _cam1_latest_jpeg = buf.tobytes()
+                ok, buf = cv2.imencode(".jpg", frame)
+                if ok:
+                    self.latest_jpeg = buf.tobytes()
 
-            # Target ~30 FPS
-            time.sleep(0.033)
+                time.sleep(0.033)
 
-        cap.release()
+            cap.release()
+            print(f"[SentinelStream {self.stream_id}] Stream ended. Restarting...")
+            time.sleep(2.0)
 
+    # ------------------------------------------------------------------
+    def get_latest_jpeg(self):
+        return self.latest_jpeg
 
-if __name__ == "__main__":
-    # Optional: run the loop directly for debugging (no Flask)
-    _cam1_update_loop("video1.mp4")
+    def get_latest_stats(self):
+        return self.latest_stats

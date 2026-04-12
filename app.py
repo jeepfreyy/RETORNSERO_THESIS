@@ -2,36 +2,18 @@ from flask import Flask, render_template, request, jsonify, session, Response
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
-import threading
 import time
 
 app = Flask(__name__)
 
-# Vision engine: CAM-01 stream (video_feed + api/stats)
-_vision_started = False
+# Vision engine: Sentinel Streams
+from vision_engine import SentinelStream
 
+# Initialize cameras immediately when app starts
+# Using same local video for both for now until true RTSP URLs are provided
+cam1_stream = SentinelStream(stream_id="CAM-01", source="video1.mp4", mask_path="mask_layer.png")
+cam2_stream = SentinelStream(stream_id="CAM-02", source="video1.mp4", mask_path="mask_layer.png")  # Placeholder
 
-def _ensure_vision_started():
-    """
-    Lazily start the CAM-01 vision engine loop in a background thread.
-    """
-    global _vision_started
-    if not _vision_started:
-        _vision_started = True
-        try:
-            from vision_engine import _cam1_update_loop
-
-            t = threading.Thread(
-                target=_cam1_update_loop,
-                args=("video1.mp4",),
-                daemon=True,
-            )
-            t.start()
-        except Exception:
-            # If something goes wrong, allow retry on next request
-            _vision_started = False
-
-#push postgress
 # CONFIGURATION
 # Secret key for session management (Keep this secret in production!)
 app.secret_key = os.environ.get('SECRET_KEY', 'barangay_sentinel_secure_key')
@@ -117,20 +99,17 @@ def logout():
 @app.route('/video_feed')
 def video_feed():
     """
-    MJPEG stream for CAM-01, backed by vision_engine._cam1_latest_jpeg.
+    MJPEG stream for CAM-01.
     """
-    _ensure_vision_started()
-
     def generate():
-        from vision_engine import _cam1_latest_jpeg
-
         while True:
-            if _cam1_latest_jpeg is None:
+            jpeg = cam1_stream.get_latest_jpeg()
+            if jpeg is None:
                 time.sleep(0.05)
                 continue
             yield (
                 b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
-                + _cam1_latest_jpeg
+                + jpeg
                 + b"\r\n"
             )
             time.sleep(0.033)
@@ -145,21 +124,14 @@ def video_feed():
 @app.route('/cam1_frame')
 def cam1_frame():
     """
-    Single JPEG frame for CAM-01. This is useful in environments where
-    multipart/x-mixed-replace streams are not handled correctly; the
-    frontend can poll this endpoint to simulate video.
+    Single JPEG frame for CAM-01.
     """
-    _ensure_vision_started()
-    try:
-        from vision_engine import _cam1_latest_jpeg
-    except Exception:
-        return Response(status=503)
-
-    if _cam1_latest_jpeg is None:
+    jpeg = cam1_stream.get_latest_jpeg()
+    if jpeg is None:
         return Response(status=204)
 
     return Response(
-        _cam1_latest_jpeg,
+        jpeg,
         mimetype="image/jpeg",
         headers={"Cache-Control": "no-store"},
     )
@@ -169,13 +141,21 @@ def api_stats():
     """
     JSON stats for CAM-01 (people count, density, status).
     """
-    _ensure_vision_started()
-    try:
-        from vision_engine import _cam1_latest_stats
+    return jsonify(cam1_stream.get_latest_stats())
 
-        return jsonify(_cam1_latest_stats)
-    except Exception:
-        return jsonify({"count": 0, "density": 0, "status": "SAFE", "locations": []})
+# --- CAM-02 ENDPOINTS ---
+@app.route('/cam2_frame')
+def cam2_frame():
+    """Single JPEG frame for CAM-02."""
+    jpeg = cam2_stream.get_latest_jpeg()
+    if jpeg is None:
+        return Response(status=204)
+    return Response(jpeg, mimetype="image/jpeg", headers={"Cache-Control": "no-store"})
+
+@app.route('/api/stats/cam2')
+def api_stats_cam2():
+    """JSON stats for CAM-02."""
+    return jsonify(cam2_stream.get_latest_stats())
 
 if __name__ == '__main__':
     # Create database tables if they don't exist
