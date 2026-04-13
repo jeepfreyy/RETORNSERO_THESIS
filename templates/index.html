@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en" class="h-full">
- <head>
+
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BARANGAY SENTINEL CCTV</title>
@@ -8,60 +9,99 @@
   <script src="/_sdk/element_sdk.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&amp;family=Orbitron:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&amp;family=Orbitron:wght@400;500;600;700&amp;display=swap"
+    rel="stylesheet">
   <style>
     body {
       box-sizing: border-box;
     }
-    
+
     * {
       font-family: 'Rajdhani', sans-serif;
     }
-    
+
     .font-display {
       font-family: 'Orbitron', monospace;
     }
-    
+
     @keyframes scan {
-      0% { transform: translateY(-100%); }
-      100% { transform: translateY(100%); }
+      0% {
+        transform: translateY(-100%);
+      }
+
+      100% {
+        transform: translateY(100%);
+      }
     }
-    
+
     @keyframes pulse-ring {
-      0% { transform: scale(0.8); opacity: 1; }
-      100% { transform: scale(1.2); opacity: 0; }
+      0% {
+        transform: scale(0.8);
+        opacity: 1;
+      }
+
+      100% {
+        transform: scale(1.2);
+        opacity: 0;
+      }
     }
-    
+
     @keyframes blink {
-      0%, 50% { opacity: 1; }
-      51%, 100% { opacity: 0.3; }
+
+      0%,
+      50% {
+        opacity: 1;
+      }
+
+      51%,
+      100% {
+        opacity: 0.3;
+      }
     }
-    
+
     @keyframes glitch {
-      0%, 90%, 100% { transform: translate(0); }
-      92% { transform: translate(-2px, 1px); }
-      94% { transform: translate(2px, -1px); }
-      96% { transform: translate(-1px, 2px); }
-      98% { transform: translate(1px, -2px); }
+
+      0%,
+      90%,
+      100% {
+        transform: translate(0);
+      }
+
+      92% {
+        transform: translate(-2px, 1px);
+      }
+
+      94% {
+        transform: translate(2px, -1px);
+      }
+
+      96% {
+        transform: translate(-1px, 2px);
+      }
+
+      98% {
+        transform: translate(1px, -2px);
+      }
     }
-    
+
     .scan-line {
       animation: scan 3s linear infinite;
     }
-    
+
     .pulse-ring {
       animation: pulse-ring 2s ease-out infinite;
     }
-    
+
     .blink {
       animation: blink 1s steps(1) infinite;
     }
-    
+
     .camera-feed {
       position: relative;
       overflow: hidden;
     }
-    
+
     .camera-feed::before {
       content: '';
       position: absolute;
@@ -73,730 +113,928 @@
       animation: scan 4s linear infinite;
       z-index: 10;
     }
-    
+
     .camera-feed::after {
       content: '';
       position: absolute;
       inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0, 0, 0, 0.1) 2px,
-        rgba(0, 0, 0, 0.1) 4px
-      );
+      background: repeating-linear-gradient(0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.1) 2px,
+          rgba(0, 0, 0, 0.1) 4px);
       pointer-events: none;
       z-index: 5;
     }
-    
+
     .grid-bg {
-      background-image: 
+      background-image:
         linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
         linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
       background-size: 20px 20px;
     }
-    
+
     .input-glow:focus {
       box-shadow: 0 0 20px rgba(0, 255, 136, 0.3), inset 0 0 20px rgba(0, 255, 136, 0.05);
     }
-    
+
     .btn-glow {
       box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
       transition: all 0.3s ease;
     }
-    
+
     .btn-glow:hover {
       box-shadow: 0 0 30px rgba(0, 255, 136, 0.6), 0 0 60px rgba(0, 255, 136, 0.3);
       transform: translateY(-2px);
     }
-    
+
     .status-online {
       box-shadow: 0 0 10px #00ff88;
     }
-    
+
     .card-border {
       border: 1px solid rgba(0, 255, 136, 0.3);
       background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8));
     }
   </style>
-  <style>@view-transition { navigation: auto; }</style>
+  <style>
+    @view-transition {
+      navigation: auto;
+    }
+  </style>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
-  <style>@view-transition { navigation: auto; }</style>
- </head>
- <body class="h-full bg-slate-950 text-slate-100 overflow-auto">
+  <style>
+    @view-transition {
+      navigation: auto;
+    }
+  </style>
+</head>
+
+<body class="h-full bg-slate-950 text-slate-100 overflow-auto">
   <div id="app" class="h-full w-full grid-bg">
-   <!-- Auth Screen -->
-   <div id="auth-screen" class="h-full w-full flex items-center justify-center p-4">
-    <div class="w-full max-w-md">
-     <!-- Logo -->
-     <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-900 border-2 border-emerald-400 mb-4 relative">
-       <svg class="w-10 h-10 text-emerald-400" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /> <circle cx="8" cy="12" r="2" fill="currentColor" />
-       </svg>
-       <div class="absolute inset-0 rounded-full border-2 border-emerald-400 pulse-ring"></div>
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="h-full w-full flex items-center justify-center p-4">
+      <div class="w-full max-w-md">
+        <!-- Logo -->
+        <div class="text-center mb-8">
+          <div
+            class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-900 border-2 border-emerald-400 mb-4 relative">
+            <svg class="w-10 h-10 text-emerald-400" viewbox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <path
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              <circle cx="8" cy="12" r="2" fill="currentColor" />
+            </svg>
+            <div class="absolute inset-0 rounded-full border-2 border-emerald-400 pulse-ring"></div>
+          </div>
+          <h1 id="system-title" class="font-display text-2xl font-bold text-emerald-400 tracking-wider">BARANGAY
+            SENTINEL</h1>
+          <p id="welcome-text" class="text-slate-400 mt-2 text-sm tracking-wide">ADVANCED SURVEILLANCE SYSTEM</p>
+        </div><!-- Auth Card -->
+        <div class="card-border rounded-2xl p-8 backdrop-blur-xl">
+          <!-- User Type Tabs -->
+          <div class="flex mb-6 bg-slate-900/50 rounded-lg p-1">
+            <button id="operator-mode-btn" onclick="switchUserMode('operator')"
+              class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/50">
+              OPERATOR </button> <button id="admin-mode-btn" onclick="switchUserMode('admin')"
+              class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all text-slate-400 hover:text-slate-300">
+              ADMIN </button>
+          </div><!-- Operator Tabs -->
+          <div id="operator-tabs" class="flex mb-6 bg-slate-900/50 rounded-lg p-1">
+            <button id="login-tab" onclick="switchTab('login')"
+              class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/50">
+              LOGIN </button> <button id="register-tab" onclick="switchTab('register')"
+              class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all text-slate-400 hover:text-slate-300">
+              REGISTER </button>
+          </div><!-- Login Form -->
+          <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+            <div>
+              <label for="login-email" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">EMAIL
+                ADDRESS</label>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
+                  stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 12a. 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                </svg><input type="email" id="login-email" required placeholder="operator@securevision.com"
+                  class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+              </div>
+            </div>
+            <div>
+              <label for="login-password" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">ACCESS
+                CODE</label>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
+                  stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg><input type="password" id="login-password" required placeholder="•��••••••"
+                  class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+              </div>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <label class="flex items-center gap-2 cursor-pointer"> <input type="checkbox"
+                  class="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0">
+                <span class="text-slate-400">Remember device</span> </label> <a href="#"
+                onclick="openForgotPassword(event)"
+                class="text-emerald-400 hover:text-emerald-300 transition-colors">Forgot access code?</a>
+            </div><button type="submit"
+              class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider">
+              AUTHENTICATE </button>
+          </form><!-- Register Form -->
+          <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+            <div>
+              <label for="register-name" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">OPERATOR
+                NAME</label>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
+                  stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 7a. 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg><input type="text" id="register-name" required placeholder="John Doe"
+                  class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+              </div>
+            </div>
+            <div>
+              <label for="register-email" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">EMAIL
+                ADDRESS</label>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
+                  stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 12a. 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                </svg><input type="email" id="register-email" required placeholder="operator@securevision.com"
+                  class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+              </div>
+            </div>
+            <div>
+              <label for="register-password"
+                class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CREATE ACCESS CODE</label>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
+                  stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg><input type="password" id="register-password" required placeholder="••••••••" minlength="6"
+                  class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+              </div>
+            </div>
+            <div>
+              <label for="register-confirm"
+                class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CONFIRM ACCESS CODE</label>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
+                  stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg><input type="password" id="register-confirm" required placeholder="••••••••" minlength="6"
+                  class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+              </div>
+            </div><button type="submit"
+              class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider">
+              CREATE ACCOUNT </button>
+          </form><!-- Admin Login Form -->
+          <form id="admin-login-form" onsubmit="handleAdminLogin(event)" class="space-y-4 hidden">
+            <div>
+              <label for="admin-email" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">ADMIN
+                EMAIL</label>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
+                  stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 12a. 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                </svg><input type="email" id="admin-email" required placeholder="admin@securevision.com"
+                  class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+              </div>
+            </div>
+            <div>
+              <label for="admin-password" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">ADMIN
+                CODE</label>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
+                  stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg><input type="password" id="admin-password" required placeholder="••••••••"
+                  class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+              </div>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <label class="flex items-center gap-2 cursor-pointer"> <input type="checkbox"
+                  class="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0">
+                <span class="text-slate-400">Remember device</span> </label> <a href="#"
+                onclick="openForgotPassword(event)"
+                class="text-emerald-400 hover:text-emerald-300 transition-colors">Forgot access code?</a>
+            </div><button type="submit"
+              class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider">
+              AUTHENTICATE ADMIN </button>
+          </form><!-- Error Message -->
+          <div id="auth-error"
+            class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center">
+          </div><!-- Success Message -->
+          <div id="auth-success"
+            class="hidden mt-4 p-3 bg-emerald-500/10 border border-emerald-500/50 rounded-lg text-emerald-400 text-sm text-center">
+          </div>
+        </div><!-- Footer -->
+        <p class="text-center text-slate-500 text-xs mt-6 tracking-wider">🔒 256-BIT ENCRYPTED CONNECTION</p>
       </div>
-      <h1 id="system-title" class="font-display text-2xl font-bold text-emerald-400 tracking-wider">BARANGAY SENTINEL</h1>
-      <p id="welcome-text" class="text-slate-400 mt-2 text-sm tracking-wide">ADVANCED SURVEILLANCE SYSTEM</p>
-     </div><!-- Auth Card -->
-     <div class="card-border rounded-2xl p-8 backdrop-blur-xl">
-      <!-- User Type Tabs -->
-      <div class="flex mb-6 bg-slate-900/50 rounded-lg p-1">
-       <button id="operator-mode-btn" onclick="switchUserMode('operator')" class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/50"> OPERATOR </button> <button id="admin-mode-btn" onclick="switchUserMode('admin')" class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all text-slate-400 hover:text-slate-300"> ADMIN </button>
-      </div><!-- Operator Tabs -->
-      <div id="operator-tabs" class="flex mb-6 bg-slate-900/50 rounded-lg p-1">
-       <button id="login-tab" onclick="switchTab('login')" class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/50"> LOGIN </button> <button id="register-tab" onclick="switchTab('register')" class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all text-slate-400 hover:text-slate-300"> REGISTER </button>
-      </div><!-- Login Form -->
-      <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
-       <div>
-        <label for="login-email" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">EMAIL ADDRESS</label>
-        <div class="relative">
-         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a. 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-         </svg><input type="email" id="login-email" required placeholder="operator@securevision.com" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+    </div><!-- Forgot Password Modal -->
+    <div id="forgot-password-modal"
+      class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+      <div class="w-full max-w-md">
+        <div class="card-border rounded-2xl p-8 backdrop-blur-xl">
+          <!-- Close Button --> <button onclick="closeForgotPassword()"
+            class="float-right text-slate-400 hover:text-slate-200 transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg></button> <!-- Header -->
+          <div class="mb-6 clear-both">
+            <h2 class="font-display text-2xl font-bold text-emerald-400 tracking-wider mb-2">RECOVER ACCESS</h2>
+            <p class="text-slate-400 text-sm">Enter your email address to reset your access code</p>
+          </div><!-- Step 1: Email Verification -->
+          <div id="forgot-step-1" class="space-y-4">
+            <div>
+              <label for="forgot-email" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">EMAIL
+                ADDRESS</label>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
+                  stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 12a. 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                </svg><input type="email" id="forgot-email" required placeholder="operator@securevision.com"
+                  class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+              </div>
+            </div><button type="button" onclick="sendResetEmail()"
+              class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider">
+              SEND RESET LINK </button>
+          </div><!-- Step 2: Verification Code -->
+          <div id="forgot-step-2" class="space-y-4 hidden">
+            <p class="text-slate-400 text-sm mb-4">We've sent a verification code to your email. Enter it below to
+              continue.</p>
+            <div>
+              <label for="forgot-code"
+                class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">VERIFICATION CODE</label>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
+                  stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg><input type="text" id="forgot-code" required placeholder="123456" maxlength="6"
+                  class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all font-mono text-center text-lg tracking-widest">
+              </div>
+              <p class="text-xs text-slate-500 mt-2">Code expires in: <span id="code-timer">10:00</span></p>
+            </div><button type="button" onclick="verifyResetCode()"
+              class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow tracking-wider">
+              VERIFY CODE </button> <button type="button" onclick="resendCode()"
+              class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2 rounded-lg transition-all tracking-wider">
+              RESEND CODE </button>
+          </div><!-- Step 3: Reset Password -->
+          <div id="forgot-step-3" class="space-y-4 hidden">
+            <div>
+              <label for="forgot-new-password"
+                class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">NEW ACCESS CODE</label>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
+                  stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg><input type="password" id="forgot-new-password" required placeholder="••••••••" minlength="6"
+                  class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+              </div>
+            </div>
+            <div>
+              <label for="forgot-confirm-password"
+                class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CONFIRM ACCESS CODE</label>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
+                  stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg><input type="password" id="forgot-confirm-password" required placeholder="••••••••" minlength="6"
+                  class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+              </div>
+            </div><!-- Password Strength Indicator -->
+            <div class="space-y-2">
+              <p class="text-xs text-slate-400">Password strength:</p>
+              <div class="flex gap-1 h-1">
+                <div id="strength-bar-1" class="flex-1 rounded-full bg-slate-700"></div>
+                <div id="strength-bar-2" class="flex-1 rounded-full bg-slate-700"></div>
+                <div id="strength-bar-3" class="flex-1 rounded-full bg-slate-700"></div>
+              </div>
+              <p id="strength-text" class="text-xs text-slate-400">Type to see strength</p>
+            </div><button type="button" onclick="resetPassword()"
+              class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider">
+              RESET ACCESS CODE </button>
+          </div><!-- Success Step -->
+          <div id="forgot-step-success" class="text-center space-y-4 hidden">
+            <div class="flex justify-center">
+              <div
+                class="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center">
+                <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+            <div>
+              <h3 class="text-xl font-bold text-emerald-400 font-display mb-2">ACCESS RESTORED</h3>
+              <p class="text-slate-400 text-sm">Your access code has been successfully reset. You can now login with
+                your new credentials.</p>
+            </div><button type="button" onclick="backToLogin()"
+              class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow tracking-wider">
+              RETURN TO LOGIN </button>
+          </div><!-- Error Message -->
+          <div id="forgot-error"
+            class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center">
+          </div>
         </div>
-       </div>
-       <div>
-        <label for="login-password" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">ACCESS CODE</label>
-        <div class="relative">
-         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-         </svg><input type="password" id="login-password" required placeholder="•��••••••" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+      </div>
+    </div><!-- Dashboard Screen -->
+    <div id="dashboard-screen" class="h-full w-full hidden flex flex-col">
+      <!-- Header -->
+      <header class="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 px-6 py-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3">
+              <div
+                class="w-10 h-10 rounded-full bg-slate-800 border border-emerald-500/50 flex items-center justify-center">
+                <svg class="w-5 h-5 text-emerald-400" viewbox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2">
+                  <path
+                    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <h1 id="dashboard-title" class="font-display text-lg font-bold text-emerald-400 tracking-wider">BARANGAY
+                  SENTINEL</h1>
+                <p class="text-xs text-slate-500">COMMAND CENTER</p>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-6">
+            <!-- View Toggle -->
+            <div class="flex gap-2 bg-slate-900/50 rounded-lg p-1">
+              <button id="view-live-btn" onclick="switchView('live')"
+                class="px-3 py-1 rounded-md text-xs font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/50">
+                LIVE </button> <button id="view-archive-btn" onclick="switchView('archive')"
+                class="px-3 py-1 rounded-md text-xs font-semibold transition-all text-slate-400 hover:text-slate-300">
+                ARCHIVE </button>
+            </div><!-- Live Time -->
+            <div id="live-time-container" class="hidden sm:flex items-center gap-2 text-slate-400">
+              <div class="w-2 h-2 rounded-full bg-emerald-400 blink"></div><span id="live-time"
+                class="font-mono text-sm">00:00:00</span>
+            </div><!-- Status -->
+            <div id="status-container"
+              class="hidden md:flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
+              <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span
+                class="text-emerald-400 text-xs font-semibold tracking-wider">ALL SYSTEMS ONLINE</span>
+            </div><!-- User Menu -->
+            <div class="flex items-center gap-3">
+              <div class="text-right hidden sm:block">
+                <p id="user-name" class="text-sm font-semibold text-slate-200">Operator</p>
+                <p class="text-xs text-slate-500">Security Level: Admin</p>
+              </div><button onclick="handleLogout()"
+                class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-red-500/50 hover:bg-red-500/10 transition-all group">
+                <svg class="w-5 h-5 text-slate-400 group-hover:text-red-400 transition-colors" fill="none"
+                  stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg></button>
+            </div>
+          </div>
         </div>
-       </div>
-       <div class="flex items-center justify-between text-sm">
-        <label class="flex items-center gap-2 cursor-pointer"> <input type="checkbox" class="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"> <span class="text-slate-400">Remember device</span> </label> <a href="#" onclick="openForgotPassword(event)" class="text-emerald-400 hover:text-emerald-300 transition-colors">Forgot access code?</a>
-       </div><button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider"> AUTHENTICATE </button>
-      </form><!-- Register Form -->
-      <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
-       <div>
-        <label for="register-name" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">OPERATOR NAME</label>
-        <div class="relative">
-         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a. 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-         </svg><input type="text" id="register-name" required placeholder="John Doe" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+      </header><!-- Main Content -->
+      <main class="flex-1 p-6 overflow-auto">
+        <!-- Maximized Camera Modal -->
+        <div id="camera-maximize-modal"
+          class="fixed inset-0 bg-black/90 backdrop-blur-xl hidden flex items-center justify-center z-50 p-4">
+          <div class="w-full max-w-6xl max-h-full flex flex-col">
+            <!-- Close Button -->
+            <div class="flex justify-end mb-4">
+              <button onclick="closeMaximizeCamera()"
+                class="text-slate-400 hover:text-slate-200 transition-colors p-2 hover:bg-slate-800/50 rounded-lg">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg></button>
+            </div><!-- Main Content -->
+            <div class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 overflow-auto">
+              <!-- Camera Feed Section -->
+              <div class="lg:col-span-2 flex flex-col gap-4">
+                <!-- Camera Display -->
+                <div class="card-border rounded-xl overflow-hidden">
+                  <div
+                    class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative flex items-center justify-center">
+                    <!-- Simulated Feed -->
+                    <div id="max-camera-svg" class="w-full h-full"></div><!-- Overlay Info -->
+                    <div class="absolute top-4 left-4 right-4 flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span id="max-camera-name"
+                          class="text-sm font-mono text-emerald-400 bg-slate-900/70 px-3 py-1 rounded">CAM-01</span>
+                      </div>
+                      <div class="flex gap-2">
+                        <span id="max-camera-resolution"
+                          class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-1 rounded">1080p</span> <span
+                          id="max-camera-time"
+                          class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-1 rounded">--:--:--</span>
+                      </div>
+                    </div>
+                  </div><!-- Camera Info Card -->
+                  <div class="p-4 border-t border-slate-700">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div>
+                        <p class="text-xs text-slate-500 tracking-wider mb-1">LOCATION</p>
+                        <p id="max-camera-location" class="text-sm font-semibold text-slate-200">Main Entrance</p>
+                      </div>
+                      <div>
+                        <p class="text-xs text-slate-500 tracking-wider mb-1">DETECTED PEOPLE</p>
+                        <p id="max-people-count" class="text-sm font-semibold text-emerald-400">0</p>
+                      </div>
+                      <div>
+                        <p class="text-xs text-slate-500 tracking-wider mb-1">CROWD DENSITY</p>
+                        <p id="max-density-level" class="text-sm font-semibold text-amber-400">Low</p>
+                      </div>
+                      <div>
+                        <p class="text-xs text-slate-500 tracking-wider mb-1">ALERTS</p>
+                        <p id="max-alerts-count" class="text-sm font-semibold text-red-400">0</p>
+                      </div>
+                    </div>
+                  </div>
+                </div><!-- Crowd Density Timeline -->
+                <div class="card-border rounded-xl p-4">
+                  <h3 class="font-display text-lg font-bold text-emerald-400 tracking-wider mb-4">CROWD DENSITY TIMELINE
+                  </h3><!-- Threshold Bar -->
+                  <div class="space-y-3">
+                    <!-- Color Legend -->
+                    <div class="flex gap-4 text-xs mb-3">
+                      <div class="flex items-center gap-2">
+                        <div class="w-4 h-4 rounded bg-emerald-500"></div><span class="text-slate-400">Low
+                          Density</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <div class="w-4 h-4 rounded bg-amber-500"></div><span class="text-slate-400">Medium
+                          Density</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <div class="w-4 h-4 rounded bg-red-500"></div><span class="text-slate-400">High Density</span>
+                      </div>
+                    </div><!-- Timeline Container -->
+                    <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
+                      <div id="density-timeline" class="flex gap-1 h-12 items-end">
+                        <!-- Density bars will be generated here -->
+                      </div>
+                    </div><!-- Timeline Labels -->
+                    <div class="flex justify-between text-xs text-slate-500 px-1">
+                      <span id="timeline-start">4 hrs ago</span> <span id="timeline-mid">2 hrs ago</span> <span
+                        id="timeline-end">Now</span>
+                    </div>
+                  </div><!-- Stats -->
+                  <div class="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-700">
+                    <div>
+                      <p class="text-xs text-slate-500 tracking-wider mb-1">PEAK DENSITY</p>
+                      <p id="max-peak-density" class="text-sm font-semibold text-red-400">85%</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-slate-500 tracking-wider mb-1">AVG PEOPLE</p>
+                      <p id="max-avg-people" class="text-sm font-semibold text-emerald-400">24</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-slate-500 tracking-wider mb-1">DURATION HIGH</p>
+                      <p id="max-high-duration" class="text-sm font-semibold text-amber-400">28 min</p>
+                    </div>
+                  </div>
+                </div>
+              </div><!-- Activity Logs Section -->
+              <div class="lg:col-span-1 flex flex-col">
+                <div class="card-border rounded-xl p-4 flex-1 flex flex-col overflow-hidden">
+                  <h3 class="font-display text-lg font-bold text-emerald-400 tracking-wider mb-4">ACTIVITY LOGS</h3>
+                  <!-- Logs Container -->
+                  <div id="camera-activity-logs" class="flex-1 overflow-y-auto space-y-2 pr-2">
+                    <!-- Activity logs will be generated here -->
+                  </div><!-- Empty State -->
+                  <div id="logs-empty-state"
+                    class="flex items-center justify-center h-full text-slate-500 text-center text-sm">
+                    <div>
+                      <p class="mb-1">📹 No activities logged yet</p>
+                      <p class="text-xs">Activities will appear in real-time</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div><!-- Archive View -->
+        <div id="archive-view" class="hidden">
+          <!-- Archive Header -->
+          <div class="mb-6">
+            <h2 class="font-display text-2xl font-bold text-emerald-400 tracking-wider mb-4">ARCHIVE BROWSER</h2>
+            <!-- Archive Filters -->
+            <div class="card-border rounded-xl p-6 backdrop-blur-xl">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <!-- Date Picker -->
+                <div>
+                  <label for="archive-date"
+                    class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">SELECT DATE</label> <input
+                    type="date" id="archive-date"
+                    class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+                </div><!-- Start Time -->
+                <div>
+                  <label for="archive-start-time"
+                    class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">START TIME</label> <input
+                    type="time" id="archive-start-time"
+                    class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+                </div><!-- End Time -->
+                <div>
+                  <label for="archive-end-time"
+                    class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">END TIME</label> <input
+                    type="time" id="archive-end-time"
+                    class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+                </div><!-- Camera Selection -->
+                <div>
+                  <label for="archive-camera"
+                    class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CAMERA</label> <select
+                    id="archive-camera"
+                    class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+                    <option value="">All Cameras</option>
+                    <option value="CAM-01">CAM-01 - Main Entrance</option>
+                    <option value="CAM-02">CAM-02 - Secondary Entrance</option>
+                  </select>
+                </div>
+              </div><!-- Search Button -->
+              <div class="flex gap-3">
+                <button onclick="searchArchive()"
+                  class="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold rounded-lg btn-glow transition-all tracking-wider">
+                  SEARCH </button> <button onclick="resetArchiveFilters()"
+                  class="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-lg transition-all tracking-wider">
+                  RESET </button>
+              </div><!-- Archive Info -->
+              <div id="archive-info" class="mt-4 p-3 bg-slate-900/50 border border-slate-700 rounded-lg hidden">
+                <p id="archive-info-text" class="text-sm text-slate-300"></p>
+              </div>
+            </div>
+          </div><!-- Archive Results -->
+          <div id="archive-results" class="space-y-4">
+            <p class="text-slate-400 text-center py-8">Select filters and click SEARCH to view archived recordings</p>
+          </div>
+        </div><!-- Live View -->
+        <div id="live-view" class="flex flex-col lg:flex-row gap-4">
+          <!-- Main Content Area -->
+          <div class="flex-1">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div class="card-border rounded-xl p-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-xs text-slate-500 tracking-wider">CAMERAS ONLINE</p>
+                    <p class="text-2xl font-bold text-emerald-400 font-display">2/2</p>
+                  </div>
+                  <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a. 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div class="card-border rounded-xl p-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-xs text-slate-500 tracking-wider">ALERTS TODAY</p>
+                    <p class="text-2xl font-bold text-amber-400 font-display">3</p>
+                  </div>
+                  <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div class="card-border rounded-xl p-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-xs text-slate-500 tracking-wider">STORAGE USED</p>
+                    <p class="text-2xl font-bold text-blue-400 font-display">67%</p>
+                  </div>
+                  <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div class="card-border rounded-xl p-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-xs text-slate-500 tracking-wider">UPTIME</p>
+                    <p class="text-2xl font-bold text-purple-400 font-display">99.9%</p>
+                  </div>
+                  <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div><!-- Camera Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Camera 1 (vision_engine.py live stream) -->
+              <div class="card-border rounded-xl overflow-hidden group" id="cam01-card">
+                <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
+                  <div class="absolute inset-0 flex items-center justify-center bg-slate-900/80">
+                    <!-- NOTE: src will be periodically refreshed via JS from /cam1_frame -->
+                    <img id="cam01-video" src="/cam1_frame" alt="CAM-01 Live" class="w-full h-full object-contain" />
+                  </div>
+                  <div id="cam01-stats-overlay"
+                    class="absolute top-12 left-3 right-3 flex items-center gap-2 flex-wrap text-xs font-mono">
+                    <span class="bg-slate-900/80 px-2 py-1 rounded text-amber-300">People: <strong
+                        id="cam01-count">0</strong></span>
+                    <span class="bg-slate-900/80 px-2 py-1 rounded text-slate-300">Density: <strong
+                        id="cam01-density">0</strong>%</span>
+                    <span class="bg-slate-900/80 px-2 py-1 rounded" id="cam01-status-wrap"><strong
+                        id="cam01-status">SAFE</strong></span>
+                  </div>
+                  <div class="absolute top-3 left-3 flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span
+                      class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
+                  </div>
+                  <div class="absolute top-3 right-3">
+                    <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
+                  </div>
+                  <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                    <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-01</span>
+                    <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time"
+                      id="cam01-time">--:--:--</span>
+                  </div>
+                </div>
+                <div class="p-3 flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-200">Main Entrance</p>
+                    <p class="text-xs text-slate-500">Building A • Ground Floor</p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button onclick="maximizeCamera('CAM-01', 'Main Entrance', '1080p')"
+                      class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all group"
+                      title="Maximize">
+                      <svg class="w-4 h-4 text-slate-400 group-hover:text-emerald-400 transition-colors" fill="none"
+                        stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6v4m12-4h4v4M6 14v4h4m8-4v4h-4" />
+                      </svg></button>
+                  </div>
+                </div>
+              </div><!-- Camera 2 -->
+              <div class="card-border rounded-xl overflow-hidden group" id="cam02-card">
+                <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
+                  <div class="absolute inset-0 flex items-center justify-center bg-slate-900/80">
+                    <img id="cam02-video" src="/cam1_frame" alt="CAM-02 Live" class="w-full h-full object-contain" />
+                  </div>
+                  <div id="cam02-stats-overlay"
+                    class="absolute top-12 left-3 right-3 flex items-center gap-2 flex-wrap text-xs font-mono">
+                    <span class="bg-slate-900/80 px-2 py-1 rounded text-amber-300">People: <strong
+                        id="cam02-count">0</strong></span>
+                    <span class="bg-slate-900/80 px-2 py-1 rounded text-slate-300">Density: <strong
+                        id="cam02-density">0</strong>%</span>
+                    <span class="bg-slate-900/80 px-2 py-1 rounded" id="cam02-status-wrap"><strong
+                        id="cam02-status">SAFE</strong></span>
+                  </div>
+                  <div class="absolute top-3 left-3 flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span
+                      class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
+                  </div>
+                  <div class="absolute top-3 right-3">
+                    <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
+                  </div>
+                  <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                    <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-02</span>
+                    <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time"
+                      id="cam02-time">--:--:--</span>
+                  </div>
+                </div>
+                <div class="p-3 flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-200">Secondary Entrance</p>
+                    <p class="text-xs text-slate-500">Building A • Side Access</p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button onclick="maximizeCamera('CAM-02', 'Secondary Entrance', '1080p')"
+                      class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all group"
+                      title="Maximize">
+                      <svg class="w-4 h-4 text-slate-400 group-hover:text-emerald-400 transition-colors" fill="none"
+                        stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6v4m12-4h4v4M6 14v4h4m8-4v4h-4" />
+                      </svg></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div><!-- Activity Logs Sidebar -->
+          <div class="lg:w-96 flex flex-col">
+            <!-- Toggle Button (Mobile) -->
+            <div class="lg:hidden mb-4">
+              <button id="toggle-activity-logs-mobile" onclick="toggleActivityLogsSidebar()"
+                class="w-full px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-sm tracking-wider transition-all">
+                📊 SHOW ACTIVITY LOGS </button>
+            </div><!-- Activity Logs Panel -->
+            <div id="activity-logs-sidebar"
+              class="card-border rounded-xl p-4 backdrop-blur-xl flex-1 flex flex-col overflow-hidden hidden lg:flex">
+              <!-- Header with Toggle -->
+              <div class="flex items-center justify-between mb-4 pb-4 border-b border-slate-700">
+                <h3 class="font-display text-lg font-bold text-emerald-400 tracking-wider">ALL ACTIVITY LOGS</h3><button
+                  id="toggle-activity-logs-desktop" onclick="toggleActivityLogsSidebar()"
+                  class="hidden lg:flex w-8 h-8 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-slate-600 items-center justify-center transition-all group">
+                  <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-300 transition-colors" fill="none"
+                    stroke="currentColor" viewbox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg></button>
+              </div><!-- Filter Options -->
+              <div class="space-y-3 mb-4 pb-4 border-b border-slate-700">
+                <!-- Filter by Camera -->
+                <div>
+                  <label class="text-xs font-semibold text-slate-400 mb-2 tracking-wider block">FILTER BY CAMERA</label>
+                  <select id="activity-camera-filter" onchange="filterActivityLogs()"
+                    class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-all">
+                    <option value="">All Cameras</option>
+                    <option value="CAM-01">CAM-01 - Main Entrance</option>
+                    <option value="CAM-02">CAM-02 - Secondary Entrance</option>
+                  </select>
+                </div><!-- Filter by Type -->
+                <div>
+                  <label class="text-xs font-semibold text-slate-400 mb-2 tracking-wider block">FILTER BY TYPE</label>
+                  <select id="activity-type-filter" onchange="filterActivityLogs()"
+                    class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-all">
+                    <option value="">All Types</option>
+                    <option value="ENTRY">Entry</option>
+                    <option value="EXIT">Exit</option>
+                    <option value="CROWDING">Crowding</option>
+                    <option value="ALERT">Alert</option>
+                    <option value="NORMAL">Normal</option>
+                  </select>
+                </div>
+              </div><!-- Activity Logs Container -->
+              <div id="all-activity-logs" class="flex-1 overflow-y-auto space-y-2 pr-2">
+                <!-- Activity logs will be populated here -->
+              </div><!-- Empty State -->
+              <div id="logs-empty-state-global"
+                class="flex items-center justify-center h-full text-slate-500 text-center text-sm hidden">
+                <div>
+                  <p class="mb-1">📹 No activities logged</p>
+                  <p class="text-xs">Live activities will appear here</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-       </div>
-       <div>
-        <label for="register-email" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">EMAIL ADDRESS</label>
-        <div class="relative">
-         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a. 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-         </svg><input type="email" id="register-email" required placeholder="operator@securevision.com" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-        </div>
-       </div>
-       <div>
-        <label for="register-password" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CREATE ACCESS CODE</label>
-        <div class="relative">
-         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-         </svg><input type="password" id="register-password" required placeholder="••••••••" minlength="6" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-        </div>
-       </div>
-       <div>
-        <label for="register-confirm" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CONFIRM ACCESS CODE</label>
-        <div class="relative">
-         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-         </svg><input type="password" id="register-confirm" required placeholder="••••••••" minlength="6" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-        </div>
-       </div><button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider"> CREATE ACCOUNT </button>
-      </form><!-- Admin Login Form -->
-      <form id="admin-login-form" onsubmit="handleAdminLogin(event)" class="space-y-4 hidden">
-       <div>
-        <label for="admin-email" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">ADMIN EMAIL</label>
-        <div class="relative">
-         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a. 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-         </svg><input type="email" id="admin-email" required placeholder="admin@securevision.com" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-        </div>
-       </div>
-       <div>
-        <label for="admin-password" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">ADMIN CODE</label>
-        <div class="relative">
-         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-         </svg><input type="password" id="admin-password" required placeholder="••••••••" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-        </div>
-       </div>
-       <div class="flex items-center justify-between text-sm">
-        <label class="flex items-center gap-2 cursor-pointer"> <input type="checkbox" class="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"> <span class="text-slate-400">Remember device</span> </label> <a href="#" onclick="openForgotPassword(event)" class="text-emerald-400 hover:text-emerald-300 transition-colors">Forgot access code?</a>
-       </div><button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider"> AUTHENTICATE ADMIN </button>
-      </form><!-- Error Message -->
-      <div id="auth-error" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center"></div><!-- Success Message -->
-      <div id="auth-success" class="hidden mt-4 p-3 bg-emerald-500/10 border border-emerald-500/50 rounded-lg text-emerald-400 text-sm text-center"></div>
-     </div><!-- Footer -->
-     <p class="text-center text-slate-500 text-xs mt-6 tracking-wider">🔒 256-BIT ENCRYPTED CONNECTION</p>
+      </main>
     </div>
-   </div><!-- Forgot Password Modal -->
-   <div id="forgot-password-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-    <div class="w-full max-w-md">
-     <div class="card-border rounded-2xl p-8 backdrop-blur-xl">
-      <!-- Close Button --> <button onclick="closeForgotPassword()" class="float-right text-slate-400 hover:text-slate-200 transition-colors">
-       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-       </svg></button> <!-- Header -->
-      <div class="mb-6 clear-both">
-       <h2 class="font-display text-2xl font-bold text-emerald-400 tracking-wider mb-2">RECOVER ACCESS</h2>
-       <p class="text-slate-400 text-sm">Enter your email address to reset your access code</p>
-      </div><!-- Step 1: Email Verification -->
-      <div id="forgot-step-1" class="space-y-4">
-       <div>
-        <label for="forgot-email" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">EMAIL ADDRESS</label>
-        <div class="relative">
-         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a. 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-         </svg><input type="email" id="forgot-email" required placeholder="operator@securevision.com" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-        </div>
-       </div><button type="button" onclick="sendResetEmail()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider"> SEND RESET LINK </button>
-      </div><!-- Step 2: Verification Code -->
-      <div id="forgot-step-2" class="space-y-4 hidden">
-       <p class="text-slate-400 text-sm mb-4">We've sent a verification code to your email. Enter it below to continue.</p>
-       <div>
-        <label for="forgot-code" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">VERIFICATION CODE</label>
-        <div class="relative">
-         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-         </svg><input type="text" id="forgot-code" required placeholder="123456" maxlength="6" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all font-mono text-center text-lg tracking-widest">
-        </div>
-        <p class="text-xs text-slate-500 mt-2">Code expires in: <span id="code-timer">10:00</span></p>
-       </div><button type="button" onclick="verifyResetCode()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow tracking-wider"> VERIFY CODE </button> <button type="button" onclick="resendCode()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2 rounded-lg transition-all tracking-wider"> RESEND CODE </button>
-      </div><!-- Step 3: Reset Password -->
-      <div id="forgot-step-3" class="space-y-4 hidden">
-       <div>
-        <label for="forgot-new-password" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">NEW ACCESS CODE</label>
-        <div class="relative">
-         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-         </svg><input type="password" id="forgot-new-password" required placeholder="••••••••" minlength="6" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-        </div>
-       </div>
-       <div>
-        <label for="forgot-confirm-password" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CONFIRM ACCESS CODE</label>
-        <div class="relative">
-         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-         </svg><input type="password" id="forgot-confirm-password" required placeholder="••••••••" minlength="6" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-        </div>
-       </div><!-- Password Strength Indicator -->
-       <div class="space-y-2">
-        <p class="text-xs text-slate-400">Password strength:</p>
-        <div class="flex gap-1 h-1">
-         <div id="strength-bar-1" class="flex-1 rounded-full bg-slate-700"></div>
-         <div id="strength-bar-2" class="flex-1 rounded-full bg-slate-700"></div>
-         <div id="strength-bar-3" class="flex-1 rounded-full bg-slate-700"></div>
-        </div>
-        <p id="strength-text" class="text-xs text-slate-400">Type to see strength</p>
-       </div><button type="button" onclick="resetPassword()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider"> RESET ACCESS CODE </button>
-      </div><!-- Success Step -->
-      <div id="forgot-step-success" class="text-center space-y-4 hidden">
-       <div class="flex justify-center">
-        <div class="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center">
-         <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-         </svg>
-        </div>
-       </div>
-       <div>
-        <h3 class="text-xl font-bold text-emerald-400 font-display mb-2">ACCESS RESTORED</h3>
-        <p class="text-slate-400 text-sm">Your access code has been successfully reset. You can now login with your new credentials.</p>
-       </div><button type="button" onclick="backToLogin()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow tracking-wider"> RETURN TO LOGIN </button>
-      </div><!-- Error Message -->
-      <div id="forgot-error" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center"></div>
-     </div>
-    </div>
-   </div><!-- Dashboard Screen -->
-   <div id="dashboard-screen" class="h-full w-full hidden flex flex-col">
-    <!-- Header -->
-    <header class="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 px-6 py-4">
-     <div class="flex items-center justify-between">
-      <div class="flex items-center gap-4">
-       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-full bg-slate-800 border border-emerald-500/50 flex items-center justify-center">
-         <svg class="w-5 h-5 text-emerald-400" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-         </svg>
-        </div>
-        <div>
-         <h1 id="dashboard-title" class="font-display text-lg font-bold text-emerald-400 tracking-wider">BARANGAY SENTINEL</h1>
-         <p class="text-xs text-slate-500">COMMAND CENTER</p>
-        </div>
-       </div>
-      </div>
-      <div class="flex items-center gap-6">
-       <!-- View Toggle -->
-       <div class="flex gap-2 bg-slate-900/50 rounded-lg p-1">
-        <button id="view-live-btn" onclick="switchView('live')" class="px-3 py-1 rounded-md text-xs font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/50"> LIVE </button> <button id="view-archive-btn" onclick="switchView('archive')" class="px-3 py-1 rounded-md text-xs font-semibold transition-all text-slate-400 hover:text-slate-300"> ARCHIVE </button>
-       </div><!-- Live Time -->
-       <div id="live-time-container" class="hidden sm:flex items-center gap-2 text-slate-400">
-        <div class="w-2 h-2 rounded-full bg-emerald-400 blink"></div><span id="live-time" class="font-mono text-sm">00:00:00</span>
-       </div><!-- Status -->
-       <div id="status-container" class="hidden md:flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
-        <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-emerald-400 text-xs font-semibold tracking-wider">ALL SYSTEMS ONLINE</span>
-       </div><!-- User Menu -->
-       <div class="flex items-center gap-3">
-        <div class="text-right hidden sm:block">
-         <p id="user-name" class="text-sm font-semibold text-slate-200">Operator</p>
-         <p class="text-xs text-slate-500">Security Level: Admin</p>
-        </div><button onclick="handleLogout()" class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-red-500/50 hover:bg-red-500/10 transition-all group">
-         <svg class="w-5 h-5 text-slate-400 group-hover:text-red-400 transition-colors" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-         </svg></button>
-       </div>
-      </div>
-     </div>
-    </header><!-- Main Content -->
-    <main class="flex-1 p-6 overflow-auto">
-     <!-- Maximized Camera Modal -->
-     <div id="camera-maximize-modal" class="fixed inset-0 bg-black/90 backdrop-blur-xl hidden flex items-center justify-center z-50 p-4">
-      <div class="w-full max-w-6xl max-h-full flex flex-col">
-       <!-- Close Button -->
-       <div class="flex justify-end mb-4">
-        <button onclick="closeMaximizeCamera()" class="text-slate-400 hover:text-slate-200 transition-colors p-2 hover:bg-slate-800/50 rounded-lg">
-         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-         </svg></button>
-       </div><!-- Main Content -->
-       <div class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 overflow-auto">
-        <!-- Camera Feed Section -->
-        <div class="lg:col-span-2 flex flex-col gap-4">
-         <!-- Camera Display -->
-         <div class="card-border rounded-xl overflow-hidden">
-          <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative flex items-center justify-center">
-           <!-- Simulated Feed -->
-           <div id="max-camera-svg" class="w-full h-full"></div><!-- Overlay Info -->
-           <div class="absolute top-4 left-4 right-4 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-             <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span id="max-camera-name" class="text-sm font-mono text-emerald-400 bg-slate-900/70 px-3 py-1 rounded">CAM-01</span>
-            </div>
-            <div class="flex gap-2">
-             <span id="max-camera-resolution" class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-1 rounded">1080p</span> <span id="max-camera-time" class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-1 rounded">--:--:--</span>
-            </div>
-           </div>
-          </div><!-- Camera Info Card -->
-          <div class="p-4 border-t border-slate-700">
-           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div>
-             <p class="text-xs text-slate-500 tracking-wider mb-1">LOCATION</p>
-             <p id="max-camera-location" class="text-sm font-semibold text-slate-200">Main Entrance</p>
-            </div>
-            <div>
-             <p class="text-xs text-slate-500 tracking-wider mb-1">DETECTED PEOPLE</p>
-             <p id="max-people-count" class="text-sm font-semibold text-emerald-400">0</p>
-            </div>
-            <div>
-             <p class="text-xs text-slate-500 tracking-wider mb-1">CROWD DENSITY</p>
-             <p id="max-density-level" class="text-sm font-semibold text-amber-400">Low</p>
-            </div>
-            <div>
-             <p class="text-xs text-slate-500 tracking-wider mb-1">ALERTS</p>
-             <p id="max-alerts-count" class="text-sm font-semibold text-red-400">0</p>
-            </div>
-           </div>
-          </div>
-         </div><!-- Crowd Density Timeline -->
-         <div class="card-border rounded-xl p-4">
-          <h3 class="font-display text-lg font-bold text-emerald-400 tracking-wider mb-4">CROWD DENSITY TIMELINE</h3><!-- Threshold Bar -->
-          <div class="space-y-3">
-           <!-- Color Legend -->
-           <div class="flex gap-4 text-xs mb-3">
-            <div class="flex items-center gap-2">
-             <div class="w-4 h-4 rounded bg-emerald-500"></div><span class="text-slate-400">Low Density</span>
-            </div>
-            <div class="flex items-center gap-2">
-             <div class="w-4 h-4 rounded bg-amber-500"></div><span class="text-slate-400">Medium Density</span>
-            </div>
-            <div class="flex items-center gap-2">
-             <div class="w-4 h-4 rounded bg-red-500"></div><span class="text-slate-400">High Density</span>
-            </div>
-           </div><!-- Timeline Container -->
-           <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-            <div id="density-timeline" class="flex gap-1 h-12 items-end">
-             <!-- Density bars will be generated here -->
-            </div>
-           </div><!-- Timeline Labels -->
-           <div class="flex justify-between text-xs text-slate-500 px-1">
-            <span id="timeline-start">4 hrs ago</span> <span id="timeline-mid">2 hrs ago</span> <span id="timeline-end">Now</span>
-           </div>
-          </div><!-- Stats -->
-          <div class="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-700">
-           <div>
-            <p class="text-xs text-slate-500 tracking-wider mb-1">PEAK DENSITY</p>
-            <p id="max-peak-density" class="text-sm font-semibold text-red-400">85%</p>
-           </div>
-           <div>
-            <p class="text-xs text-slate-500 tracking-wider mb-1">AVG PEOPLE</p>
-            <p id="max-avg-people" class="text-sm font-semibold text-emerald-400">24</p>
-           </div>
-           <div>
-            <p class="text-xs text-slate-500 tracking-wider mb-1">DURATION HIGH</p>
-            <p id="max-high-duration" class="text-sm font-semibold text-amber-400">28 min</p>
-           </div>
-          </div>
-         </div>
-        </div><!-- Activity Logs Section -->
-        <div class="lg:col-span-1 flex flex-col">
-         <div class="card-border rounded-xl p-4 flex-1 flex flex-col overflow-hidden">
-          <h3 class="font-display text-lg font-bold text-emerald-400 tracking-wider mb-4">ACTIVITY LOGS</h3><!-- Logs Container -->
-          <div id="camera-activity-logs" class="flex-1 overflow-y-auto space-y-2 pr-2">
-           <!-- Activity logs will be generated here -->
-          </div><!-- Empty State -->
-          <div id="logs-empty-state" class="flex items-center justify-center h-full text-slate-500 text-center text-sm">
-           <div>
-            <p class="mb-1">📹 No activities logged yet</p>
-            <p class="text-xs">Activities will appear in real-time</p>
-           </div>
-          </div>
-         </div>
-        </div>
-       </div>
-      </div>
-     </div><!-- Archive View -->
-     <div id="archive-view" class="hidden">
-      <!-- Archive Header -->
-      <div class="mb-6">
-       <h2 class="font-display text-2xl font-bold text-emerald-400 tracking-wider mb-4">ARCHIVE BROWSER</h2><!-- Archive Filters -->
-       <div class="card-border rounded-xl p-6 backdrop-blur-xl">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-         <!-- Date Picker -->
-         <div>
-          <label for="archive-date" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">SELECT DATE</label> <input type="date" id="archive-date" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-         </div><!-- Start Time -->
-         <div>
-          <label for="archive-start-time" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">START TIME</label> <input type="time" id="archive-start-time" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-         </div><!-- End Time -->
-         <div>
-          <label for="archive-end-time" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">END TIME</label> <input type="time" id="archive-end-time" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-         </div><!-- Camera Selection -->
-         <div>
-          <label for="archive-camera" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CAMERA</label> <select id="archive-camera" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all"> <option value="">All Cameras</option> <option value="CAM-01">CAM-01 - Main Entrance</option> <option value="CAM-02">CAM-02 - Secondary Entrance</option> </select>
-         </div>
-        </div><!-- Search Button -->
-        <div class="flex gap-3">
-         <button onclick="searchArchive()" class="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold rounded-lg btn-glow transition-all tracking-wider"> SEARCH </button> <button onclick="resetArchiveFilters()" class="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-lg transition-all tracking-wider"> RESET </button>
-        </div><!-- Archive Info -->
-        <div id="archive-info" class="mt-4 p-3 bg-slate-900/50 border border-slate-700 rounded-lg hidden">
-         <p id="archive-info-text" class="text-sm text-slate-300"></p>
-        </div>
-       </div>
-      </div><!-- Archive Results -->
-      <div id="archive-results" class="space-y-4">
-       <p class="text-slate-400 text-center py-8">Select filters and click SEARCH to view archived recordings</p>
-      </div>
-     </div><!-- Live View -->
-     <div id="live-view" class="flex flex-col lg:flex-row gap-4">
-      <!-- Main Content Area -->
-      <div class="flex-1">
-       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="card-border rounded-xl p-4">
-         <div class="flex items-center justify-between">
-          <div>
-           <p class="text-xs text-slate-500 tracking-wider">CAMERAS ONLINE</p>
-           <p class="text-2xl font-bold text-emerald-400 font-display">2/2</p>
-          </div>
-          <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-           <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a. 0z" /> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-           </svg>
-          </div>
-         </div>
-        </div>
-        <div class="card-border rounded-xl p-4">
-         <div class="flex items-center justify-between">
-          <div>
-           <p class="text-xs text-slate-500 tracking-wider">ALERTS TODAY</p>
-           <p class="text-2xl font-bold text-amber-400 font-display">3</p>
-          </div>
-          <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-           <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-           </svg>
-          </div>
-         </div>
-        </div>
-        <div class="card-border rounded-xl p-4">
-         <div class="flex items-center justify-between">
-          <div>
-           <p class="text-xs text-slate-500 tracking-wider">STORAGE USED</p>
-           <p class="text-2xl font-bold text-blue-400 font-display">67%</p>
-          </div>
-          <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-           <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-           </svg>
-          </div>
-         </div>
-        </div>
-        <div class="card-border rounded-xl p-4">
-         <div class="flex items-center justify-between">
-          <div>
-           <p class="text-xs text-slate-500 tracking-wider">UPTIME</p>
-           <p class="text-2xl font-bold text-purple-400 font-display">99.9%</p>
-          </div>
-          <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-           <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-           </svg>
-          </div>
-         </div>
-        </div>
-       </div><!-- Camera Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Camera 1 (vision_engine.py live stream) -->
-        <div class="card-border rounded-xl overflow-hidden group" id="cam01-card">
-         <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
-          <div class="absolute inset-0 flex items-center justify-center bg-slate-900/80">
-           <!-- NOTE: src will be periodically refreshed via JS from /cam1_frame -->
-           <img id="cam01-video" src="/cam1_frame" alt="CAM-01 Live" class="w-full h-full object-contain" />
-          </div>
-          <div id="cam01-stats-overlay" class="absolute top-12 left-3 right-3 flex items-center gap-2 flex-wrap text-xs font-mono">
-           <span class="bg-slate-900/80 px-2 py-1 rounded text-amber-300">People: <strong id="cam01-count">0</strong></span>
-           <span class="bg-slate-900/80 px-2 py-1 rounded text-slate-300">Density: <strong id="cam01-density">0</strong>%</span>
-           <span class="bg-slate-900/80 px-2 py-1 rounded" id="cam01-status-wrap"><strong id="cam01-status">SAFE</strong></span>
-          </div>
-          <div class="absolute top-3 left-3 flex items-center gap-2">
-           <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
-          </div>
-          <div class="absolute top-3 right-3">
-           <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
-          </div>
-          <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-           <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-01</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time" id="cam01-time">--:--:--</span>
-          </div>
-         </div>
-         <div class="p-3 flex items-center justify-between">
-          <div>
-           <p class="text-sm font-semibold text-slate-200">Main Entrance</p>
-           <p class="text-xs text-slate-500">Building A • Ground Floor</p>
-          </div>
-          <div class="flex gap-2">
-           <button onclick="maximizeCamera('CAM-01', 'Main Entrance', '1080p')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all group" title="Maximize">
-            <svg class="w-4 h-4 text-slate-400 group-hover:text-emerald-400 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6v4m12-4h4v4M6 14v4h4m8-4v4h-4" />
-            </svg></button>
-          </div>
-         </div>
-        </div><!-- Camera 2 -->
-        <div class="card-border rounded-xl overflow-hidden group" id="cam02-card">
-         <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
-          <div class="absolute inset-0 flex items-center justify-center bg-slate-900/80">
-           <img id="cam02-video" src="/cam1_frame" alt="CAM-02 Live" class="w-full h-full object-contain" />
-          </div>
-          <div id="cam02-stats-overlay" class="absolute top-12 left-3 right-3 flex items-center gap-2 flex-wrap text-xs font-mono">
-           <span class="bg-slate-900/80 px-2 py-1 rounded text-amber-300">People: <strong id="cam02-count">0</strong></span>
-           <span class="bg-slate-900/80 px-2 py-1 rounded text-slate-300">Density: <strong id="cam02-density">0</strong>%</span>
-           <span class="bg-slate-900/80 px-2 py-1 rounded" id="cam02-status-wrap"><strong id="cam02-status">SAFE</strong></span>
-          </div>
-          <div class="absolute top-3 left-3 flex items-center gap-2">
-           <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
-          </div>
-          <div class="absolute top-3 right-3">
-           <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
-          </div>
-          <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-           <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-02</span> <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time" id="cam02-time">--:--:--</span>
-          </div>
-         </div>
-         <div class="p-3 flex items-center justify-between">
-          <div>
-           <p class="text-sm font-semibold text-slate-200">Secondary Entrance</p>
-           <p class="text-xs text-slate-500">Building A • Side Access</p>
-          </div>
-          <div class="flex gap-2">
-           <button onclick="maximizeCamera('CAM-02', 'Secondary Entrance', '1080p')" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all group" title="Maximize">
-            <svg class="w-4 h-4 text-slate-400 group-hover:text-emerald-400 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6v4m12-4h4v4M6 14v4h4m8-4v4h-4" />
-            </svg></button>
-          </div>
-         </div>
-        </div>
-       </div>
-      </div><!-- Activity Logs Sidebar -->
-      <div class="lg:w-96 flex flex-col">
-       <!-- Toggle Button (Mobile) -->
-       <div class="lg:hidden mb-4">
-        <button id="toggle-activity-logs-mobile" onclick="toggleActivityLogsSidebar()" class="w-full px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-sm tracking-wider transition-all"> 📊 SHOW ACTIVITY LOGS </button>
-       </div><!-- Activity Logs Panel -->
-       <div id="activity-logs-sidebar" class="card-border rounded-xl p-4 backdrop-blur-xl flex-1 flex flex-col overflow-hidden hidden lg:flex">
-        <!-- Header with Toggle -->
-        <div class="flex items-center justify-between mb-4 pb-4 border-b border-slate-700">
-         <h3 class="font-display text-lg font-bold text-emerald-400 tracking-wider">ALL ACTIVITY LOGS</h3><button id="toggle-activity-logs-desktop" onclick="toggleActivityLogsSidebar()" class="hidden lg:flex w-8 h-8 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-slate-600 items-center justify-center transition-all group">
-          <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-300 transition-colors" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg></button>
-        </div><!-- Filter Options -->
-        <div class="space-y-3 mb-4 pb-4 border-b border-slate-700">
-         <!-- Filter by Camera -->
-         <div>
-          <label class="text-xs font-semibold text-slate-400 mb-2 tracking-wider block">FILTER BY CAMERA</label> <select id="activity-camera-filter" onchange="filterActivityLogs()" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-all"> <option value="">All Cameras</option> <option value="CAM-01">CAM-01 - Main Entrance</option> <option value="CAM-02">CAM-02 - Secondary Entrance</option> </select>
-         </div><!-- Filter by Type -->
-         <div>
-          <label class="text-xs font-semibold text-slate-400 mb-2 tracking-wider block">FILTER BY TYPE</label> <select id="activity-type-filter" onchange="filterActivityLogs()" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-all"> <option value="">All Types</option> <option value="ENTRY">Entry</option> <option value="EXIT">Exit</option> <option value="CROWDING">Crowding</option> <option value="ALERT">Alert</option> <option value="NORMAL">Normal</option> </select>
-         </div>
-        </div><!-- Activity Logs Container -->
-        <div id="all-activity-logs" class="flex-1 overflow-y-auto space-y-2 pr-2">
-         <!-- Activity logs will be populated here -->
-        </div><!-- Empty State -->
-        <div id="logs-empty-state-global" class="flex items-center justify-center h-full text-slate-500 text-center text-sm hidden">
-         <div>
-          <p class="mb-1">📹 No activities logged</p>
-          <p class="text-xs">Live activities will appear here</p>
-         </div>
-        </div>
-       </div>
-      </div>
-     </div>
-    </main>
-   </div>
-   <script>
-    // Default configuration
-    const defaultConfig = {
-      system_title: 'BARANGAY SENTINEL',
-      welcome_message: 'ADVANCED SURVEILLANCE SYSTEM'
-    };
-    
-    let config = { ...defaultConfig };
-    let currentUser = null;
-    let codeTimerInterval = null;
-    let codeTimeLeft = 600;
-    
-    // Mock user database
-    const users = {};
-    
-    // Mock archive data
-    const archiveData = generateMockArchiveData();
-    
-    // Global activity logs
-    let allActivityLogs = [];
-
-    const cameraDatabase = {
-      'CAM-01': { location: 'Main Entrance', resolution: '1080p' },
-      'CAM-02': { location: 'Secondary Entrance', resolution: '1080p' }
-    };
-
-    const cameraHistory = {
-      'CAM-01': [],
-      'CAM-02': []
-    };
-
-    const cameraRuntimeState = {};
-    
-    function generateMockArchiveData() {
-      const data = [];
-      const cameras = ['CAM-01', 'CAM-02'];
-      const locations = {
-        'CAM-01': 'Main Entrance',
-        'CAM-02': 'Secondary Entrance'
+    <script>
+      // Default configuration
+      const defaultConfig = {
+        system_title: 'BARANGAY SENTINEL',
+        welcome_message: 'ADVANCED SURVEILLANCE SYSTEM'
       };
-      
-      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-        const date = new Date();
-        date.setDate(date.getDate() - dayOffset);
-        const dateStr = date.toISOString().split('T')[0];
-        
-        cameras.forEach(cam => {
-          const recordingsPerDay = Math.floor(Math.random() * 3) + 4;
-          for (let i = 0; i < recordingsPerDay; i++) {
-            const hour = Math.floor(Math.random() * 24);
-            const minute = Math.floor(Math.random() * 60);
-            const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-            const duration = Math.floor(Math.random() * 120) + 30;
-            
-            data.push({
-              id: `${cam}-${dateStr}-${timeStr.replace(':', '')}`,
-              camera: cam,
-              location: locations[cam],
-              date: dateStr,
-              startTime: timeStr,
-              duration: duration,
-              fileSize: (Math.random() * 500 + 100).toFixed(1),
-              resolution: '1080p',
-              status: 'Available'
-            });
-          }
-        });
-      }
-      return data;
-    }
-    
-    function switchView(view) {
-      const liveView = document.getElementById('live-view');
-      const archiveView = document.getElementById('archive-view');
-      const viewLiveBtn = document.getElementById('view-live-btn');
-      const viewArchiveBtn = document.getElementById('view-archive-btn');
-      const liveTimeContainer = document.getElementById('live-time-container');
-      const statusContainer = document.getElementById('status-container');
-      
-      if (view === 'live') {
-        liveView.classList.remove('hidden');
-        archiveView.classList.add('hidden');
-        liveTimeContainer.classList.remove('hidden');
-        statusContainer.classList.remove('hidden');
-        viewLiveBtn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
-        viewLiveBtn.classList.remove('text-slate-400');
-        viewArchiveBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
-        viewArchiveBtn.classList.add('text-slate-400');
-      } else {
-        liveView.classList.add('hidden');
-        archiveView.classList.remove('hidden');
-        liveTimeContainer.classList.add('hidden');
-        statusContainer.classList.add('hidden');
-        viewArchiveBtn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
-        viewArchiveBtn.classList.remove('text-slate-400');
-        viewLiveBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
-        viewLiveBtn.classList.add('text-slate-400');
-      }
-    }
-    
-    function searchArchive() {
-      const date = document.getElementById('archive-date').value;
-      const startTime = document.getElementById('archive-start-time').value;
-      const endTime = document.getElementById('archive-end-time').value;
-      const camera = document.getElementById('archive-camera').value;
-      
-      if (!date) {
-        showError('Please select a date');
-        return;
-      }
-      
-      let filtered = archiveData.filter(record => {
-        if (record.date !== date) return false;
-        if (camera && record.camera !== camera) return false;
-        if (startTime || endTime) {
-          const recordTime = record.startTime;
-          if (startTime && recordTime < startTime) return false;
-          if (endTime && recordTime > endTime) return false;
+
+      let config = { ...defaultConfig };
+      let currentUser = null;
+      let codeTimerInterval = null;
+      let codeTimeLeft = 600;
+
+      // Mock user database
+      const users = {};
+
+      // Mock archive data
+      const archiveData = generateMockArchiveData();
+
+      // Global activity logs
+      let allActivityLogs = [];
+
+      const cameraDatabase = {
+        'CAM-01': { location: 'Main Entrance', resolution: '1080p' },
+        'CAM-02': { location: 'Secondary Entrance', resolution: '1080p' }
+      };
+
+      const cameraHistory = {
+        'CAM-01': [],
+        'CAM-02': []
+      };
+
+      const cameraRuntimeState = {};
+
+      function generateMockArchiveData() {
+        const data = [];
+        const cameras = ['CAM-01', 'CAM-02'];
+        const locations = {
+          'CAM-01': 'Main Entrance',
+          'CAM-02': 'Secondary Entrance'
+        };
+
+        for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+          const date = new Date();
+          date.setDate(date.getDate() - dayOffset);
+          const dateStr = date.toISOString().split('T')[0];
+
+          cameras.forEach(cam => {
+            const recordingsPerDay = Math.floor(Math.random() * 3) + 4;
+            for (let i = 0; i < recordingsPerDay; i++) {
+              const hour = Math.floor(Math.random() * 24);
+              const minute = Math.floor(Math.random() * 60);
+              const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+              const duration = Math.floor(Math.random() * 120) + 30;
+
+              data.push({
+                id: `${cam}-${dateStr}-${timeStr.replace(':', '')}`,
+                camera: cam,
+                location: locations[cam],
+                date: dateStr,
+                startTime: timeStr,
+                duration: duration,
+                fileSize: (Math.random() * 500 + 100).toFixed(1),
+                resolution: '1080p',
+                status: 'Available'
+              });
+            }
+          });
         }
-        return true;
-      });
-      
-      displayArchiveResults(filtered, date, startTime, endTime, camera);
-    }
-    
-    function displayArchiveResults(results, date, startTime, endTime, camera) {
-      const resultsContainer = document.getElementById('archive-results');
-      const archiveInfo = document.getElementById('archive-info');
-      const archiveInfoText = document.getElementById('archive-info-text');
-      
-      const dateObj = new Date(date);
-      const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-      let infoText = `Found ${results.length} recording(s) on ${formattedDate}`;
-      if (camera) infoText += ` for ${camera}`;
-      if (startTime || endTime) {
-        infoText += ` between ${startTime || '00:00'} and ${endTime || '23:59'}`;
+        return data;
       }
-      
-      archiveInfoText.textContent = infoText;
-      archiveInfo.classList.remove('hidden');
-      
-      if (results.length === 0) {
-        resultsContainer.innerHTML = '<div class="text-center py-8 text-slate-400">No recordings found for the selected criteria</div>';
-        return;
+
+      function switchView(view) {
+        const liveView = document.getElementById('live-view');
+        const archiveView = document.getElementById('archive-view');
+        const viewLiveBtn = document.getElementById('view-live-btn');
+        const viewArchiveBtn = document.getElementById('view-archive-btn');
+        const liveTimeContainer = document.getElementById('live-time-container');
+        const statusContainer = document.getElementById('status-container');
+
+        if (view === 'live') {
+          liveView.classList.remove('hidden');
+          archiveView.classList.add('hidden');
+          liveTimeContainer.classList.remove('hidden');
+          statusContainer.classList.remove('hidden');
+          viewLiveBtn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+          viewLiveBtn.classList.remove('text-slate-400');
+          viewArchiveBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+          viewArchiveBtn.classList.add('text-slate-400');
+        } else {
+          liveView.classList.add('hidden');
+          archiveView.classList.remove('hidden');
+          liveTimeContainer.classList.add('hidden');
+          statusContainer.classList.add('hidden');
+          viewArchiveBtn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+          viewArchiveBtn.classList.remove('text-slate-400');
+          viewLiveBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+          viewLiveBtn.classList.add('text-slate-400');
+        }
       }
-      
-      results.sort((a, b) => b.startTime.localeCompare(a.startTime));
-      
-      resultsContainer.innerHTML = results.map(record => `
+
+      function searchArchive() {
+        const date = document.getElementById('archive-date').value;
+        const startTime = document.getElementById('archive-start-time').value;
+        const endTime = document.getElementById('archive-end-time').value;
+        const camera = document.getElementById('archive-camera').value;
+
+        if (!date) {
+          showError('Please select a date');
+          return;
+        }
+
+        let filtered = archiveData.filter(record => {
+          if (record.date !== date) return false;
+          if (camera && record.camera !== camera) return false;
+          if (startTime || endTime) {
+            const recordTime = record.startTime;
+            if (startTime && recordTime < startTime) return false;
+            if (endTime && recordTime > endTime) return false;
+          }
+          return true;
+        });
+
+        displayArchiveResults(filtered, date, startTime, endTime, camera);
+      }
+
+      function displayArchiveResults(results, date, startTime, endTime, camera) {
+        const resultsContainer = document.getElementById('archive-results');
+        const archiveInfo = document.getElementById('archive-info');
+        const archiveInfoText = document.getElementById('archive-info-text');
+
+        const dateObj = new Date(date);
+        const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        let infoText = `Found ${results.length} recording(s) on ${formattedDate}`;
+        if (camera) infoText += ` for ${camera}`;
+        if (startTime || endTime) {
+          infoText += ` between ${startTime || '00:00'} and ${endTime || '23:59'}`;
+        }
+
+        archiveInfoText.textContent = infoText;
+        archiveInfo.classList.remove('hidden');
+
+        if (results.length === 0) {
+          resultsContainer.innerHTML = '<div class="text-center py-8 text-slate-400">No recordings found for the selected criteria</div>';
+          return;
+        }
+
+        results.sort((a, b) => b.startTime.localeCompare(a.startTime));
+
+        resultsContainer.innerHTML = results.map(record => `
         <div class="card-border rounded-xl p-5 hover:border-emerald-500/50 transition-all cursor-pointer group">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
             <div class="flex-1">
@@ -828,404 +1066,404 @@
           </div>
         </div>
       `).join('');
-    }
-    
-    function resetArchiveFilters() {
-      document.getElementById('archive-date').value = '';
-      document.getElementById('archive-start-time').value = '';
-      document.getElementById('archive-end-time').value = '';
-      document.getElementById('archive-camera').value = '';
-      document.getElementById('archive-info').classList.add('hidden');
-      document.getElementById('archive-results').innerHTML = '<p class="text-slate-400 text-center py-8">Select filters and click SEARCH to view archived recordings</p>';
-    }
-    
-    function downloadRecording(recordId) {
-      const record = archiveData.find(r => r.id === recordId);
-      if (record) {
-        const message = `Starting download: ${record.camera} - ${record.location}\nFile: ${record.fileSize}MB\nDuration: ${record.duration} minutes`;
-        showSuccess(message);
       }
-    }
-    
-    if (window.elementSdk) {
-      window.elementSdk.init({
-        defaultConfig,
-        onConfigChange: async (newConfig) => {
-          config = { ...defaultConfig, ...newConfig };
-          const systemTitle = document.getElementById('system-title');
-          const welcomeText = document.getElementById('welcome-text');
-          const dashboardTitle = document.getElementById('dashboard-title');
-          if (systemTitle) systemTitle.textContent = config.system_title;
-          if (welcomeText) welcomeText.textContent = config.welcome_message;
-          if (dashboardTitle) dashboardTitle.textContent = config.system_title;
-        },
-        mapToCapabilities: (config) => ({
-          recolorables: [],
-          borderables: [],
-          fontEditable: undefined,
-          fontSizeable: undefined
-        }),
-        mapToEditPanelValues: (config) => new Map([
-          ['system_title', config.system_title || defaultConfig.system_title],
-          ['welcome_message', config.welcome_message || defaultConfig.welcome_message]
-        ])
-      });
-    }
-    
-    function switchTab(tab) {
-      const loginTab = document.getElementById('login-tab');
-      const registerTab = document.getElementById('register-tab');
-      const loginForm = document.getElementById('login-form');
-      const registerForm = document.getElementById('register-form');
-      const authError = document.getElementById('auth-error');
-      const authSuccess = document.getElementById('auth-success');
-      
-      authError.classList.add('hidden');
-      authSuccess.classList.add('hidden');
-      
-      if (tab === 'login') {
-        loginTab.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
-        loginTab.classList.remove('text-slate-400');
-        registerTab.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
-        registerTab.classList.add('text-slate-400');
-        loginForm.classList.remove('hidden');
-        registerForm.classList.add('hidden');
-      } else {
-        registerTab.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
-        registerTab.classList.remove('text-slate-400');
-        loginTab.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
-        loginTab.classList.add('text-slate-400');
-        registerForm.classList.remove('hidden');
-        loginForm.classList.add('hidden');
+
+      function resetArchiveFilters() {
+        document.getElementById('archive-date').value = '';
+        document.getElementById('archive-start-time').value = '';
+        document.getElementById('archive-end-time').value = '';
+        document.getElementById('archive-camera').value = '';
+        document.getElementById('archive-info').classList.add('hidden');
+        document.getElementById('archive-results').innerHTML = '<p class="text-slate-400 text-center py-8">Select filters and click SEARCH to view archived recordings</p>';
       }
-    }
-    
-    function switchUserMode(mode) {
-      const operatorModeBtn = document.getElementById('operator-mode-btn');
-      const adminModeBtn = document.getElementById('admin-mode-btn');
-      const operatorTabs = document.getElementById('operator-tabs');
-      const loginForm = document.getElementById('login-form');
-      const registerForm = document.getElementById('register-form');
-      const adminLoginForm = document.getElementById('admin-login-form');
-      const authError = document.getElementById('auth-error');
-      const authSuccess = document.getElementById('auth-success');
-      
-      authError.classList.add('hidden');
-      authSuccess.classList.add('hidden');
-      
-      document.getElementById('login-email').value = '';
-      document.getElementById('login-password').value = '';
-      document.getElementById('admin-email').value = '';
-      document.getElementById('admin-password').value = '';
-      
-      if (mode === 'operator') {
-        operatorModeBtn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
-        operatorModeBtn.classList.remove('text-slate-400');
-        adminModeBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
-        adminModeBtn.classList.add('text-slate-400');
-        operatorTabs.classList.remove('hidden');
-        loginForm.classList.remove('hidden');
-        registerForm.classList.add('hidden');
-        adminLoginForm.classList.add('hidden');
-      } else {
-        adminModeBtn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
-        adminModeBtn.classList.remove('text-slate-400');
-        operatorModeBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
-        operatorModeBtn.classList.add('text-slate-400');
-        operatorTabs.classList.add('hidden');
-        loginForm.classList.add('hidden');
-        registerForm.classList.add('hidden');
-        adminLoginForm.classList.remove('hidden');
+
+      function downloadRecording(recordId) {
+        const record = archiveData.find(r => r.id === recordId);
+        if (record) {
+          const message = `Starting download: ${record.camera} - ${record.location}\nFile: ${record.fileSize}MB\nDuration: ${record.duration} minutes`;
+          showSuccess(message);
+        }
       }
-    }
-    
-    function showError(message) {
-      const authError = document.getElementById('auth-error');
-      const authSuccess = document.getElementById('auth-success');
-      authSuccess.classList.add('hidden');
-      authError.textContent = message;
-      authError.classList.remove('hidden');
-    }
-    
-    function showSuccess(message) {
-      const authError = document.getElementById('auth-error');
-      const authSuccess = document.getElementById('auth-success');
-      authError.classList.add('hidden');
-      authSuccess.textContent = message;
-      authSuccess.classList.remove('hidden');
-    }
-    
-    function handleAdminLogin(event) {
-      event.preventDefault();
-      const email = document.getElementById('admin-email').value;
-      const password = document.getElementById('admin-password').value;
-      
-      if (email === 'admin@securevision.com' && password === 'admin123') {
-        currentUser = { name: 'System Administrator', email, role: 'admin' };
-        showDashboard();
-      } else {
-        showError('Invalid admin credentials. Try admin@securevision.com / admin123');
-      }
-    }
-    
-    async function handleLogin(event) {
-      event.preventDefault();
-      const email = document.getElementById('login-email').value;
-      const password = document.getElementById('login-password').value;
-      
-      try {
-        const response = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email, password: password })
+
+      if (window.elementSdk) {
+        window.elementSdk.init({
+          defaultConfig,
+          onConfigChange: async (newConfig) => {
+            config = { ...defaultConfig, ...newConfig };
+            const systemTitle = document.getElementById('system-title');
+            const welcomeText = document.getElementById('welcome-text');
+            const dashboardTitle = document.getElementById('dashboard-title');
+            if (systemTitle) systemTitle.textContent = config.system_title;
+            if (welcomeText) welcomeText.textContent = config.welcome_message;
+            if (dashboardTitle) dashboardTitle.textContent = config.system_title;
+          },
+          mapToCapabilities: (config) => ({
+            recolorables: [],
+            borderables: [],
+            fontEditable: undefined,
+            fontSizeable: undefined
+          }),
+          mapToEditPanelValues: (config) => new Map([
+            ['system_title', config.system_title || defaultConfig.system_title],
+            ['welcome_message', config.welcome_message || defaultConfig.welcome_message]
+          ])
         });
-        const result = await response.json();
-        
-        if (result.success) {
-          currentUser = { name: result.username, email: email };
+      }
+
+      function switchTab(tab) {
+        const loginTab = document.getElementById('login-tab');
+        const registerTab = document.getElementById('register-tab');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const authError = document.getElementById('auth-error');
+        const authSuccess = document.getElementById('auth-success');
+
+        authError.classList.add('hidden');
+        authSuccess.classList.add('hidden');
+
+        if (tab === 'login') {
+          loginTab.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+          loginTab.classList.remove('text-slate-400');
+          registerTab.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+          registerTab.classList.add('text-slate-400');
+          loginForm.classList.remove('hidden');
+          registerForm.classList.add('hidden');
+        } else {
+          registerTab.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+          registerTab.classList.remove('text-slate-400');
+          loginTab.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+          loginTab.classList.add('text-slate-400');
+          registerForm.classList.remove('hidden');
+          loginForm.classList.add('hidden');
+        }
+      }
+
+      function switchUserMode(mode) {
+        const operatorModeBtn = document.getElementById('operator-mode-btn');
+        const adminModeBtn = document.getElementById('admin-mode-btn');
+        const operatorTabs = document.getElementById('operator-tabs');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const adminLoginForm = document.getElementById('admin-login-form');
+        const authError = document.getElementById('auth-error');
+        const authSuccess = document.getElementById('auth-success');
+
+        authError.classList.add('hidden');
+        authSuccess.classList.add('hidden');
+
+        document.getElementById('login-email').value = '';
+        document.getElementById('login-password').value = '';
+        document.getElementById('admin-email').value = '';
+        document.getElementById('admin-password').value = '';
+
+        if (mode === 'operator') {
+          operatorModeBtn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+          operatorModeBtn.classList.remove('text-slate-400');
+          adminModeBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+          adminModeBtn.classList.add('text-slate-400');
+          operatorTabs.classList.remove('hidden');
+          loginForm.classList.remove('hidden');
+          registerForm.classList.add('hidden');
+          adminLoginForm.classList.add('hidden');
+        } else {
+          adminModeBtn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+          adminModeBtn.classList.remove('text-slate-400');
+          operatorModeBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
+          operatorModeBtn.classList.add('text-slate-400');
+          operatorTabs.classList.add('hidden');
+          loginForm.classList.add('hidden');
+          registerForm.classList.add('hidden');
+          adminLoginForm.classList.remove('hidden');
+        }
+      }
+
+      function showError(message) {
+        const authError = document.getElementById('auth-error');
+        const authSuccess = document.getElementById('auth-success');
+        authSuccess.classList.add('hidden');
+        authError.textContent = message;
+        authError.classList.remove('hidden');
+      }
+
+      function showSuccess(message) {
+        const authError = document.getElementById('auth-error');
+        const authSuccess = document.getElementById('auth-success');
+        authError.classList.add('hidden');
+        authSuccess.textContent = message;
+        authSuccess.classList.remove('hidden');
+      }
+
+      function handleAdminLogin(event) {
+        event.preventDefault();
+        const email = document.getElementById('admin-email').value;
+        const password = document.getElementById('admin-password').value;
+
+        if (email === 'admin@securevision.com' && password === 'admin123') {
+          currentUser = { name: 'System Administrator', email, role: 'admin' };
           showDashboard();
         } else {
-          showError(result.message || 'Invalid credentials.');
+          showError('Invalid admin credentials. Try admin@securevision.com / admin123');
         }
-      } catch (err) {
-        showError('Network error connecting to Sentinel database.');
       }
-    }
-    
-    async function handleRegister(event) {
-      event.preventDefault();
-      const name = document.getElementById('register-name').value;
-      const email = document.getElementById('register-email').value;
-      const password = document.getElementById('register-password').value;
-      const confirm = document.getElementById('register-confirm').value;
-      
-      if (password !== confirm) {
-        showError('Access codes do not match');
-        return;
+
+      async function handleLogin(event) {
+        event.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+
+        try {
+          const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email, password: password })
+          });
+          const result = await response.json();
+
+          if (result.success) {
+            currentUser = { name: result.username, email: email };
+            showDashboard();
+          } else {
+            showError(result.message || 'Invalid credentials.');
+          }
+        } catch (err) {
+          showError('Network error connecting to Sentinel database.');
+        }
       }
-      
-      try {
-        const response = await fetch('/api/register', {
+
+      async function handleRegister(event) {
+        event.preventDefault();
+        const name = document.getElementById('register-name').value;
+        const email = document.getElementById('register-email').value;
+        const password = document.getElementById('register-password').value;
+        const confirm = document.getElementById('register-confirm').value;
+
+        if (password !== confirm) {
+          showError('Access codes do not match');
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: name, email: email, password: password })
-        });
-        const result = await response.json();
-        
-        if (result.success) {
+          });
+          const result = await response.json();
+
+          if (result.success) {
             showSuccess('Account created successfully! You can now login.');
             document.getElementById('register-form').reset();
             setTimeout(() => switchTab('login'), 1500);
-        } else {
+          } else {
             showError(result.message || 'Registration failed.');
-        }
-      } catch (err) {
+          }
+        } catch (err) {
           showError('Network error connecting to Sentinel database.');
-      }
-    }
-    
-    function showDashboard() {
-      document.getElementById('auth-screen').classList.add('hidden');
-      document.getElementById('dashboard-screen').classList.remove('hidden');
-      
-      if (currentUser) {
-        document.getElementById('user-name').textContent = currentUser.name;
-      }
-      
-      initializeGlobalActivityLogs();
-      populateGlobalActivityLogs();
-      
-      updateTime();
-      setInterval(updateTime, 1000);
-      setInterval(updateCam01Stats, 500);
-      updateCam01Stats();
-      startCam01FrameUpdates();
-    }
-
-    // Periodically refresh CAM-01 frame so it appears as smooth video
-    function startCam01FrameUpdates() {
-      // Avoid creating multiple timers
-      if (window._cam01FrameInterval) return;
-      const update = () => {
-        const ts = Date.now();
-        const mainImg = document.getElementById('cam01-video');
-        if (mainImg) {
-          mainImg.src = '/cam1_frame?t=' + ts;
-        }
-        const secondaryImg = document.getElementById('cam02-video');
-        if (secondaryImg) {
-          secondaryImg.src = '/cam1_frame?t=' + ts;
-        }
-        const maxImg = document.getElementById('max-cam01-video');
-        if (maxImg) {
-          maxImg.src = '/cam1_frame?t=' + ts;
-        }
-      };
-      // Initial kick
-      update();
-      // ~8 FPS; adjust if needed
-      window._cam01FrameInterval = setInterval(update, 125);
-    }
-
-    function classifyDensityByPeople(count) {
-      if (count <= 4) return 'LOW';
-      if (count <= 7) return 'MEDIUM';
-      return 'HIGH';
-    }
-
-    function densityColorClass(level) {
-      if (level === 'HIGH') return 'text-red-400';
-      if (level === 'MEDIUM') return 'text-amber-400';
-      return 'text-emerald-400';
-    }
-
-    function buildRealtimeLog(camId, type, description, severity, now) {
-      return {
-        time: now.toLocaleTimeString('en-US', { hour12: false }),
-        type,
-        description,
-        severity,
-        camera: camId,
-        location: cameraDatabase[camId].location,
-        timestamp: now.getTime()
-      };
-    }
-
-    function pushActivityLog(log) {
-      allActivityLogs.unshift(log);
-      if (allActivityLogs.length > 80) allActivityLogs.pop();
-      populateGlobalActivityLogs();
-    }
-
-    function updateCameraOverlay(camId, stats) {
-      const camKey = camId.toLowerCase().replace('-', '');
-      const countEl = document.getElementById(`${camKey}-count`);
-      const densityEl = document.getElementById(`${camKey}-density`);
-      const statusEl = document.getElementById(`${camKey}-status`);
-      const statusWrap = document.getElementById(`${camKey}-status-wrap`);
-      if (!countEl || !densityEl || !statusEl || !statusWrap) return;
-
-      const level = classifyDensityByPeople(stats.count);
-      countEl.textContent = stats.count;
-      densityEl.textContent = stats.density;
-      statusEl.textContent = level;
-      statusWrap.className = `bg-slate-900/80 px-2 py-1 rounded ${densityColorClass(level)}`;
-    }
-
-    function updateRealtimeDetections(camId, stats, now) {
-      const state = cameraRuntimeState[camId] || { previousCount: null, previousLevel: null };
-      const level = classifyDensityByPeople(stats.count);
-
-      const camHistory = cameraHistory[camId];
-      camHistory.push({
-        timestamp: now.getTime(),
-        time: now.toLocaleTimeString('en-US', { hour12: false }),
-        density: stats.density,
-        peopleCount: stats.count,
-        level
-      });
-      if (camHistory.length > 120) camHistory.shift();
-
-      if (state.previousCount != null) {
-        const delta = stats.count - state.previousCount;
-        if (delta > 0) {
-          pushActivityLog(buildRealtimeLog(camId, 'ENTRY', `${delta} people entered`, 'normal', now));
-        } else if (delta < 0) {
-          pushActivityLog(buildRealtimeLog(camId, 'EXIT', `${Math.abs(delta)} people left`, 'normal', now));
         }
       }
 
-      if (state.previousLevel && state.previousLevel !== level) {
-        if (level === 'HIGH' || level === 'MEDIUM') {
-          pushActivityLog(buildRealtimeLog(camId, 'CROWDING', `${level.toLowerCase()} density detected (${stats.count} people)`, 'warning', now));
-        } else if (level === 'LOW') {
-          pushActivityLog(buildRealtimeLog(camId, 'NORMAL', 'Low density restored', 'normal', now));
+      function showDashboard() {
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('dashboard-screen').classList.remove('hidden');
+
+        if (currentUser) {
+          document.getElementById('user-name').textContent = currentUser.name;
         }
+
+        initializeGlobalActivityLogs();
+        populateGlobalActivityLogs();
+
+        updateTime();
+        setInterval(updateTime, 1000);
+        setInterval(updateCam01Stats, 500);
+        updateCam01Stats();
+        startCam01FrameUpdates();
       }
 
-      cameraRuntimeState[camId] = { previousCount: stats.count, previousLevel: level };
-    }
-
-    function updateCam01Stats() {
-      fetch('/api/stats').then(r => r.json()).then(data => {
-        const stats = {
-          count: data.count != null ? data.count : 0,
-          density: data.density != null ? data.density : 0
+      // Periodically refresh CAM-01 frame so it appears as smooth video
+      function startCam01FrameUpdates() {
+        // Avoid creating multiple timers
+        if (window._cam01FrameInterval) return;
+        const update = () => {
+          const ts = Date.now();
+          const mainImg = document.getElementById('cam01-video');
+          if (mainImg) {
+            mainImg.src = '/cam1_frame?t=' + ts;
+          }
+          const secondaryImg = document.getElementById('cam02-video');
+          if (secondaryImg) {
+            secondaryImg.src = '/cam1_frame?t=' + ts;
+          }
+          const maxImg = document.getElementById('max-cam01-video');
+          if (maxImg) {
+            maxImg.src = '/cam1_frame?t=' + ts;
+          }
         };
-        const now = new Date();
+        // Initial kick
+        update();
+        // ~8 FPS; adjust if needed
+        window._cam01FrameInterval = setInterval(update, 125);
+      }
 
-        updateCameraOverlay('CAM-01', stats);
-        updateCameraOverlay('CAM-02', stats);
-        updateRealtimeDetections('CAM-01', stats, now);
-        updateRealtimeDetections('CAM-02', stats, now);
-      }).catch(() => {});
-    }
-    
-    function updateTime() {
-      const now = new Date();
-      document.getElementById('live-time').textContent = now.toLocaleTimeString('en-US', { hour12: false });
-      
-      document.querySelectorAll('.camera-time').forEach(el => {
-        el.textContent = now.toLocaleTimeString('en-US', { hour12: false });
-      });
-    }
-    
-    function initializeGlobalActivityLogs() {
-      allActivityLogs = [];
-      Object.keys(cameraHistory).forEach(camId => {
-        cameraHistory[camId] = [];
-        cameraRuntimeState[camId] = { previousCount: null, previousLevel: null };
-      });
-    }
-    
-    function populateGlobalActivityLogs() {
-      const container = document.getElementById('all-activity-logs');
-      const emptyState = document.getElementById('logs-empty-state-global');
-      
-      const cameraFilter = document.getElementById('activity-camera-filter')?.value || '';
-      const typeFilter = document.getElementById('activity-type-filter')?.value || '';
-      
-      let filteredLogs = allActivityLogs;
-      
-      if (cameraFilter) {
-        filteredLogs = filteredLogs.filter(log => log.camera === cameraFilter);
+      function classifyDensityByPeople(count) {
+        if (count <= 4) return 'LOW';
+        if (count <= 7) return 'MEDIUM';
+        return 'HIGH';
       }
-      
-      if (typeFilter) {
-        filteredLogs = filteredLogs.filter(log => log.type === typeFilter);
+
+      function densityColorClass(level) {
+        if (level === 'HIGH') return 'text-red-400';
+        if (level === 'MEDIUM') return 'text-amber-400';
+        return 'text-emerald-400';
       }
-      
-      if (filteredLogs.length === 0) {
-        container.innerHTML = '';
-        emptyState.classList.remove('hidden');
-        return;
+
+      function buildRealtimeLog(camId, type, description, severity, now) {
+        return {
+          time: now.toLocaleTimeString('en-US', { hour12: false }),
+          type,
+          description,
+          severity,
+          camera: camId,
+          location: cameraDatabase[camId].location,
+          timestamp: now.getTime()
+        };
       }
-      
-      emptyState.classList.add('hidden');
-      container.innerHTML = filteredLogs.map(log => {
-        let iconEmoji = '📍';
-        let bgClass = 'bg-slate-800';
-        let textClass = 'text-slate-300';
-        
-        if (log.type === 'ENTRY') {
-          iconEmoji = '➡️';
-          bgClass = 'bg-emerald-500/10';
-          textClass = 'text-emerald-400';
-        } else if (log.type === 'EXIT') {
-          iconEmoji = '⬅️';
-          bgClass = 'bg-blue-500/10';
-          textClass = 'text-blue-400';
-        } else if (log.type === 'CROWDING') {
-          iconEmoji = '⚠️';
-          bgClass = 'bg-amber-500/10';
-          textClass = 'text-amber-400';
-        } else if (log.type === 'ALERT') {
-          iconEmoji = '🚨';
-          bgClass = 'bg-red-500/10';
-          textClass = 'text-red-400';
+
+      function pushActivityLog(log) {
+        allActivityLogs.unshift(log);
+        if (allActivityLogs.length > 80) allActivityLogs.pop();
+        populateGlobalActivityLogs();
+      }
+
+      function updateCameraOverlay(camId, stats) {
+        const camKey = camId.toLowerCase().replace('-', '');
+        const countEl = document.getElementById(`${camKey}-count`);
+        const densityEl = document.getElementById(`${camKey}-density`);
+        const statusEl = document.getElementById(`${camKey}-status`);
+        const statusWrap = document.getElementById(`${camKey}-status-wrap`);
+        if (!countEl || !densityEl || !statusEl || !statusWrap) return;
+
+        const level = classifyDensityByPeople(stats.count);
+        countEl.textContent = stats.count;
+        densityEl.textContent = stats.density;
+        statusEl.textContent = level;
+        statusWrap.className = `bg-slate-900/80 px-2 py-1 rounded ${densityColorClass(level)}`;
+      }
+
+      function updateRealtimeDetections(camId, stats, now) {
+        const state = cameraRuntimeState[camId] || { previousCount: null, previousLevel: null };
+        const level = classifyDensityByPeople(stats.count);
+
+        const camHistory = cameraHistory[camId];
+        camHistory.push({
+          timestamp: now.getTime(),
+          time: now.toLocaleTimeString('en-US', { hour12: false }),
+          density: stats.density,
+          peopleCount: stats.count,
+          level
+        });
+        if (camHistory.length > 120) camHistory.shift();
+
+        if (state.previousCount != null) {
+          const delta = stats.count - state.previousCount;
+          if (delta > 0) {
+            pushActivityLog(buildRealtimeLog(camId, 'ENTRY', `${delta} people entered`, 'normal', now));
+          } else if (delta < 0) {
+            pushActivityLog(buildRealtimeLog(camId, 'EXIT', `${Math.abs(delta)} people left`, 'normal', now));
+          }
         }
-        
-        return `
+
+        if (state.previousLevel && state.previousLevel !== level) {
+          if (level === 'HIGH' || level === 'MEDIUM') {
+            pushActivityLog(buildRealtimeLog(camId, 'CROWDING', `${level.toLowerCase()} density detected (${stats.count} people)`, 'warning', now));
+          } else if (level === 'LOW') {
+            pushActivityLog(buildRealtimeLog(camId, 'NORMAL', 'Low density restored', 'normal', now));
+          }
+        }
+
+        cameraRuntimeState[camId] = { previousCount: stats.count, previousLevel: level };
+      }
+
+      function updateCam01Stats() {
+        fetch('/api/stats').then(r => r.json()).then(data => {
+          const stats = {
+            count: data.count != null ? data.count : 0,
+            density: data.density != null ? data.density : 0
+          };
+          const now = new Date();
+
+          updateCameraOverlay('CAM-01', stats);
+          updateCameraOverlay('CAM-02', stats);
+          updateRealtimeDetections('CAM-01', stats, now);
+          updateRealtimeDetections('CAM-02', stats, now);
+        }).catch(() => { });
+      }
+
+      function updateTime() {
+        const now = new Date();
+        document.getElementById('live-time').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+
+        document.querySelectorAll('.camera-time').forEach(el => {
+          el.textContent = now.toLocaleTimeString('en-US', { hour12: false });
+        });
+      }
+
+      function initializeGlobalActivityLogs() {
+        allActivityLogs = [];
+        Object.keys(cameraHistory).forEach(camId => {
+          cameraHistory[camId] = [];
+          cameraRuntimeState[camId] = { previousCount: null, previousLevel: null };
+        });
+      }
+
+      function populateGlobalActivityLogs() {
+        const container = document.getElementById('all-activity-logs');
+        const emptyState = document.getElementById('logs-empty-state-global');
+
+        const cameraFilter = document.getElementById('activity-camera-filter')?.value || '';
+        const typeFilter = document.getElementById('activity-type-filter')?.value || '';
+
+        let filteredLogs = allActivityLogs;
+
+        if (cameraFilter) {
+          filteredLogs = filteredLogs.filter(log => log.camera === cameraFilter);
+        }
+
+        if (typeFilter) {
+          filteredLogs = filteredLogs.filter(log => log.type === typeFilter);
+        }
+
+        if (filteredLogs.length === 0) {
+          container.innerHTML = '';
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        emptyState.classList.add('hidden');
+        container.innerHTML = filteredLogs.map(log => {
+          let iconEmoji = '📍';
+          let bgClass = 'bg-slate-800';
+          let textClass = 'text-slate-300';
+
+          if (log.type === 'ENTRY') {
+            iconEmoji = '➡️';
+            bgClass = 'bg-emerald-500/10';
+            textClass = 'text-emerald-400';
+          } else if (log.type === 'EXIT') {
+            iconEmoji = '⬅️';
+            bgClass = 'bg-blue-500/10';
+            textClass = 'text-blue-400';
+          } else if (log.type === 'CROWDING') {
+            iconEmoji = '⚠️';
+            bgClass = 'bg-amber-500/10';
+            textClass = 'text-amber-400';
+          } else if (log.type === 'ALERT') {
+            iconEmoji = '🚨';
+            bgClass = 'bg-red-500/10';
+            textClass = 'text-red-400';
+          }
+
+          return `
           <div class="${bgClass} border border-slate-700 rounded-lg p-4 hover:border-slate-600 transition-all">
             <div class="flex items-start gap-3">
               <span class="text-2xl mt-0.5">${iconEmoji}</span>
@@ -1238,276 +1476,276 @@
             </div>
           </div>
         `;
-      }).join('');
-    }
-    
-    function filterActivityLogs() {
-      populateGlobalActivityLogs();
-    }
-    
-    function toggleActivityLogsSidebar() {
-      const sidebar = document.getElementById('activity-logs-sidebar');
-      const mobileBtn = document.getElementById('toggle-activity-logs-mobile');
-      
-      sidebar.classList.toggle('hidden');
-      
-      if (sidebar.classList.contains('hidden')) {
-        if (mobileBtn) mobileBtn.textContent = '📊 SHOW ACTIVITY LOGS';
-      } else {
-        if (mobileBtn) mobileBtn.textContent = '📊 HIDE ACTIVITY LOGS';
+        }).join('');
       }
-    }
-    
-    
-    
-    function openForgotPassword(event) {
-      event.preventDefault();
-      document.getElementById('forgot-password-modal').classList.remove('hidden');
-      resetForgotPasswordForm();
-    }
-    
-    function closeForgotPassword() {
-      document.getElementById('forgot-password-modal').classList.add('hidden');
-      resetForgotPasswordForm();
-    }
-    
-    function resetForgotPasswordForm() {
-      document.getElementById('forgot-email').value = '';
-      document.getElementById('forgot-code').value = '';
-      document.getElementById('forgot-new-password').value = '';
-      document.getElementById('forgot-confirm-password').value = '';
-      document.getElementById('forgot-error').classList.add('hidden');
-      
-      showForgotStep(1);
-      
-      if (codeTimerInterval) clearInterval(codeTimerInterval);
-    }
-    
-    function showForgotStep(step) {
-      document.getElementById('forgot-step-1').classList.add('hidden');
-      document.getElementById('forgot-step-2').classList.add('hidden');
-      document.getElementById('forgot-step-3').classList.add('hidden');
-      document.getElementById('forgot-step-success').classList.add('hidden');
-      
-      const stepElement = document.getElementById(`forgot-step-${step}`);
-      if (stepElement) {
-        stepElement.classList.remove('hidden');
+
+      function filterActivityLogs() {
+        populateGlobalActivityLogs();
       }
-    }
-    
-    function showForgotError(message) {
-      const errorEl = document.getElementById('forgot-error');
-      errorEl.textContent = message;
-      errorEl.classList.remove('hidden');
-    }
-    
-    function sendResetEmail() {
-      const email = document.getElementById('forgot-email').value;
-      document.getElementById('forgot-error').classList.add('hidden');
-      
-      if (!email) {
-        showForgotError('Please enter your email address');
-        return;
-      }
-      
-      showForgotStep(2);
-      startCodeTimer();
-    }
-    
-    function startCodeTimer() {
-      codeTimeLeft = 600;
-      updateCodeTimer();
-      
-      if (codeTimerInterval) clearInterval(codeTimerInterval);
-      codeTimerInterval = setInterval(updateCodeTimer, 1000);
-    }
-    
-    function updateCodeTimer() {
-      const minutes = Math.floor(codeTimeLeft / 60);
-      const seconds = codeTimeLeft % 60;
-      document.getElementById('code-timer').textContent = 
-        `${minutes}:${seconds.toString().padStart(2, '0')}`;
-      
-      codeTimeLeft--;
-      
-      if (codeTimeLeft < 0) {
-        clearInterval(codeTimerInterval);
-        showForgotError('Verification code has expired. Please request a new one.');
-        showForgotStep(1);
-      }
-    }
-    
-    function verifyResetCode() {
-      const code = document.getElementById('forgot-code').value;
-      document.getElementById('forgot-error').classList.add('hidden');
-      
-      if (!code || code.length !== 6) {
-        showForgotError('Please enter a valid 6-digit code');
-        return;
-      }
-      
-      if (code === '123456' || code === '000000') {
-        showForgotStep(3);
-        setupPasswordStrengthCheck();
-      } else {
-        showForgotError('Invalid verification code. Please try again.');
-      }
-    }
-    
-    function resendCode() {
-      document.getElementById('forgot-code').value = '';
-      document.getElementById('forgot-error').classList.add('hidden');
-      startCodeTimer();
-      showForgotError('A new verification code has been sent to your email.');
-      setTimeout(() => {
-        document.getElementById('forgot-error').classList.add('hidden');
-      }, 3000);
-    }
-    
-    function setupPasswordStrengthCheck() {
-      const newPassInput = document.getElementById('forgot-new-password');
-      const confirmPassInput = document.getElementById('forgot-confirm-password');
-      
-      newPassInput.addEventListener('input', checkPasswordStrength);
-      confirmPassInput.addEventListener('input', checkPasswordStrength);
-    }
-    
-    function checkPasswordStrength() {
-      const password = document.getElementById('forgot-new-password').value;
-      const confirm = document.getElementById('forgot-confirm-password').value;
-      
-      let strength = 0;
-      
-      if (password.length >= 8) strength++;
-      if (/[A-Z]/.test(password)) strength++;
-      if (/[0-9!@#$%^&*]/.test(password)) strength++;
-      
-      const bars = document.querySelectorAll('[id^="strength-bar-"]');
-      bars.forEach((bar, index) => {
-        if (index < strength) {
-          bar.classList.remove('bg-slate-700');
-          if (strength === 1) bar.classList.add('bg-red-500');
-          if (strength === 2) bar.classList.add('bg-amber-500');
-          if (strength === 3) bar.classList.add('bg-emerald-500');
+
+      function toggleActivityLogsSidebar() {
+        const sidebar = document.getElementById('activity-logs-sidebar');
+        const mobileBtn = document.getElementById('toggle-activity-logs-mobile');
+
+        sidebar.classList.toggle('hidden');
+
+        if (sidebar.classList.contains('hidden')) {
+          if (mobileBtn) mobileBtn.textContent = '📊 SHOW ACTIVITY LOGS';
         } else {
-          bar.classList.add('bg-slate-700');
-          bar.classList.remove('bg-red-500', 'bg-amber-500', 'bg-emerald-500');
+          if (mobileBtn) mobileBtn.textContent = '📊 HIDE ACTIVITY LOGS';
         }
-      });
-      
-      const strengthText = document.getElementById('strength-text');
-      if (strength === 0) strengthText.textContent = 'Type to see strength';
-      if (strength === 1) strengthText.textContent = 'Weak - add more characters';
-      if (strength === 2) strengthText.textContent = 'Good - add numbers or symbols';
-      if (strength === 3) strengthText.textContent = 'Strong - ready to use';
-    }
-    
-    function resetPassword() {
-      const newPassword = document.getElementById('forgot-new-password').value;
-      const confirmPassword = document.getElementById('forgot-confirm-password').value;
-      document.getElementById('forgot-error').classList.add('hidden');
-      
-      if (!newPassword || !confirmPassword) {
-        showForgotError('Please fill in all fields');
-        return;
       }
-      
-      if (newPassword !== confirmPassword) {
-        showForgotError('Access codes do not match');
-        return;
+
+
+
+      function openForgotPassword(event) {
+        event.preventDefault();
+        document.getElementById('forgot-password-modal').classList.remove('hidden');
+        resetForgotPasswordForm();
       }
-      
-      if (newPassword.length < 6) {
-        showForgotError('Access code must be at least 6 characters');
-        return;
+
+      function closeForgotPassword() {
+        document.getElementById('forgot-password-modal').classList.add('hidden');
+        resetForgotPasswordForm();
       }
-      
-      if (currentUser) {
-        currentUser.password = newPassword;
-        users[currentUser.email].password = newPassword;
+
+      function resetForgotPasswordForm() {
+        document.getElementById('forgot-email').value = '';
+        document.getElementById('forgot-code').value = '';
+        document.getElementById('forgot-new-password').value = '';
+        document.getElementById('forgot-confirm-password').value = '';
+        document.getElementById('forgot-error').classList.add('hidden');
+
+        showForgotStep(1);
+
+        if (codeTimerInterval) clearInterval(codeTimerInterval);
       }
-      
-      showForgotStep('success');
-      if (codeTimerInterval) clearInterval(codeTimerInterval);
-    }
-    
-    function backToLogin() {
-      closeForgotPassword();
-    }
-    
-    function handleLogout() {
-      currentUser = null;
-      document.getElementById('dashboard-screen').classList.add('hidden');
-      document.getElementById('auth-screen').classList.remove('hidden');
-      document.getElementById('login-form').reset();
-      document.getElementById('admin-login-form').reset();
-      document.getElementById('auth-error').classList.add('hidden');
-      document.getElementById('auth-success').classList.add('hidden');
-    }
-    
-    function populateDensityTimeline(densityData) {
-      const timeline = document.getElementById('density-timeline');
-      timeline.innerHTML = '';
-      
-      densityData.forEach((data) => {
-        const bar = document.createElement('div');
-        bar.className = 'flex-1 rounded-t-sm cursor-pointer group relative';
-        
-        let bgColor = 'bg-emerald-500';
-        if (data.peopleCount >= 8) {
-          bgColor = 'bg-red-500';
-        } else if (data.peopleCount >= 5) {
-          bgColor = 'bg-amber-500';
+
+      function showForgotStep(step) {
+        document.getElementById('forgot-step-1').classList.add('hidden');
+        document.getElementById('forgot-step-2').classList.add('hidden');
+        document.getElementById('forgot-step-3').classList.add('hidden');
+        document.getElementById('forgot-step-success').classList.add('hidden');
+
+        const stepElement = document.getElementById(`forgot-step-${step}`);
+        if (stepElement) {
+          stepElement.classList.remove('hidden');
         }
-        
-        bar.className += ` ${bgColor} transition-all hover:opacity-80`;
-        bar.style.height = `${(data.density / 100) * 100}%`;
-        bar.style.minHeight = '4px';
-        
-        const tooltip = document.createElement('div');
-        tooltip.className = 'absolute -top-8 left-0 right-0 bg-slate-800 text-slate-100 text-xs p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10';
-        tooltip.textContent = `${data.time} - ${data.density}% (${data.peopleCount} people)`;
-        bar.appendChild(tooltip);
-        
-        timeline.appendChild(bar);
-      });
-    }
-    
-    function populateActivityLogs(logs) {
-      const logsContainer = document.getElementById('camera-activity-logs');
-      const emptyState = document.getElementById('logs-empty-state');
-      
-      if (logs.length === 0) {
-        logsContainer.innerHTML = '';
-        emptyState.classList.remove('hidden');
-        return;
       }
-      
-      emptyState.classList.add('hidden');
-      logsContainer.innerHTML = logs.map(log => {
-        let iconEmoji = '📍';
-        let bgClass = 'bg-slate-800';
-        let textClass = 'text-slate-300';
-        
-        if (log.type === 'ENTRY') {
-          iconEmoji = '➡️';
-          bgClass = 'bg-emerald-500/10';
-          textClass = 'text-emerald-400';
-        } else if (log.type === 'EXIT') {
-          iconEmoji = '⬅️';
-          bgClass = 'bg-blue-500/10';
-          textClass = 'text-blue-400';
-        } else if (log.type === 'CROWDING') {
-          iconEmoji = '⚠️';
-          bgClass = 'bg-amber-500/10';
-          textClass = 'text-amber-400';
-        } else if (log.type === 'ALERT') {
-          iconEmoji = '🚨';
-          bgClass = 'bg-red-500/10';
-          textClass = 'text-red-400';
+
+      function showForgotError(message) {
+        const errorEl = document.getElementById('forgot-error');
+        errorEl.textContent = message;
+        errorEl.classList.remove('hidden');
+      }
+
+      function sendResetEmail() {
+        const email = document.getElementById('forgot-email').value;
+        document.getElementById('forgot-error').classList.add('hidden');
+
+        if (!email) {
+          showForgotError('Please enter your email address');
+          return;
         }
-        
-        return `
+
+        showForgotStep(2);
+        startCodeTimer();
+      }
+
+      function startCodeTimer() {
+        codeTimeLeft = 600;
+        updateCodeTimer();
+
+        if (codeTimerInterval) clearInterval(codeTimerInterval);
+        codeTimerInterval = setInterval(updateCodeTimer, 1000);
+      }
+
+      function updateCodeTimer() {
+        const minutes = Math.floor(codeTimeLeft / 60);
+        const seconds = codeTimeLeft % 60;
+        document.getElementById('code-timer').textContent =
+          `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+        codeTimeLeft--;
+
+        if (codeTimeLeft < 0) {
+          clearInterval(codeTimerInterval);
+          showForgotError('Verification code has expired. Please request a new one.');
+          showForgotStep(1);
+        }
+      }
+
+      function verifyResetCode() {
+        const code = document.getElementById('forgot-code').value;
+        document.getElementById('forgot-error').classList.add('hidden');
+
+        if (!code || code.length !== 6) {
+          showForgotError('Please enter a valid 6-digit code');
+          return;
+        }
+
+        if (code === '123456' || code === '000000') {
+          showForgotStep(3);
+          setupPasswordStrengthCheck();
+        } else {
+          showForgotError('Invalid verification code. Please try again.');
+        }
+      }
+
+      function resendCode() {
+        document.getElementById('forgot-code').value = '';
+        document.getElementById('forgot-error').classList.add('hidden');
+        startCodeTimer();
+        showForgotError('A new verification code has been sent to your email.');
+        setTimeout(() => {
+          document.getElementById('forgot-error').classList.add('hidden');
+        }, 3000);
+      }
+
+      function setupPasswordStrengthCheck() {
+        const newPassInput = document.getElementById('forgot-new-password');
+        const confirmPassInput = document.getElementById('forgot-confirm-password');
+
+        newPassInput.addEventListener('input', checkPasswordStrength);
+        confirmPassInput.addEventListener('input', checkPasswordStrength);
+      }
+
+      function checkPasswordStrength() {
+        const password = document.getElementById('forgot-new-password').value;
+        const confirm = document.getElementById('forgot-confirm-password').value;
+
+        let strength = 0;
+
+        if (password.length >= 8) strength++;
+        if (/[A-Z]/.test(password)) strength++;
+        if (/[0-9!@#$%^&*]/.test(password)) strength++;
+
+        const bars = document.querySelectorAll('[id^="strength-bar-"]');
+        bars.forEach((bar, index) => {
+          if (index < strength) {
+            bar.classList.remove('bg-slate-700');
+            if (strength === 1) bar.classList.add('bg-red-500');
+            if (strength === 2) bar.classList.add('bg-amber-500');
+            if (strength === 3) bar.classList.add('bg-emerald-500');
+          } else {
+            bar.classList.add('bg-slate-700');
+            bar.classList.remove('bg-red-500', 'bg-amber-500', 'bg-emerald-500');
+          }
+        });
+
+        const strengthText = document.getElementById('strength-text');
+        if (strength === 0) strengthText.textContent = 'Type to see strength';
+        if (strength === 1) strengthText.textContent = 'Weak - add more characters';
+        if (strength === 2) strengthText.textContent = 'Good - add numbers or symbols';
+        if (strength === 3) strengthText.textContent = 'Strong - ready to use';
+      }
+
+      function resetPassword() {
+        const newPassword = document.getElementById('forgot-new-password').value;
+        const confirmPassword = document.getElementById('forgot-confirm-password').value;
+        document.getElementById('forgot-error').classList.add('hidden');
+
+        if (!newPassword || !confirmPassword) {
+          showForgotError('Please fill in all fields');
+          return;
+        }
+
+        if (newPassword !== confirmPassword) {
+          showForgotError('Access codes do not match');
+          return;
+        }
+
+        if (newPassword.length < 6) {
+          showForgotError('Access code must be at least 6 characters');
+          return;
+        }
+
+        if (currentUser) {
+          currentUser.password = newPassword;
+          users[currentUser.email].password = newPassword;
+        }
+
+        showForgotStep('success');
+        if (codeTimerInterval) clearInterval(codeTimerInterval);
+      }
+
+      function backToLogin() {
+        closeForgotPassword();
+      }
+
+      function handleLogout() {
+        currentUser = null;
+        document.getElementById('dashboard-screen').classList.add('hidden');
+        document.getElementById('auth-screen').classList.remove('hidden');
+        document.getElementById('login-form').reset();
+        document.getElementById('admin-login-form').reset();
+        document.getElementById('auth-error').classList.add('hidden');
+        document.getElementById('auth-success').classList.add('hidden');
+      }
+
+      function populateDensityTimeline(densityData) {
+        const timeline = document.getElementById('density-timeline');
+        timeline.innerHTML = '';
+
+        densityData.forEach((data) => {
+          const bar = document.createElement('div');
+          bar.className = 'flex-1 rounded-t-sm cursor-pointer group relative';
+
+          let bgColor = 'bg-emerald-500';
+          if (data.peopleCount >= 8) {
+            bgColor = 'bg-red-500';
+          } else if (data.peopleCount >= 5) {
+            bgColor = 'bg-amber-500';
+          }
+
+          bar.className += ` ${bgColor} transition-all hover:opacity-80`;
+          bar.style.height = `${(data.density / 100) * 100}%`;
+          bar.style.minHeight = '4px';
+
+          const tooltip = document.createElement('div');
+          tooltip.className = 'absolute -top-8 left-0 right-0 bg-slate-800 text-slate-100 text-xs p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10';
+          tooltip.textContent = `${data.time} - ${data.density}% (${data.peopleCount} people)`;
+          bar.appendChild(tooltip);
+
+          timeline.appendChild(bar);
+        });
+      }
+
+      function populateActivityLogs(logs) {
+        const logsContainer = document.getElementById('camera-activity-logs');
+        const emptyState = document.getElementById('logs-empty-state');
+
+        if (logs.length === 0) {
+          logsContainer.innerHTML = '';
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        emptyState.classList.add('hidden');
+        logsContainer.innerHTML = logs.map(log => {
+          let iconEmoji = '📍';
+          let bgClass = 'bg-slate-800';
+          let textClass = 'text-slate-300';
+
+          if (log.type === 'ENTRY') {
+            iconEmoji = '➡️';
+            bgClass = 'bg-emerald-500/10';
+            textClass = 'text-emerald-400';
+          } else if (log.type === 'EXIT') {
+            iconEmoji = '⬅️';
+            bgClass = 'bg-blue-500/10';
+            textClass = 'text-blue-400';
+          } else if (log.type === 'CROWDING') {
+            iconEmoji = '⚠️';
+            bgClass = 'bg-amber-500/10';
+            textClass = 'text-amber-400';
+          } else if (log.type === 'ALERT') {
+            iconEmoji = '🚨';
+            bgClass = 'bg-red-500/10';
+            textClass = 'text-red-400';
+          }
+
+          return `
           <div class="${bgClass} border border-slate-700 rounded-lg p-4 hover:border-slate-600 transition-all">
             <div class="flex items-start gap-3">
               <span class="text-2xl mt-0.5">${iconEmoji}</span>
@@ -1519,92 +1757,94 @@
             </div>
           </div>
         `;
-      }).join('');
-    }
-    
-    function maximizeCamera(camId, location, resolution) {
-      const modal = document.getElementById('camera-maximize-modal');
-      
-      document.getElementById('max-camera-name').textContent = camId;
-      document.getElementById('max-camera-location').textContent = location;
-      document.getElementById('max-camera-resolution').textContent = resolution;
-      document.getElementById('max-camera-time').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
-      
-      const densityData = cameraHistory[camId] || [];
-      const activityLogs = allActivityLogs.filter(log => log.camera === camId);
-      
-      const latest = densityData[densityData.length - 1] || { density: 0, peopleCount: 0, level: 'LOW' };
-      const currentPeople = latest.peopleCount;
-      document.getElementById('max-people-count').textContent = currentPeople;
-      
-      const densityLevel = latest.level.charAt(0) + latest.level.slice(1).toLowerCase();
-      const densityColor = densityColorClass(latest.level);
-      
-      const densityEl = document.getElementById('max-density-level');
-      densityEl.textContent = densityLevel;
-      densityEl.className = `text-sm font-semibold ${densityColor}`;
-      
-      const alertsCount = activityLogs.filter(log => log.type === 'CROWDING').length;
-      document.getElementById('max-alerts-count').textContent = alertsCount;
-      
-      populateDensityTimeline(densityData);
-      populateActivityLogs(activityLogs);
-      
-      const peakDensity = densityData.length ? Math.max(...densityData.map(d => d.density)) : 0;
-      const avgPeople = densityData.length ? Math.round(densityData.reduce((sum, d) => sum + d.peopleCount, 0) / densityData.length) : 0;
-      const highDurationSeconds = densityData.reduce((acc, point, idx) => {
-        if (idx === 0) return acc;
-        if (point.peopleCount >= 8) {
-          return acc + Math.max(0, Math.round((point.timestamp - densityData[idx - 1].timestamp) / 1000));
-        }
-        return acc;
-      }, 0);
-      const highDurationMinutes = Math.round(highDurationSeconds / 60);
-      
-      document.getElementById('max-peak-density').textContent = peakDensity + '%';
-      document.getElementById('max-avg-people').textContent = avgPeople;
-      document.getElementById('max-high-duration').textContent = highDurationMinutes + ' min';
+        }).join('');
+      }
 
-      if (densityData.length > 0) {
-        const startEl = document.getElementById('timeline-start');
-        const midEl = document.getElementById('timeline-mid');
-        const endEl = document.getElementById('timeline-end');
-        const midIndex = Math.floor(densityData.length / 2);
-        startEl.textContent = densityData[0].time;
-        midEl.textContent = densityData[midIndex].time;
-        endEl.textContent = densityData[densityData.length - 1].time;
+      function maximizeCamera(camId, location, resolution) {
+        const modal = document.getElementById('camera-maximize-modal');
+
+        document.getElementById('max-camera-name').textContent = camId;
+        document.getElementById('max-camera-location').textContent = location;
+        document.getElementById('max-camera-resolution').textContent = resolution;
+        document.getElementById('max-camera-time').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+        const densityData = cameraHistory[camId] || [];
+        const activityLogs = allActivityLogs.filter(log => log.camera === camId);
+
+        const latest = densityData[densityData.length - 1] || { density: 0, peopleCount: 0, level: 'LOW' };
+        const currentPeople = latest.peopleCount;
+        document.getElementById('max-people-count').textContent = currentPeople;
+
+        const densityLevel = latest.level.charAt(0) + latest.level.slice(1).toLowerCase();
+        const densityColor = densityColorClass(latest.level);
+
+        const densityEl = document.getElementById('max-density-level');
+        densityEl.textContent = densityLevel;
+        densityEl.className = `text-sm font-semibold ${densityColor}`;
+
+        const alertsCount = activityLogs.filter(log => log.type === 'CROWDING').length;
+        document.getElementById('max-alerts-count').textContent = alertsCount;
+
+        populateDensityTimeline(densityData);
+        populateActivityLogs(activityLogs);
+
+        const peakDensity = densityData.length ? Math.max(...densityData.map(d => d.density)) : 0;
+        const avgPeople = densityData.length ? Math.round(densityData.reduce((sum, d) => sum + d.peopleCount, 0) / densityData.length) : 0;
+        const highDurationSeconds = densityData.reduce((acc, point, idx) => {
+          if (idx === 0) return acc;
+          if (point.peopleCount >= 8) {
+            return acc + Math.max(0, Math.round((point.timestamp - densityData[idx - 1].timestamp) / 1000));
+          }
+          return acc;
+        }, 0);
+        const highDurationMinutes = Math.round(highDurationSeconds / 60);
+
+        document.getElementById('max-peak-density').textContent = peakDensity + '%';
+        document.getElementById('max-avg-people').textContent = avgPeople;
+        document.getElementById('max-high-duration').textContent = highDurationMinutes + ' min';
+
+        if (densityData.length > 0) {
+          const startEl = document.getElementById('timeline-start');
+          const midEl = document.getElementById('timeline-mid');
+          const endEl = document.getElementById('timeline-end');
+          const midIndex = Math.floor(densityData.length / 2);
+          startEl.textContent = densityData[0].time;
+          midEl.textContent = densityData[midIndex].time;
+          endEl.textContent = densityData[densityData.length - 1].time;
+        }
+
+        drawCameraSVG(camId);
+        modal.classList.remove('hidden');
       }
-      
-      drawCameraSVG(camId);
-      modal.classList.remove('hidden');
-    }
-    
-    function drawCameraSVG(camId) {
-      const container = document.getElementById('max-camera-svg');
-      if (camId === 'CAM-01' || camId === 'CAM-02') {
-        // This image is also driven by startCam01FrameUpdates()
-        container.innerHTML = '<img id="max-cam01-video" src="/cam1_frame" alt="Live Camera Feed" class="w-full h-full object-contain" />';
-        return;
+
+      function drawCameraSVG(camId) {
+        const container = document.getElementById('max-camera-svg');
+        if (camId === 'CAM-01' || camId === 'CAM-02') {
+          // This image is also driven by startCam01FrameUpdates()
+          container.innerHTML = '<img id="max-cam01-video" src="/cam1_frame" alt="Live Camera Feed" class="w-full h-full object-contain" />';
+          return;
+        }
+        const svgMap = {
+          'CAM-01': `<svg class="w-32 h-24 text-slate-700 mx-auto" viewBox="0 0 100 60"><rect x="10" y="40" width="15" height="20" rx="1" fill="currentColor"/><rect x="30" y="30" width="18" height="30" rx="1" fill="currentColor"/><rect x="53" y="25" width="12" height="35" rx="1" fill="currentColor"/><rect x="70" y="35" width="20" height="25" rx="1" fill="currentColor"/><circle cx="75" cy="15" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+          'CAM-02': `<svg class="w-40 h-24 text-slate-700 mx-auto" viewBox="0 0 120 60"><rect x="5" y="50" width="110" height="10" fill="currentColor" rx="1"/><rect x="20" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><rect x="70" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><line x1="35" y1="10" x2="35" y2="20" stroke="currentColor" stroke-width="2"/><line x1="85" y1="10" x2="85" y2="20" stroke="currentColor" stroke-width="2"/></svg>`
+        };
+
+        container.innerHTML = svgMap[camId] || '';
       }
-      const svgMap = {
-        'CAM-01': `<svg class="w-32 h-24 text-slate-700 mx-auto" viewBox="0 0 100 60"><rect x="10" y="40" width="15" height="20" rx="1" fill="currentColor"/><rect x="30" y="30" width="18" height="30" rx="1" fill="currentColor"/><rect x="53" y="25" width="12" height="35" rx="1" fill="currentColor"/><rect x="70" y="35" width="20" height="25" rx="1" fill="currentColor"/><circle cx="75" cy="15" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
-        'CAM-02': `<svg class="w-40 h-24 text-slate-700 mx-auto" viewBox="0 0 120 60"><rect x="5" y="50" width="110" height="10" fill="currentColor" rx="1"/><rect x="20" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><rect x="70" y="20" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><line x1="35" y1="10" x2="35" y2="20" stroke="currentColor" stroke-width="2"/><line x1="85" y1="10" x2="85" y2="20" stroke="currentColor" stroke-width="2"/></svg>`
-      };
-      
-      container.innerHTML = svgMap[camId] || '';
-    }
-    
-    function closeMaximizeCamera() {
-      document.getElementById('camera-maximize-modal').classList.add('hidden');
-    }
-    
-    document.addEventListener('click', function(event) {
-      const modal = document.getElementById('camera-maximize-modal');
-      if (event.target === modal) {
-        closeMaximizeCamera();
+
+      function closeMaximizeCamera() {
+        document.getElementById('camera-maximize-modal').classList.add('hidden');
       }
-    });
-  </script>
+
+      document.addEventListener('click', function (event) {
+        const modal = document.getElementById('camera-maximize-modal');
+        if (event.target === modal) {
+          closeMaximizeCamera();
+        }
+      });
+    </script>
   </div>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9cb979c300fffd0c',t:'MTc3MDcwNDE2NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function () { function c() { var b = a.contentDocument || a.contentWindow.document; if (b) { var d = b.createElement('script'); d.innerHTML = "window.__CF$cv$params={r:'9cb979c300fffd0c',t:'MTc3MDcwNDE2NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);"; b.getElementsByTagName('head')[0].appendChild(d) } } if (document.body) { var a = document.createElement('iframe'); a.height = 1; a.width = 1; a.style.position = 'absolute'; a.style.top = 0; a.style.left = 0; a.style.border = 'none'; a.style.visibility = 'hidden'; document.body.appendChild(a); if ('loading' !== document.readyState) c(); else if (window.addEventListener) document.addEventListener('DOMContentLoaded', c); else { var e = document.onreadystatechange || function () { }; document.onreadystatechange = function (b) { e(b); 'loading' !== document.readyState && (document.onreadystatechange = e, c()) } } } })();</script>
+</body>
+
 </html>

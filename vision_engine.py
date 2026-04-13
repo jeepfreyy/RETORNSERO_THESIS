@@ -355,36 +355,7 @@ class SentinelStream:
 
                 total_count = count_z7 + count_z6
 
-                # ── HUD Overlay ─────────────────────────────────────
-                text = f"Count of people: {total_count}"
-                (tw, th_t), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)
-                tx = frame_width - tw - 20
-                ty = 50
-                cv2.rectangle(
-                    frame, (tx - 10, ty - 30), (tx + tw + 10, ty + 10), (0, 0, 0), -1
-                )
-                cv2.putText(
-                    frame, text, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2
-                )
-
-                cv2.putText(
-                    frame,
-                    f"Z7: {count_z7}",
-                    (self.z7_x1, self.z7_y1 - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (0, 255, 0),
-                    2,
-                )
-                cv2.putText(
-                    frame,
-                    f"Z6: {count_z6}",
-                    (self.z6_x1, self.z6_y1 - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (0, 255, 0),
-                    2,
-                )
+                # ── HUD Overlay Removed (UI renders stats) ──────────
 
                 # Stats
                 area_z7 = (self.z7_x2 - self.z7_x1) * (self.z7_y2 - self.z7_y1)
