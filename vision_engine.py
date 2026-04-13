@@ -246,14 +246,10 @@ class SentinelStream:
             "locations": [],
         }
 
-        # MOG2 with higher variance threshold to reduce micro-noise
+        # MOG2 calibrated using localized Grid Search optimization
         self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
-            history=500, varThreshold=50, detectShadows=True
+            history=500, varThreshold=16, detectShadows=True
         )
-
-        # Zone definitions (will be moved to DB/config later)
-        self.z7_x1, self.z7_y1, self.z7_x2, self.z7_y2 = 240, 290, 325, 625
-        self.z6_x1, self.z6_y1, self.z6_x2, self.z6_y2 = 340, 280, 855, 990
 
         self.running = True
         self.thread = threading.Thread(target=self._process_loop, daemon=True)
@@ -262,7 +258,7 @@ class SentinelStream:
     # ------------------------------------------------------------------
     def _process_loop(self):
         tracker = RobustSentinelTracker()
-        fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 85))
+        fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 50))
 
         while self.running:
             cap = cv2.VideoCapture(self.source)
@@ -297,7 +293,7 @@ class SentinelStream:
 
                 # ── PHASE 2: Fusion (stable mega-blobs) ─────────────
                 fused = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, fusion_k)
-                fused = cv2.dilate(fused, np.ones((5, 5), np.uint8), iterations=1)
+                fused = cv2.dilate(fused, np.ones((3, 3), np.uint8), iterations=1)
 
                 # ── PHASE 3: Detection with Structural Validation ───
                 conts, _ = cv2.findContours(fused, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -312,55 +308,24 @@ class SentinelStream:
                 tracks = tracker.update(detections)
 
                 # ── PHASE 4: Counting & Rendering ───────────────────
-                count_z7 = 0
-                count_z6 = 0
-
-                # Draw zone boundaries (thin, subtle green lines)
-                cv2.rectangle(
-                    frame,
-                    (self.z7_x1, self.z7_y1),
-                    (self.z7_x2, self.z7_y2),
-                    (0, 180, 0),
-                    1,
-                    cv2.LINE_AA,
-                )
-                cv2.rectangle(
-                    frame,
-                    (self.z6_x1, self.z6_y1),
-                    (self.z6_x2, self.z6_y2),
-                    (0, 180, 0),
-                    1,
-                    cv2.LINE_AA,
-                )
+                total_count = 0
 
                 for tid, data in tracks.items():
                     if data['ghost'] == 0:
                         x, y, w_box, h_box = data['box']
                         cx = int(x + w_box / 2)
-                        # Place the dot at the bottom-center (feet position)
                         cy = int(y + h_box)
 
                         roi = thresh[y : y + h_box, x : x + w_box]
                         people_in_box = count_people_in_box(roi, w_box, y + h_box, frame_height)
 
-                        in_z7 = (self.z7_x1 < cx < self.z7_x2) and (self.z7_y1 < cy < self.z7_y2)
-                        in_z6 = (self.z6_x1 < cx < self.z6_x2) and (self.z6_y1 < cy < self.z6_y2)
-
-                        if in_z7:
-                            count_z7 += people_in_box
-                            draw_person_marker(frame, cx, cy, people_in_box, in_zone7=True)
-                        elif in_z6:
-                            count_z6 += people_in_box
-                            draw_person_marker(frame, cx, cy, people_in_box, in_zone7=False)
-
-                total_count = count_z7 + count_z6
+                        total_count += people_in_box
+                        draw_person_marker(frame, cx, cy, people_in_box, in_zone7=False)
 
                 # ── HUD Overlay Removed (UI renders stats) ──────────
 
                 # Stats
-                area_z7 = (self.z7_x2 - self.z7_x1) * (self.z7_y2 - self.z7_y1)
-                area_z6 = (self.z6_x2 - self.z6_x1) * (self.z6_y2 - self.z6_y1)
-                norm_area = max(1.0, (area_z7 + area_z6) / 10000.0)
+                norm_area = max(1.0, (frame_width * frame_height) / 10000.0)
                 density = int(min(100, (total_count / norm_area)))
 
                 if total_count == 0:
