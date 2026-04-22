@@ -12,6 +12,9 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&amp;family=Orbitron:wght@400;500;600;700&amp;display=swap"
     rel="stylesheet">
+  <!-- Quill.js Rich Text Editor -->
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
   <style>
     body {
       box-sizing: border-box;
@@ -155,6 +158,77 @@
     .card-border {
       border: 1px solid rgba(0, 255, 136, 0.3);
       background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8));
+    }
+
+    /* ── Quill.js Dark Theme Overrides ─────────────────────── */
+    .ql-toolbar.ql-snow {
+      border-color: rgba(100, 116, 139, 0.4) !important;
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 8px 8px 0 0;
+    }
+    .ql-container.ql-snow {
+      border-color: rgba(100, 116, 139, 0.4) !important;
+      background: rgba(15, 23, 42, 0.3);
+      color: #e2e8f0;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 15px;
+      border-radius: 0 0 8px 8px;
+      min-height: 160px;
+    }
+    .ql-editor.ql-blank::before {
+      color: rgba(100, 116, 139, 0.7) !important;
+      font-style: normal !important;
+    }
+    .ql-snow .ql-stroke { stroke: #94a3b8 !important; }
+    .ql-snow .ql-fill { fill: #94a3b8 !important; }
+    .ql-snow .ql-picker-label { color: #94a3b8 !important; }
+    .ql-snow .ql-picker-options {
+      background: #1e293b !important;
+      border-color: rgba(100, 116, 139, 0.4) !important;
+    }
+    .ql-snow .ql-active .ql-stroke { stroke: #34d399 !important; }
+    .ql-snow .ql-active .ql-fill { fill: #34d399 !important; }
+    .ql-snow button:hover .ql-stroke { stroke: #6ee7b7 !important; }
+    .ql-snow button:hover .ql-fill { fill: #6ee7b7 !important; }
+
+    /* ── Temp Clip Tray ───────────────────────────────────── */
+    .clip-card {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .clip-card:hover {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+    .temp-tray-scroll::-webkit-scrollbar {
+      height: 6px;
+    }
+    .temp-tray-scroll::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 3px;
+    }
+    .temp-tray-scroll::-webkit-scrollbar-thumb {
+      background: rgba(0, 255, 136, 0.3);
+      border-radius: 3px;
+    }
+
+    /* ── Report Modal ─────────────────────────────────────── */
+    .report-status-btn {
+      transition: all 0.2s ease;
+    }
+    .report-status-btn:hover {
+      transform: translateY(-1px);
+    }
+    .report-status-btn.active-threat {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.5);
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+    }
+    .report-status-btn.active-false {
+      background: rgba(100, 116, 139, 0.2);
+      color: #cbd5e1;
+      border-color: rgba(100, 116, 139, 0.5);
+      box-shadow: 0 0 20px rgba(100, 116, 139, 0.15);
     }
   </style>
   <style>
@@ -620,59 +694,103 @@
                 </div>
               </div>
             </div>
-          </div>
-        </div><!-- Archive View -->
-        <div id="archive-view" class="hidden">
-          <!-- Archive Header -->
-          <div class="mb-6">
-            <h2 class="font-display text-2xl font-bold text-emerald-400 tracking-wider mb-4">ARCHIVE BROWSER</h2>
-            <!-- Archive Filters -->
-            <div class="card-border rounded-xl p-6 backdrop-blur-xl">
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                <!-- Date Picker -->
-                <div>
-                  <label for="archive-date"
-                    class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">SELECT DATE</label> <input
-                    type="date" id="archive-date"
-                    class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-                </div><!-- Start Time -->
-                <div>
-                  <label for="archive-start-time"
-                    class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">START TIME</label> <input
-                    type="time" id="archive-start-time"
-                    class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-                </div><!-- End Time -->
-                <div>
-                  <label for="archive-end-time"
-                    class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">END TIME</label> <input
-                    type="time" id="archive-end-time"
-                    class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-                </div><!-- Camera Selection -->
-                <div>
-                  <label for="archive-camera"
-                    class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider">CAMERA</label> <select
-                    id="archive-camera"
-                    class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-slate-100 focus:outline-none focus:border-emerald-500 input-glow transition-all">
-                    <option value="">All Cameras</option>
-                    <option value="CAM-01">CAM-01 - Main Entrance</option>
-                    <option value="CAM-02">CAM-02 - Secondary Entrance</option>
-                  </select>
+            <!-- ── Temp Clip Tray ─────────────────────────────── -->
+            <div id="temp-clip-tray" class="mt-4">
+              <div class="card-border rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 rounded-full bg-amber-400 blink"></div>
+                    <h3 class="font-display text-sm font-bold text-emerald-400 tracking-wider">DETECTED ANOMALIES</h3>
+                  </div>
+                  <span id="temp-clip-count" class="text-xs text-slate-500 font-mono">0 clips</span>
                 </div>
-              </div><!-- Search Button -->
-              <div class="flex gap-3">
-                <button onclick="searchArchive()"
-                  class="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold rounded-lg btn-glow transition-all tracking-wider">
-                  SEARCH </button> <button onclick="resetArchiveFilters()"
-                  class="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-lg transition-all tracking-wider">
-                  RESET </button>
-              </div><!-- Archive Info -->
-              <div id="archive-info" class="mt-4 p-3 bg-slate-900/50 border border-slate-700 rounded-lg hidden">
-                <p id="archive-info-text" class="text-sm text-slate-300"></p>
+                <div id="temp-clips-container" class="flex gap-3 overflow-x-auto pb-2 temp-tray-scroll">
+                  <div id="temp-clips-empty" class="w-full text-center py-6 text-slate-500 text-sm">
+                    <svg class="w-8 h-8 mx-auto mb-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    No anomalies detected yet. Clips appear automatically when density spikes.
+                  </div>
+                </div>
               </div>
             </div>
-          </div><!-- Archive Results -->
+          </div>
+        </div>
+        <!-- ── Incident Report Modal ─────────────────────────── -->
+        <div id="report-modal" class="fixed inset-0 bg-black/95 backdrop-blur-xl hidden flex items-center justify-center z-[60] p-4">
+          <div class="w-full max-w-5xl bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-2xl">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-900/90">
+              <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full bg-red-500 blink"></div>
+                <h2 class="font-display text-lg font-bold text-emerald-400 tracking-wider">INCIDENT REPORT</h2>
+              </div>
+              <button onclick="closeReportModal()" class="text-slate-400 hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-slate-800">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <!-- Body -->
+            <div class="grid grid-cols-1 lg:grid-cols-2">
+              <!-- Left: Video Preview -->
+              <div class="p-6 border-b lg:border-b-0 lg:border-r border-slate-700">
+                <p class="text-xs font-semibold text-slate-500 tracking-wider mb-3">CLIP PREVIEW</p>
+                <img id="report-video" class="w-full rounded-lg border border-slate-700 bg-slate-900" alt="Clip playback" style="min-height:200px" />
+                <div class="mt-4 grid grid-cols-3 gap-4">
+                  <div class="bg-slate-800/50 rounded-lg p-3 text-center">
+                    <p class="text-xs text-slate-500 mb-1">CAMERA</p>
+                    <p id="report-camera" class="text-sm font-semibold text-slate-200">CAM-01</p>
+                  </div>
+                  <div class="bg-slate-800/50 rounded-lg p-3 text-center">
+                    <p class="text-xs text-slate-500 mb-1">TIMESTAMP</p>
+                    <p id="report-timestamp" class="text-sm font-semibold text-slate-200 font-mono">--</p>
+                  </div>
+                  <div class="bg-slate-800/50 rounded-lg p-3 text-center">
+                    <p class="text-xs text-slate-500 mb-1">DENSITY</p>
+                    <p id="report-density" class="text-sm font-semibold">--</p>
+                  </div>
+                </div>
+              </div>
+              <!-- Right: Report Editor -->
+              <div class="p-6 flex flex-col">
+                <p class="text-xs font-semibold text-slate-500 tracking-wider mb-3">INCIDENT CLASSIFICATION</p>
+                <!-- Status Selector -->
+                <div class="flex gap-3 mb-4">
+                  <button id="status-valid-btn" onclick="setReportStatus('VALID_THREAT')" class="report-status-btn flex-1 py-3 px-4 rounded-lg border border-slate-600 text-slate-400 bg-slate-800 font-semibold text-sm tracking-wider">
+                    <span class="block text-lg mb-1">&#x26A0;</span> VALID THREAT
+                  </button>
+                  <button id="status-false-btn" onclick="setReportStatus('FALSE_ALARM')" class="report-status-btn flex-1 py-3 px-4 rounded-lg border border-slate-600 text-slate-400 bg-slate-800 font-semibold text-sm tracking-wider active-false">
+                    <span class="block text-lg mb-1">&#x2714;</span> FALSE ALARM
+                  </button>
+                </div>
+                <!-- Report Editor -->
+                <p class="text-xs font-semibold text-slate-500 tracking-wider mb-2">OPERATOR NOTES</p>
+                <div id="report-editor-wrapper" class="flex-1 mb-4">
+                  <div id="report-editor"></div>
+                </div>
+                <!-- Submit -->
+                <button id="submit-report-btn" onclick="submitIncidentReport()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow tracking-wider transition-all">
+                  SUBMIT ARCHIVE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Archive View -->
+        <div id="archive-view" class="hidden">
+          <!-- Archive Header -->
+          <div class="mb-6 flex items-end justify-between">
+            <div>
+              <h2 class="font-display text-2xl font-bold text-emerald-400 tracking-wider mb-1">INCIDENT ARCHIVE</h2>
+              <p class="text-slate-500 text-sm">Permanently saved incident reports annotated by operators</p>
+            </div>
+            <button onclick="loadArchivedIncidents()" class="px-5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-sm tracking-wider transition-all">
+              REFRESH
+            </button>
+          </div>
+          <!-- Archive Results -->
           <div id="archive-results" class="space-y-4">
-            <p class="text-slate-400 text-center py-8">Select filters and click SEARCH to view archived recordings</p>
+            <div class="text-center py-12 text-slate-500">
+              <svg class="w-12 h-12 mx-auto mb-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+              <p>Switch to ARCHIVE view to load saved incidents</p>
+            </div>
           </div>
         </div><!-- Live View -->
         <div id="live-view" class="flex flex-col lg:flex-row gap-4">
@@ -901,9 +1019,6 @@
       // Mock user database
       const users = {};
 
-      // Mock archive data
-      const archiveData = generateMockArchiveData();
-
       // Global activity logs
       let allActivityLogs = [];
 
@@ -919,43 +1034,7 @@
 
       const cameraRuntimeState = {};
 
-      function generateMockArchiveData() {
-        const data = [];
-        const cameras = ['CAM-01', 'CAM-02'];
-        const locations = {
-          'CAM-01': 'Main Entrance',
-          'CAM-02': 'Secondary Entrance'
-        };
 
-        for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-          const date = new Date();
-          date.setDate(date.getDate() - dayOffset);
-          const dateStr = date.toISOString().split('T')[0];
-
-          cameras.forEach(cam => {
-            const recordingsPerDay = Math.floor(Math.random() * 3) + 4;
-            for (let i = 0; i < recordingsPerDay; i++) {
-              const hour = Math.floor(Math.random() * 24);
-              const minute = Math.floor(Math.random() * 60);
-              const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-              const duration = Math.floor(Math.random() * 120) + 30;
-
-              data.push({
-                id: `${cam}-${dateStr}-${timeStr.replace(':', '')}`,
-                camera: cam,
-                location: locations[cam],
-                date: dateStr,
-                startTime: timeStr,
-                duration: duration,
-                fileSize: (Math.random() * 500 + 100).toFixed(1),
-                resolution: '1080p',
-                status: 'Available'
-              });
-            }
-          });
-        }
-        return data;
-      }
 
       function switchView(view) {
         const liveView = document.getElementById('live-view');
@@ -983,107 +1062,10 @@
           viewArchiveBtn.classList.remove('text-slate-400');
           viewLiveBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50');
           viewLiveBtn.classList.add('text-slate-400');
+          loadArchivedIncidents();
         }
       }
 
-      function searchArchive() {
-        const date = document.getElementById('archive-date').value;
-        const startTime = document.getElementById('archive-start-time').value;
-        const endTime = document.getElementById('archive-end-time').value;
-        const camera = document.getElementById('archive-camera').value;
-
-        if (!date) {
-          showError('Please select a date');
-          return;
-        }
-
-        let filtered = archiveData.filter(record => {
-          if (record.date !== date) return false;
-          if (camera && record.camera !== camera) return false;
-          if (startTime || endTime) {
-            const recordTime = record.startTime;
-            if (startTime && recordTime < startTime) return false;
-            if (endTime && recordTime > endTime) return false;
-          }
-          return true;
-        });
-
-        displayArchiveResults(filtered, date, startTime, endTime, camera);
-      }
-
-      function displayArchiveResults(results, date, startTime, endTime, camera) {
-        const resultsContainer = document.getElementById('archive-results');
-        const archiveInfo = document.getElementById('archive-info');
-        const archiveInfoText = document.getElementById('archive-info-text');
-
-        const dateObj = new Date(date);
-        const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        let infoText = `Found ${results.length} recording(s) on ${formattedDate}`;
-        if (camera) infoText += ` for ${camera}`;
-        if (startTime || endTime) {
-          infoText += ` between ${startTime || '00:00'} and ${endTime || '23:59'}`;
-        }
-
-        archiveInfoText.textContent = infoText;
-        archiveInfo.classList.remove('hidden');
-
-        if (results.length === 0) {
-          resultsContainer.innerHTML = '<div class="text-center py-8 text-slate-400">No recordings found for the selected criteria</div>';
-          return;
-        }
-
-        results.sort((a, b) => b.startTime.localeCompare(a.startTime));
-
-        resultsContainer.innerHTML = results.map(record => `
-        <div class="card-border rounded-xl p-5 hover:border-emerald-500/50 transition-all cursor-pointer group">
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-            <div class="flex-1">
-              <div class="flex items-center gap-4 mb-3">
-                <div class="w-14 h-14 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center border border-slate-700 group-hover:border-emerald-500/50 transition-all flex-shrink-0">
-                  <svg class="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0110 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                </div>
-                <div>
-                  <h3 class="font-semibold text-lg text-slate-100 group-hover:text-emerald-400 transition-colors">${record.camera} - ${record.location}</h3>
-                  <p class="text-sm text-slate-400 mt-1">${record.resolution} • ${record.duration} minutes</p>
-                </div>
-              </div>
-            </div>
-            <div class="grid grid-cols-3 gap-6 md:gap-8">
-              <div>
-                <p class="text-xs text-slate-500 tracking-wider mb-2 font-semibold">START TIME</p>
-                <p class="font-mono text-base text-emerald-400 font-semibold">${record.startTime}</p>
-              </div>
-              <div>
-                <p class="text-xs text-slate-500 tracking-wider mb-2 font-semibold">FILE SIZE</p>
-                <p class="font-mono text-base text-slate-200 font-semibold">${record.fileSize} MB</p>
-              </div>
-              <div>
-                <button onclick="downloadRecording('${record.id}')" class="px-5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-sm tracking-wider transition-all whitespace-nowrap">
-                  ↓ DOWNLOAD
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      `).join('');
-      }
-
-      function resetArchiveFilters() {
-        document.getElementById('archive-date').value = '';
-        document.getElementById('archive-start-time').value = '';
-        document.getElementById('archive-end-time').value = '';
-        document.getElementById('archive-camera').value = '';
-        document.getElementById('archive-info').classList.add('hidden');
-        document.getElementById('archive-results').innerHTML = '<p class="text-slate-400 text-center py-8">Select filters and click SEARCH to view archived recordings</p>';
-      }
-
-      function downloadRecording(recordId) {
-        const record = archiveData.find(r => r.id === recordId);
-        if (record) {
-          const message = `Starting download: ${record.camera} - ${record.location}\nFile: ${record.fileSize}MB\nDuration: ${record.duration} minutes`;
-          showSuccess(message);
-        }
-      }
 
       if (window.elementSdk) {
         window.elementSdk.init({
@@ -1278,6 +1260,7 @@
         setInterval(updateCam01Stats, 500);
         updateCam01Stats();
         startCam01FrameUpdates();
+        startTempClipUpdates();
       }
 
       // Periodically refresh CAM-01 frame so it appears as smooth video
@@ -1814,6 +1797,7 @@
         }
 
         drawCameraSVG(camId);
+        fetchTempClips();
         modal.classList.remove('hidden');
       }
 
@@ -1841,7 +1825,293 @@
         if (event.target === modal) {
           closeMaximizeCamera();
         }
+        const reportModal = document.getElementById('report-modal');
+        if (event.target === reportModal) {
+          closeReportModal();
+        }
       });
+
+      // ───────────────────────────────────────────────────────
+      // TEMP CLIP TRAY & INCIDENT REPORT SYSTEM
+      // ───────────────────────────────────────────────────────
+      let reportQuill = null;
+      let currentReportClip = null;
+      let currentReportStatus = 'FALSE_ALARM';
+      let tempClipRefreshInterval = null;
+
+      function startTempClipUpdates() {
+        if (tempClipRefreshInterval) return;
+        fetchTempClips();
+        tempClipRefreshInterval = setInterval(fetchTempClips, 5000);
+      }
+
+      function fetchTempClips() {
+        fetch('/api/temp_clips')
+          .then(r => r.json())
+          .then(clips => renderTempClips(clips))
+          .catch(() => {});
+      }
+
+      function renderTempClips(clips) {
+        const container = document.getElementById('temp-clips-container');
+        const emptyEl = document.getElementById('temp-clips-empty');
+        const countEl = document.getElementById('temp-clip-count');
+        if (!container) return;
+
+        countEl.textContent = `${clips.length} clip${clips.length !== 1 ? 's' : ''}`;
+
+        if (clips.length === 0) {
+          if (emptyEl) emptyEl.classList.remove('hidden');
+          // Remove all clip cards but keep empty state
+          Array.from(container.children).forEach(ch => {
+            if (ch.id !== 'temp-clips-empty') ch.remove();
+          });
+          return;
+        }
+
+        if (emptyEl) emptyEl.classList.add('hidden');
+
+        const borderMap = { HIGH: 'border-red-500/60', MEDIUM: 'border-amber-500/60', LOW: 'border-emerald-500/60' };
+        const bgMap = { HIGH: 'bg-red-500/10', MEDIUM: 'bg-amber-500/10', LOW: 'bg-emerald-500/10' };
+        const textMap = { HIGH: 'text-red-400', MEDIUM: 'text-amber-400', LOW: 'text-emerald-400' };
+
+        let html = '';
+        clips.forEach(clip => {
+          const bc = borderMap[clip.density] || borderMap.LOW;
+          const bg = bgMap[clip.density] || bgMap.LOW;
+          const tc = textMap[clip.density] || textMap.LOW;
+          const safeFilename = clip.filename.replace(/'/g, "\\'");
+          const safeCam = clip.camera_id.replace(/'/g, "\\'");
+          const safeTs = clip.timestamp.replace(/'/g, "\\'");
+          const safeDensity = clip.density.replace(/'/g, "\\'");
+
+          html += `
+          <div class="clip-card flex-shrink-0 w-56 rounded-xl border ${bc} ${bg} overflow-hidden">
+            <div class="relative">
+              <img src="/clips/${clip.thumbnail}" alt="Clip" class="w-full h-28 object-cover bg-slate-800"
+                   onerror="this.style.display='none'"/>
+              <div class="absolute top-2 right-2">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded ${bg} ${tc} border ${bc}">${clip.density}</span>
+              </div>
+              <div class="absolute bottom-2 left-2">
+                <span class="text-[10px] text-white bg-black/70 px-2 py-0.5 rounded font-mono">${clip.duration}s</span>
+              </div>
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold ${tc}">${clip.camera_id}</p>
+              <p class="text-[10px] text-slate-500 mt-1 font-mono">${clip.timestamp}</p>
+              <div class="flex gap-2 mt-2">
+                <button onclick="openReportModal('${safeFilename}','${safeCam}','${safeTs}','${safeDensity}',${clip.duration})"
+                        class="flex-1 text-xs py-1.5 px-2 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30 transition-all font-semibold tracking-wider">
+                  SAVE
+                </button>
+                <button onclick="dismissClip('${safeFilename}')"
+                        class="text-xs py-1.5 px-2 rounded-lg bg-slate-700/50 text-slate-400 border border-slate-600 hover:bg-slate-600/50 transition-all">
+                  &#x2715;
+                </button>
+              </div>
+            </div>
+          </div>`;
+        });
+        // Keep empty element in DOM but hidden, add clip cards
+        container.innerHTML = (emptyEl ? '<div id="temp-clips-empty" class="hidden"></div>' : '') + html;
+      }
+
+      function openReportModal(filename, cameraId, timestamp, density, duration) {
+        currentReportClip = { filename, cameraId, timestamp, density, duration };
+
+        const modal = document.getElementById('report-modal');
+        const video = document.getElementById('report-video');
+        video.src = `/clip_stream/${filename}`;
+
+        document.getElementById('report-camera').textContent = cameraId;
+        document.getElementById('report-timestamp').textContent = timestamp;
+
+        const densityEl = document.getElementById('report-density');
+        densityEl.textContent = density;
+        const dColorMap = { HIGH: 'text-red-400', MEDIUM: 'text-amber-400', LOW: 'text-emerald-400' };
+        densityEl.className = `text-sm font-semibold ${dColorMap[density] || 'text-slate-300'}`;
+
+        // Initialize Quill editor (once)
+        if (!reportQuill) {
+          reportQuill = new Quill('#report-editor', {
+            theme: 'snow',
+            placeholder: 'Describe the incident... (e.g., Large group gathering near gate, possible altercation observed)',
+            modules: {
+              toolbar: [
+                ['bold', 'italic', 'underline'],
+                [{ list: 'ordered' }, { list: 'bullet' }],
+                ['clean']
+              ]
+            }
+          });
+        } else {
+          reportQuill.setContents([]);
+        }
+
+        setReportStatus('FALSE_ALARM');
+        modal.classList.remove('hidden');
+      }
+
+      function closeReportModal() {
+        document.getElementById('report-modal').classList.add('hidden');
+        document.getElementById('report-video').src = '';
+      }
+
+      function setReportStatus(status) {
+        currentReportStatus = status;
+        const validBtn = document.getElementById('status-valid-btn');
+        const falseBtn = document.getElementById('status-false-btn');
+
+        validBtn.className = 'report-status-btn flex-1 py-3 px-4 rounded-lg border font-semibold text-sm tracking-wider';
+        falseBtn.className = 'report-status-btn flex-1 py-3 px-4 rounded-lg border font-semibold text-sm tracking-wider';
+
+        if (status === 'VALID_THREAT') {
+          validBtn.classList.add('active-threat');
+          falseBtn.classList.add('bg-slate-800', 'text-slate-400', 'border-slate-600');
+        } else {
+          falseBtn.classList.add('active-false');
+          validBtn.classList.add('bg-slate-800', 'text-slate-400', 'border-slate-600');
+        }
+      }
+
+      async function submitIncidentReport() {
+        if (!currentReportClip) return;
+        const btn = document.getElementById('submit-report-btn');
+        btn.textContent = 'ARCHIVING...';
+        btn.disabled = true;
+
+        const reportHtml = reportQuill ? reportQuill.root.innerHTML : '';
+
+        try {
+          const response = await fetch('/api/incidents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              clip_filename: currentReportClip.filename,
+              report_html: reportHtml,
+              status: currentReportStatus,
+              density_tag: currentReportClip.density,
+              camera_id: currentReportClip.cameraId,
+              duration: currentReportClip.duration
+            })
+          });
+          const result = await response.json();
+          if (result.success) {
+            closeReportModal();
+            fetchTempClips();
+          }
+        } catch (err) {
+          console.error('Failed to archive incident:', err);
+        } finally {
+          btn.textContent = 'SUBMIT ARCHIVE';
+          btn.disabled = false;
+        }
+      }
+
+      async function dismissClip(filename) {
+        try {
+          await fetch(`/api/temp_clips/${filename}`, { method: 'DELETE' });
+          fetchTempClips();
+        } catch (err) {
+          console.error('Failed to dismiss clip:', err);
+        }
+      }
+
+      // ───────────────────────────────────────────────────────
+      // ARCHIVE VIEW - Load real incidents from database
+      // ───────────────────────────────────────────────────────
+      function loadArchivedIncidents() {
+        const container = document.getElementById('archive-results');
+        container.innerHTML = '<div class="text-center py-8 text-slate-500"><p>Loading...</p></div>';
+
+        fetch('/api/incidents')
+          .then(r => r.json())
+          .then(incidents => renderArchivedIncidents(incidents))
+          .catch(() => {
+            container.innerHTML = '<div class="text-center py-8 text-red-400"><p>Failed to load incidents</p></div>';
+          });
+      }
+
+      function renderArchivedIncidents(incidents) {
+        const container = document.getElementById('archive-results');
+
+        if (incidents.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-12 text-slate-500">
+              <svg class="w-12 h-12 mx-auto mb-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+              </svg>
+              <p class="text-base mb-1">No incidents archived yet</p>
+              <p class="text-xs">Use the SAVE button on detected anomaly clips to create incident reports</p>
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = incidents.map((inc, idx) => {
+          const statusBadge = inc.status === 'VALID_THREAT'
+            ? '<span class="px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/40">VALID THREAT</span>'
+            : '<span class="px-3 py-1 rounded-full text-xs font-bold bg-slate-600/20 text-slate-400 border border-slate-500/40">FALSE ALARM</span>';
+
+          const densityColor = inc.density_tag === 'HIGH' ? 'text-red-400' : inc.density_tag === 'MEDIUM' ? 'text-amber-400' : 'text-emerald-400';
+          const ts = new Date(inc.timestamp).toLocaleString();
+          const dateStr = new Date(inc.timestamp).toISOString().split('T')[0];
+          const archivePath = `Archive_${dateStr}/${inc.clip_filename}`;
+
+          return `
+          <div class="card-border rounded-xl p-5 hover:border-emerald-500/50 transition-all">
+            <div class="flex flex-col gap-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  ${statusBadge}
+                  <span class="text-xs font-mono text-slate-500">#${inc.id}</span>
+                </div>
+                <button id="clip-btn-${idx}" onclick="toggleArchiveClip(${idx}, '${archivePath}')" class="px-4 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-xs tracking-wider transition-all">
+                  &#9654; VIEW CLIP
+                </button>
+              </div>
+              <div id="clip-player-${idx}" class="hidden">
+                <img class="w-full max-h-64 object-contain rounded-lg border border-slate-700 bg-slate-900" />
+              </div>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <p class="text-xs text-slate-500 tracking-wider mb-1">CAMERA</p>
+                  <p class="text-sm font-semibold text-slate-200">${inc.camera_id}</p>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-500 tracking-wider mb-1">TIMESTAMP</p>
+                  <p class="text-sm font-semibold text-slate-200 font-mono">${ts}</p>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-500 tracking-wider mb-1">DENSITY</p>
+                  <p class="text-sm font-semibold ${densityColor}">${inc.density_tag}</p>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-500 tracking-wider mb-1">DURATION</p>
+                  <p class="text-sm font-semibold text-slate-200">${inc.duration}s</p>
+                </div>
+              </div>
+              ${inc.report_html ? `<div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700 text-sm text-slate-300">${inc.report_html}</div>` : ''}
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      function toggleArchiveClip(idx, archivePath) {
+        const player = document.getElementById(`clip-player-${idx}`);
+        const btn = document.getElementById(`clip-btn-${idx}`);
+        const img = player.querySelector('img');
+
+        if (player.classList.contains('hidden')) {
+          img.src = `/archive_stream/${archivePath}`;
+          player.classList.remove('hidden');
+          btn.innerHTML = '&#9632; HIDE CLIP';
+        } else {
+          img.src = '';
+          player.classList.add('hidden');
+          btn.innerHTML = '&#9654; VIEW CLIP';
+        }
+      }
     </script>
   </div>
   <script>(function () { function c() { var b = a.contentDocument || a.contentWindow.document; if (b) { var d = b.createElement('script'); d.innerHTML = "window.__CF$cv$params={r:'9cb979c300fffd0c',t:'MTc3MDcwNDE2NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);"; b.getElementsByTagName('head')[0].appendChild(d) } } if (document.body) { var a = document.createElement('iframe'); a.height = 1; a.width = 1; a.style.position = 'absolute'; a.style.top = 0; a.style.left = 0; a.style.border = 'none'; a.style.visibility = 'hidden'; document.body.appendChild(a); if ('loading' !== document.readyState) c(); else if (window.addEventListener) document.addEventListener('DOMContentLoaded', c); else { var e = document.onreadystatechange || function () { }; document.onreadystatechange = function (b) { e(b); 'loading' !== document.readyState && (document.onreadystatechange = e, c()) } } } })();</script>

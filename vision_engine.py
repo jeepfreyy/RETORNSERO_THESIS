@@ -2,8 +2,11 @@ import cv2
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import distance
+import collections
 import time
 import threading
+import os
+from datetime import datetime
 
 
 class RobustSentinelTracker:
@@ -253,6 +256,20 @@ class SentinelStream:
             history=500, varThreshold=16, detectShadows=True
         )
 
+        # --- Ring Buffer & Event Clip Recording ---
+        self.pause_saving = True  # Toggle this to False to re-enable clip saving
+        self.frame_buffer = collections.deque(maxlen=150)   # ~5 sec @ 30fps
+        self.clip_writer = None
+        self.clip_recording = False
+        self.clip_start_time = None
+        self.clip_filename = None
+        self.clip_max_duration = 15       # max seconds per event clip
+        self.temp_clips_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Temp_Clips")
+        self.temp_clips = []              # in-memory metadata list
+        self._prev_clip_level = "LOW"
+        self._clip_cooldown = 0           # frames to skip after video restart
+        os.makedirs(self.temp_clips_dir, exist_ok=True)
+
         self.running = True
         self.thread = threading.Thread(target=self._process_loop, daemon=True)
         self.thread.start()
@@ -344,6 +361,33 @@ class SentinelStream:
                     "locations": [],
                 }
 
+                # ── EVENT CLIP RECORDING ─────────────────────────────
+                # Classify density for clip decisions
+                if total_count <= 4:
+                    clip_level = "LOW"
+                elif total_count <= 7:
+                    clip_level = "MEDIUM"
+                else:
+                    clip_level = "HIGH"
+
+                # Store frame in ring buffer
+                self.frame_buffer.append(frame.copy())
+
+                # Cooldown after video restart (skip first 90 frames)
+                if self._clip_cooldown > 0:
+                    self._clip_cooldown -= 1
+                else:
+                    # Start a new clip when density rises
+                    if not self.pause_saving and clip_level in ("MEDIUM", "HIGH") and not self.clip_recording:
+                        self._start_event_clip(frame, clip_level, frame_width, frame_height)
+                    elif self.clip_recording:
+                        self.clip_writer.write(frame)
+                        elapsed = time.time() - self.clip_start_time
+                        if clip_level == "LOW" or elapsed > self.clip_max_duration:
+                            self._stop_event_clip()
+
+                self._prev_clip_level = clip_level
+
                 ok, buf = cv2.imencode(".jpg", frame)
                 if ok:
                     self.latest_jpeg = buf.tobytes()
@@ -351,10 +395,71 @@ class SentinelStream:
                 time.sleep(0.033)
 
             cap.release()
+            # Stop any in-progress clip on video restart
+            if self.clip_recording:
+                self._stop_event_clip()
+            self._clip_cooldown = 90   # suppress false positives during MOG2 re-learning
             print(f"[SentinelStream {self.stream_id}] Stream ended. Restarting...")
             time.sleep(2.0)
 
     # ------------------------------------------------------------------
+    def _start_event_clip(self, current_frame, level, width, height):
+        """Begin recording an event clip, dumping the ring buffer as pre-event footage."""
+        now = datetime.now()
+        tag = now.strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"{self.stream_id}_{tag}_{level}.mp4"
+        filepath = os.path.join(self.temp_clips_dir, filename)
+
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        self.clip_writer = cv2.VideoWriter(filepath, fourcc, 30.0, (width, height))
+
+        # Dump ring buffer (pre-event history)
+        for buffered_frame in self.frame_buffer:
+            self.clip_writer.write(buffered_frame)
+
+        # Save thumbnail JPEG for the frontend tray
+        thumb_filename = filename.replace('.mp4', '.jpg')
+        thumb_path = os.path.join(self.temp_clips_dir, thumb_filename)
+        cv2.imwrite(thumb_path, current_frame)
+
+        self.clip_recording = True
+        self.clip_start_time = time.time()
+        self.clip_filename = filename
+        print(f"[{self.stream_id}] Event clip started: {filename}")
+
+    def _stop_event_clip(self):
+        """Finalize and save the current event clip."""
+        if self.clip_writer:
+            self.clip_writer.release()
+            self.clip_writer = None
+
+            duration = round(time.time() - self.clip_start_time, 1)
+            thumb_filename = self.clip_filename.replace('.mp4', '.jpg')
+            density_tag = self.clip_filename.rsplit('_', 1)[-1].replace('.mp4', '')
+
+            self.temp_clips.append({
+                "filename": self.clip_filename,
+                "thumbnail": thumb_filename,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "density": density_tag,
+                "camera_id": self.stream_id,
+                "duration": duration
+            })
+
+            # Keep only the last 20 clips in metadata
+            if len(self.temp_clips) > 20:
+                self.temp_clips = self.temp_clips[-20:]
+
+            print(f"[{self.stream_id}] Event clip saved: {self.clip_filename} ({duration}s)")
+
+        self.clip_recording = False
+        self.clip_filename = None
+
+    # ------------------------------------------------------------------
+    def get_temp_clips(self):
+        """Return a copy of the current temp clip metadata list."""
+        return list(self.temp_clips)
+
     def get_latest_jpeg(self):
         return self.latest_jpeg
 
