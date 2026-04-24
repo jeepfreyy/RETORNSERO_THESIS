@@ -1,6 +1,9 @@
 from flask import Flask, render_template, request, jsonify, session, Response, send_file
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 from datetime import datetime
+import bleach
 import shutil
 import os
 import time
@@ -32,13 +35,22 @@ atexit.register(cleanup_all_streams)
 cam1_stream.cleanup_temp_clips()
 cam2_stream.cleanup_temp_clips()
 
-# CONFIGURATION
-# Secret key for session management (Keep this secret in production!)
-app.secret_key = os.environ.get('SECRET_KEY', 'barangay_sentinel_secure_key')
+# ---------------------------------------------------------------------------
+# CONFIGURATION — Phase 1.3: Require explicit SECRET_KEY
+# ---------------------------------------------------------------------------
+_secret = os.environ.get('SECRET_KEY')
+if not _secret:
+    raise RuntimeError(
+        "SECRET_KEY environment variable is required.\n"
+        "Set it before starting the app, e.g.:\n"
+        "  $env:SECRET_KEY='change-me-to-a-random-string'   (PowerShell)\n"
+        "  export SECRET_KEY='change-me-to-a-random-string'  (bash)\n"
+        "See .env.example for reference."
+    )
+app.secret_key = _secret
 
 # Database configuration
 # Use PostgreSQL if DATABASE_URL is set; otherwise fall back to SQLite for local dev.
-# Example (Postgres): postgresql+psycopg://user:password@localhost:5432/sentinel_db
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
     'DATABASE_URL',
     'sqlite:///sentinel_users.db'
@@ -47,13 +59,22 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# --- DATABASE MODEL ---
+
+# ---------------------------------------------------------------------------
+# DATABASE MODELS — Phase 1.1: password_hash replaces plaintext password
+# ---------------------------------------------------------------------------
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)  # PLAIN TEXT FOR TESTING
+    password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(20), default='Tanod')
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 
 class IncidentArchive(db.Model):
@@ -68,16 +89,44 @@ class IncidentArchive(db.Model):
     clip_path = db.Column(db.String(500), nullable=False)
     duration = db.Column(db.Float, nullable=True)
 
-# --- ROUTES ---
 
+# ---------------------------------------------------------------------------
+# Phase 1.4: Authentication decorators
+# ---------------------------------------------------------------------------
+def login_required(f):
+    """Decorator: returns 401 if no authenticated session."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('user_id'):
+            return jsonify({'error': 'Authentication required'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.5: HTML sanitization allow-lists (conservative)
+# ---------------------------------------------------------------------------
+ALLOWED_TAGS = [
+    'p', 'br', 'strong', 'em', 'u', 's', 'ul', 'ol', 'li',
+    'h1', 'h2', 'h3', 'blockquote', 'pre', 'code', 'span',
+]
+ALLOWED_ATTRS = {
+    '*': ['class'],
+}
+
+
+# ---------------------------------------------------------------------------
+# PUBLIC ROUTES (no auth required)
+# ---------------------------------------------------------------------------
 @app.route('/')
 def home():
     """Serves the frontend HTML."""
     return render_template('index.html')
 
+
 @app.route('/api/register', methods=['POST'])
 def register():
-    """Handles user registration."""
+    """Handles user registration — Phase 1.1: hashes password with Werkzeug."""
     data = request.json
     username = data.get('username')
     email = data.get('email')
@@ -86,39 +135,41 @@ def register():
     if not username or not email or not password:
         return jsonify({'success': False, 'message': 'All fields are required.'}), 400
 
-    # Check if user already exists
     if User.query.filter_by(username=username).first():
         return jsonify({'success': False, 'message': 'Username already exists.'}), 409
-    
+
     if User.query.filter_by(email=email).first():
         return jsonify({'success': False, 'message': 'Email already registered.'}), 409
 
-    # Create new user WITH UNENCRYPTED PASSWORD FOR TESTING
-    new_user = User(username=username, email=email, password=password)
-    
+    new_user = User(username=username, email=email)
+    new_user.set_password(password)
+
     try:
         db.session.add(new_user)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Registration successful!'})
     except Exception as e:
+        db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    """Handles user login."""
+    """Handles user login — Phase 1.1: verifies against hashed password."""
     data = request.json
     email = data.get('email')
     password_attempt = data.get('password')
 
     user = User.query.filter_by(email=email).first()
 
-    # Plaintext testing check
-    if user and user.password == password_attempt:
+    if user and user.check_password(password_attempt):
         session['user_id'] = user.id
         session['username'] = user.username
+        session['role'] = user.role
         return jsonify({'success': True, 'message': 'Login successful!', 'username': user.username})
-    
+
     return jsonify({'success': False, 'message': 'Invalid email or password.'}), 401
+
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
@@ -126,11 +177,14 @@ def logout():
     return jsonify({'success': True})
 
 
+# ---------------------------------------------------------------------------
+# AUTHENTICATED ROUTES — Phase 1.4: all gated behind @login_required
+# ---------------------------------------------------------------------------
+
 @app.route('/video_feed')
+@login_required
 def video_feed():
-    """
-    MJPEG stream for CAM-01.
-    """
+    """MJPEG stream for CAM-01."""
     def generate():
         while True:
             jpeg = cam1_stream.get_latest_jpeg()
@@ -152,10 +206,9 @@ def video_feed():
 
 
 @app.route('/cam1_frame')
+@login_required
 def cam1_frame():
-    """
-    Single JPEG frame for CAM-01.
-    """
+    """Single JPEG frame for CAM-01."""
     jpeg = cam1_stream.get_latest_jpeg()
     if jpeg is None:
         return Response(status=204)
@@ -166,15 +219,17 @@ def cam1_frame():
         headers={"Cache-Control": "no-store"},
     )
 
+
 @app.route('/api/stats')
+@login_required
 def api_stats():
-    """
-    JSON stats for CAM-01 (people count, density, status).
-    """
+    """JSON stats for CAM-01 (people count, density, status)."""
     return jsonify(cam1_stream.get_latest_stats())
+
 
 # --- CAM-02 ENDPOINTS ---
 @app.route('/cam2_frame')
+@login_required
 def cam2_frame():
     """Single JPEG frame for CAM-02."""
     jpeg = cam2_stream.get_latest_jpeg()
@@ -182,7 +237,9 @@ def cam2_frame():
         return Response(status=204)
     return Response(jpeg, mimetype="image/jpeg", headers={"Cache-Control": "no-store"})
 
+
 @app.route('/api/stats/cam2')
+@login_required
 def api_stats_cam2():
     """JSON stats for CAM-02."""
     return jsonify(cam2_stream.get_latest_stats())
@@ -199,6 +256,7 @@ os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
 
 @app.route('/api/temp_clips')
+@login_required
 def api_temp_clips():
     """Returns metadata for all temporary event clips from CAM-01."""
     clips = cam1_stream.get_temp_clips()
@@ -206,6 +264,7 @@ def api_temp_clips():
 
 
 @app.route('/api/temp_clips/<filename>', methods=['DELETE'])
+@login_required
 def dismiss_clip(filename):
     """Dismiss (delete) a temp clip."""
     cam1_stream.temp_clips = [c for c in cam1_stream.temp_clips if c['filename'] != filename]
@@ -219,6 +278,7 @@ def dismiss_clip(filename):
 
 
 @app.route('/clips/<filename>')
+@login_required
 def serve_clip(filename):
     """Serve a temp clip video or thumbnail from Temp_Clips/."""
     clip_path = os.path.join(TEMP_CLIPS_DIR, filename)
@@ -229,6 +289,7 @@ def serve_clip(filename):
 
 
 @app.route('/api/incidents', methods=['GET'])
+@login_required
 def list_incidents():
     """List all permanently archived incident reports."""
     incidents = IncidentArchive.query.order_by(IncidentArchive.timestamp.desc()).all()
@@ -261,6 +322,7 @@ def list_incidents():
 
 
 @app.route('/api/incidents', methods=['POST'])
+@login_required
 def save_incident():
     """Save an incident: moves clip from Temp_Clips/ to Archive/ and writes DB record."""
     try:
@@ -274,6 +336,14 @@ def save_incident():
 
         if not clip_filename:
             return jsonify({'success': False, 'message': 'Missing clip filename.'}), 400
+
+        # Phase 1.5: Sanitize report HTML (strip scripts, iframes, on* attrs)
+        report_html = bleach.clean(
+            report_html,
+            tags=ALLOWED_TAGS,
+            attributes=ALLOWED_ATTRS,
+            strip=True,
+        )
 
         # Create date-stamped archive subdirectory
         today = datetime.now().strftime("%Y-%m-%d")
@@ -326,7 +396,28 @@ def save_incident():
         return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
 
 
+@app.route('/api/incidents/<int:incident_id>', methods=['DELETE'])
+@login_required
+def delete_incident(incident_id):
+    """Delete an archived incident (admin-level action)."""
+    incident = IncidentArchive.query.get(incident_id)
+    if not incident:
+        return jsonify({'success': False, 'message': 'Incident not found.'}), 404
+
+    # Remove the archived file if it exists
+    if incident.clip_path and os.path.exists(incident.clip_path):
+        os.remove(incident.clip_path)
+        thumb_path = incident.clip_path.replace('.mp4', '.jpg')
+        if os.path.exists(thumb_path):
+            os.remove(thumb_path)
+
+    db.session.delete(incident)
+    db.session.commit()
+    return jsonify({'success': True, 'message': f'Incident #{incident_id} deleted.'})
+
+
 @app.route('/archive_media/<path:filepath>')
+@login_required
 def serve_archive_media(filepath):
     """Serve a permanently archived clip or thumbnail."""
     full_path = os.path.join(ARCHIVE_DIR, filepath)
@@ -355,6 +446,7 @@ def _mjpeg_from_file(video_path):
 
 
 @app.route('/clip_stream/<filename>')
+@login_required
 def clip_stream(filename):
     """Stream a temp clip as MJPEG so browsers can display it."""
     filepath = os.path.join(TEMP_CLIPS_DIR, filename)
@@ -365,6 +457,7 @@ def clip_stream(filename):
 
 
 @app.route('/archive_stream/<path:filepath>')
+@login_required
 def archive_stream(filepath):
     """Stream an archived clip as MJPEG so browsers can display it."""
     full_path = os.path.join(ARCHIVE_DIR, filepath)
@@ -373,6 +466,10 @@ def archive_stream(filepath):
     return Response(_mjpeg_from_file(full_path),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
+
+# ---------------------------------------------------------------------------
+# APP ENTRY POINT — Phase 1.2: debug off by default
+# ---------------------------------------------------------------------------
 if __name__ == '__main__':
     # Create database tables if they don't exist
     with app.app_context():
@@ -387,7 +484,9 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
 
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() in ('1', 'true', 'yes')
+
     try:
-        app.run(debug=True, port=5000)
+        app.run(debug=debug_mode, port=5000)
     finally:
         cleanup_all_streams()
