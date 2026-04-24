@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.env
+
+# Database
+instance/
+*.db
+sentinel_users.db
+
+# Datasets & Video Files
+DATASETS/
+*.mp4
+*.avi
+*.mkv
+
+# Temp & Archive clips (runtime artifacts)
+Temp_Clips/
+Archive/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Allow docs baseline artifacts (override *.mp4 exclusion for docs/)
+!docs/baseline/*.json
+!docs/baseline/*.txt
+!docs/baseline/*.png

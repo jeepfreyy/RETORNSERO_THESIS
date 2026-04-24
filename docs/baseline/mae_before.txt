@@ -1,0 +1,12 @@
+Baseline MAE Measurement
+========================
+Date: 2026-04-25
+Ground truth frames: 15
+Frame indices: [0, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600, 660, 720, 780, 840]
+Parameters:
+  varThreshold: 16
+  history: 500
+  morph_kernel: (7, 50)
+  dilate_kernel: 3
+
+MAE = 5.67 people
