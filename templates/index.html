@@ -266,14 +266,7 @@
           <p id="welcome-text" class="text-slate-400 mt-2 text-sm tracking-wide">ADVANCED SURVEILLANCE SYSTEM</p>
         </div><!-- Auth Card -->
         <div class="card-border rounded-2xl p-8 backdrop-blur-xl">
-          <!-- User Type Tabs -->
-          <div class="flex mb-6 bg-slate-900/50 rounded-lg p-1">
-            <button id="operator-mode-btn" onclick="switchUserMode('operator')"
-              class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/50">
-              OPERATOR </button> <button id="admin-mode-btn" onclick="switchUserMode('admin')"
-              class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all text-slate-400 hover:text-slate-300">
-              ADMIN </button>
-          </div><!-- Operator Tabs -->
+<!-- Operator Tabs -->
           <div id="operator-tabs" class="flex mb-6 bg-slate-900/50 rounded-lg p-1">
             <button id="login-tab" onclick="switchTab('login')"
               class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/50">
@@ -565,7 +558,7 @@
             <div class="flex items-center gap-3">
               <div class="text-right hidden sm:block">
                 <p id="user-name" class="text-sm font-semibold text-slate-200">Operator</p>
-                <p class="text-xs text-slate-500">Security Level: Admin</p>
+                <p class="text-xs text-slate-500">Security Level: Operator</p>
               </div><button onclick="handleLogout()"
                 class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-red-500/50 hover:bg-red-500/10 transition-all group">
                 <svg class="w-5 h-5 text-slate-400 group-hover:text-red-400 transition-colors" fill="none"
@@ -1175,18 +1168,7 @@
         authSuccess.classList.remove('hidden');
       }
 
-      function handleAdminLogin(event) {
-        event.preventDefault();
-        const email = document.getElementById('admin-email').value;
-        const password = document.getElementById('admin-password').value;
 
-        if (email === 'admin@securevision.com' && password === 'admin123') {
-          currentUser = { name: 'System Administrator', email, role: 'admin' };
-          showDashboard();
-        } else {
-          showError('Invalid admin credentials. Try admin@securevision.com / admin123');
-        }
-      }
 
       async function handleLogin(event) {
         event.preventDefault();

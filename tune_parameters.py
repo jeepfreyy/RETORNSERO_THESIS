@@ -15,10 +15,22 @@ PARAM_GRID = {
     'dilate_kernel': [3, 5]          # Pixel widening
 }
 
-def load_ground_truth():
+def load_ground_truth(mask_path="mask_layer.png"):
     with open('barangay_ground_truth.json', 'r') as f:
         db = json.load(f)
-    frames_db = {int(k): len(v) for k, v in db['frames'].items()}
+    roi_mask = cv2.imread(mask_path, 0)
+    
+    frames_db = {}
+    for k, v in db['frames'].items():
+        count_in_roi = 0
+        for pt in v:
+            x, y = int(pt[0]), int(pt[1])
+            if roi_mask is not None and y < roi_mask.shape[0] and x < roi_mask.shape[1]:
+                if roi_mask[y, x] > 127:
+                    count_in_roi += 1
+            else:
+                count_in_roi += 1
+        frames_db[int(k)] = count_in_roi
     return db['video_source'], frames_db
 
 def test_configuration(video_path, frames_db, max_frame, params, mask_path="mask_layer.png"):

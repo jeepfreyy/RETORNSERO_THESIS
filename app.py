@@ -1,10 +1,14 @@
 from flask import Flask, render_template, request, jsonify, session, Response, send_file
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 from datetime import datetime
+from werkzeug.utils import secure_filename
 import shutil
 import os
 import time
 import cv2
+import bleach
 
 app = Flask(__name__)
 
@@ -18,7 +22,9 @@ cam2_stream = SentinelStream(stream_id="CAM-02", source="video1.mp4", mask_path=
 
 # CONFIGURATION
 # Secret key for session management (Keep this secret in production!)
-app.secret_key = os.environ.get('SECRET_KEY', 'barangay_sentinel_secure_key')
+app.secret_key = os.environ.get('SECRET_KEY', 'dev_fallback_secret_key_12345')
+if not app.secret_key:
+    raise RuntimeError("SECRET_KEY environment variable is required")
 
 # Database configuration
 # Use PostgreSQL if DATABASE_URL is set; otherwise fall back to SQLite for local dev.
@@ -36,7 +42,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)  # PLAIN TEXT FOR TESTING
+    password_hash = db.Column(db.String(256), nullable=False)  # Hash stored for security
     role = db.Column(db.String(20), default='Tanod')
 
 
@@ -53,6 +59,14 @@ class IncidentArchive(db.Model):
     duration = db.Column(db.Float, nullable=True)
 
 # --- ROUTES ---
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'message': 'Unauthorized. Please log in.'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
 @app.route('/')
 def home():
@@ -77,8 +91,9 @@ def register():
     if User.query.filter_by(email=email).first():
         return jsonify({'success': False, 'message': 'Email already registered.'}), 409
 
-    # Create new user WITH UNENCRYPTED PASSWORD FOR TESTING
-    new_user = User(username=username, email=email, password=password)
+    # Create new user WITH HASHED PASSWORD
+    hashed_pw = generate_password_hash(password)
+    new_user = User(username=username, email=email, password_hash=hashed_pw)
     
     try:
         db.session.add(new_user)
@@ -96,8 +111,7 @@ def login():
 
     user = User.query.filter_by(email=email).first()
 
-    # Plaintext testing check
-    if user and user.password == password_attempt:
+    if user and check_password_hash(user.password_hash, password_attempt):
         session['user_id'] = user.id
         session['username'] = user.username
         return jsonify({'success': True, 'message': 'Login successful!', 'username': user.username})
@@ -111,6 +125,7 @@ def logout():
 
 
 @app.route('/video_feed')
+@login_required
 def video_feed():
     """
     MJPEG stream for CAM-01.
@@ -136,6 +151,7 @@ def video_feed():
 
 
 @app.route('/cam1_frame')
+@login_required
 def cam1_frame():
     """
     Single JPEG frame for CAM-01.
@@ -151,6 +167,7 @@ def cam1_frame():
     )
 
 @app.route('/api/stats')
+@login_required
 def api_stats():
     """
     JSON stats for CAM-01 (people count, density, status).
@@ -159,6 +176,7 @@ def api_stats():
 
 # --- CAM-02 ENDPOINTS ---
 @app.route('/cam2_frame')
+@login_required
 def cam2_frame():
     """Single JPEG frame for CAM-02."""
     jpeg = cam2_stream.get_latest_jpeg()
@@ -167,6 +185,7 @@ def cam2_frame():
     return Response(jpeg, mimetype="image/jpeg", headers={"Cache-Control": "no-store"})
 
 @app.route('/api/stats/cam2')
+@login_required
 def api_stats_cam2():
     """JSON stats for CAM-02."""
     return jsonify(cam2_stream.get_latest_stats())
@@ -183,6 +202,7 @@ os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
 
 @app.route('/api/temp_clips')
+@login_required
 def api_temp_clips():
     """Returns metadata for all temporary event clips from CAM-01."""
     clips = cam1_stream.get_temp_clips()
@@ -190,8 +210,10 @@ def api_temp_clips():
 
 
 @app.route('/api/temp_clips/<filename>', methods=['DELETE'])
+@login_required
 def dismiss_clip(filename):
     """Dismiss (delete) a temp clip."""
+    filename = secure_filename(filename)
     cam1_stream.temp_clips = [c for c in cam1_stream.temp_clips if c['filename'] != filename]
     clip_path = os.path.join(TEMP_CLIPS_DIR, filename)
     if os.path.exists(clip_path):
@@ -203,8 +225,10 @@ def dismiss_clip(filename):
 
 
 @app.route('/clips/<filename>')
+@login_required
 def serve_clip(filename):
     """Serve a temp clip video or thumbnail from Temp_Clips/."""
+    filename = secure_filename(filename)
     clip_path = os.path.join(TEMP_CLIPS_DIR, filename)
     if os.path.exists(clip_path):
         mimetype = 'video/mp4' if filename.endswith('.mp4') else 'image/jpeg'
@@ -213,6 +237,7 @@ def serve_clip(filename):
 
 
 @app.route('/api/incidents', methods=['GET'])
+@login_required
 def list_incidents():
     """List all permanently archived incident reports."""
     incidents = IncidentArchive.query.order_by(IncidentArchive.timestamp.desc()).all()
@@ -229,11 +254,16 @@ def list_incidents():
 
 
 @app.route('/api/incidents', methods=['POST'])
+@login_required
 def save_incident():
     """Save an incident: moves clip from Temp_Clips/ to Archive/ and writes DB record."""
     data = request.json
     clip_filename = data.get('clip_filename')
-    report_html = data.get('report_html', '')
+    raw_html = data.get('report_html', '')
+    
+    ALLOWED_TAGS = ['b', 'i', 'u', 'strong', 'em', 'p', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'a', 'span']
+    ALLOWED_ATTRS = {'a': ['href', 'title', 'target'], 'span': ['style', 'class']}
+    report_html = bleach.clean(raw_html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRS, strip=True)
     status = data.get('status', 'FALSE_ALARM')
     density_tag = data.get('density_tag', 'LOW')
     camera_id = data.get('camera_id', 'CAM-01')
@@ -274,8 +304,11 @@ def save_incident():
 
 
 @app.route('/archive_media/<path:filepath>')
+@login_required
 def serve_archive_media(filepath):
     """Serve a permanently archived clip or thumbnail."""
+    if '..' in filepath or filepath.startswith('/'):
+        return Response(status=403)
     full_path = os.path.join(ARCHIVE_DIR, filepath)
     if os.path.exists(full_path):
         mimetype = 'video/mp4' if filepath.endswith('.mp4') else 'image/jpeg'
@@ -302,8 +335,10 @@ def _mjpeg_from_file(video_path):
 
 
 @app.route('/clip_stream/<filename>')
+@login_required
 def clip_stream(filename):
     """Stream a temp clip as MJPEG so browsers can display it."""
+    filename = secure_filename(filename)
     filepath = os.path.join(TEMP_CLIPS_DIR, filename)
     if not os.path.exists(filepath):
         return Response(status=404)
@@ -312,8 +347,11 @@ def clip_stream(filename):
 
 
 @app.route('/archive_stream/<path:filepath>')
+@login_required
 def archive_stream(filepath):
     """Stream an archived clip as MJPEG so browsers can display it."""
+    if '..' in filepath or filepath.startswith('/'):
+        return Response(status=403)
     full_path = os.path.join(ARCHIVE_DIR, filepath)
     if not os.path.exists(full_path):
         return Response(status=404)
@@ -324,4 +362,5 @@ if __name__ == '__main__':
     # Create database tables if they don't exist
     with app.app_context():
         db.create_all()
-    app.run(debug=True, port=5000)
+    is_debug = os.environ.get('FLASK_DEBUG', 'False').lower() in ['true', '1', 't']
+    app.run(debug=is_debug, port=5001)

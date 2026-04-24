@@ -249,6 +249,8 @@ class SentinelStream:
             "density": 0,
             "status": "SAFE",
             "locations": [],
+            "fps": 0,
+            "latency_ms": 0
         }
 
         # MOG2 calibrated using localized Grid Search optimization
@@ -257,7 +259,7 @@ class SentinelStream:
         )
 
         # --- Ring Buffer & Event Clip Recording ---
-        self.pause_saving = True  # Toggle this to False to re-enable clip saving
+        self.pause_saving = os.environ.get('PAUSE_SAVING', 'False').lower() in ['true', '1', 't']
         self.frame_buffer = collections.deque(maxlen=150)   # ~5 sec @ 30fps
         self.clip_writer = None
         self.clip_recording = False
@@ -269,6 +271,25 @@ class SentinelStream:
         self._prev_clip_level = "LOW"
         self._clip_cooldown = 0           # frames to skip after video restart
         os.makedirs(self.temp_clips_dir, exist_ok=True)
+        
+        # Load persisted temp clips
+        for f in os.listdir(self.temp_clips_dir):
+            if f.endswith('.mp4') and f.startswith(self.stream_id):
+                thumb = f.replace('.mp4', '.jpg')
+                parts = f.replace('.mp4', '').split('_')
+                if len(parts) >= 4:
+                    timestamp = parts[1] + " " + parts[2].replace('-', ':')
+                    density_tag = parts[3]
+                    self.temp_clips.append({
+                        "filename": f,
+                        "thumbnail": thumb,
+                        "timestamp": timestamp,
+                        "density": density_tag,
+                        "camera_id": self.stream_id,
+                        "duration": 0
+                    })
+        self.temp_clips.sort(key=lambda x: x['timestamp'], reverse=True)
+        self.temp_clips = self.temp_clips[:20]
 
         self.running = True
         self.thread = threading.Thread(target=self._process_loop, daemon=True)
@@ -278,6 +299,7 @@ class SentinelStream:
     def _process_loop(self):
         tracker = RobustSentinelTracker()
         fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 50))
+        ema_frame_time = 0.033
 
         while self.running:
             cap = cv2.VideoCapture(self.source)
@@ -301,6 +323,7 @@ class SentinelStream:
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
             while self.running:
+                start_t = time.time()
                 ret, frame = cap.read()
                 if not ret:
                     break
@@ -343,32 +366,37 @@ class SentinelStream:
 
                 # ── HUD Overlay Removed (UI renders stats) ──────────
 
-                # Stats
-                norm_area = max(1.0, (frame_width * frame_height) / 10000.0)
-                density = int(min(100, (total_count / norm_area)))
+                # Phase 2.1 & 2.2: Density and Status
+                MAX_CAPACITY = 30
+                density = int(min(100, (total_count / MAX_CAPACITY) * 100))
 
-                if total_count == 0:
+                if density < 50:
                     status = "SAFE"
-                elif total_count < 10:
+                elif density < 80:
                     status = "WARNING"
                 else:
                     status = "CRITICAL"
 
+                # Calculate latency/fps
+                proc_time = time.time() - start_t
+                ema_frame_time = 0.9 * ema_frame_time + 0.1 * max(0.001, proc_time)
+                
                 self.latest_stats = {
                     "count": int(total_count),
                     "density": int(density),
                     "status": status,
                     "locations": [],
+                    "fps": int(1.0 / ema_frame_time),
+                    "latency_ms": int(ema_frame_time * 1000)
                 }
 
-                # ── EVENT CLIP RECORDING ─────────────────────────────
-                # Classify density for clip decisions
-                if total_count <= 4:
+                # Phase 2.3: EVENT CLIP RECORDING (Grounded thresholds)
+                if density < 50:
                     clip_level = "LOW"
-                elif total_count <= 7:
+                elif density < 80:
                     clip_level = "MEDIUM"
                 else:
-                    clip_level = "HIGH"
+                    clip_level = "HIGH" 
 
                 # Store frame in ring buffer
                 self.frame_buffer.append(frame.copy())
@@ -391,8 +419,10 @@ class SentinelStream:
                 ok, buf = cv2.imencode(".jpg", frame)
                 if ok:
                     self.latest_jpeg = buf.tobytes()
-
-                time.sleep(0.033)
+                    
+                # Small sleep to yield CPU if processing is too fast
+                sleep_t = max(0, 0.033 - (time.time() - start_t))
+                time.sleep(sleep_t)
 
             cap.release()
             # Stop any in-progress clip on video restart
