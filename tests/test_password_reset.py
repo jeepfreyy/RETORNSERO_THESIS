@@ -26,6 +26,10 @@ class PasswordResetTestCase(unittest.TestCase):
         self.ctx = app.app_context()
         self.ctx.push()
         db.create_all()
+        
+        # Clear rate limit state
+        import app as main_app
+        main_app._reset_request_log.clear()
 
         # Seed a test user
         self.test_user = User(
