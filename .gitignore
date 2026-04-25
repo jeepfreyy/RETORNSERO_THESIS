@@ -21,3 +21,7 @@ DATASETS/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Ignore large video files
+videos/*.MOV
+videos/*.mp4

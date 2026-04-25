@@ -420,8 +420,15 @@ class SentinelStream:
                 if ok:
                     self.latest_jpeg = buf.tobytes()
                     
+                # Real-time synchronization: skip frames if processing took too long
+                proc_time_total = time.time() - start_t
+                frames_to_skip = int(proc_time_total / 0.033)
+                if frames_to_skip > 0:
+                    for _ in range(frames_to_skip):
+                        cap.grab()
+
                 # Small sleep to yield CPU if processing is too fast
-                sleep_t = max(0, 0.033 - (time.time() - start_t))
+                sleep_t = max(0, 0.033 - proc_time_total)
                 time.sleep(sleep_t)
 
             cap.release()

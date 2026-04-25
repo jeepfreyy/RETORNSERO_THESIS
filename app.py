@@ -28,8 +28,8 @@ from vision_engine import SentinelStream
 
 # Initialize cameras immediately when app starts
 # Using same local video for both for now until true RTSP URLs are provided
-cam1_stream = SentinelStream(stream_id="CAM-01", source="video1.mp4", mask_path="mask_layer.png")
-cam2_stream = SentinelStream(stream_id="CAM-02", source="video1.mp4", mask_path="mask_layer.png")  # Placeholder
+cam1_stream = SentinelStream(stream_id="CAM-01", source="videos/vid1-angle1.MOV", mask_path="mask_layer.png")
+cam2_stream = SentinelStream(stream_id="CAM-02", source="videos/vid2-angle2.MOV", mask_path="mask_layer.png")
 
 # CONFIGURATION
 # Secret key for session management (Keep this secret in production!)
