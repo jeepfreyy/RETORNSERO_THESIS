@@ -433,7 +433,7 @@
               </div>
             </div><button type="button" onclick="sendResetEmail()"
               class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider">
-              SEND RESET LINK </button>
+              SEND RESET CODE </button>
           </div><!-- Step 2: Verification Code -->
           <div id="forgot-step-2" class="space-y-4 hidden">
             <p class="text-slate-400 text-sm mb-4">We've sent a verification code to your email. Enter it below to
@@ -1008,6 +1008,7 @@
       let currentUser = null;
       let codeTimerInterval = null;
       let codeTimeLeft = 600;
+      let _resetTicket = null;
 
       // Mock user database
       const users = {};
@@ -1504,7 +1505,7 @@
         errorEl.classList.remove('hidden');
       }
 
-      function sendResetEmail() {
+      async function sendResetEmail() {
         const email = document.getElementById('forgot-email').value;
         document.getElementById('forgot-error').classList.add('hidden');
 
@@ -1513,8 +1514,19 @@
           return;
         }
 
-        showForgotStep(2);
-        startCodeTimer();
+        try {
+          const response = await fetch('/api/forgot/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+          });
+          const result = await response.json();
+
+          showForgotStep(2);
+          startCodeTimer();
+        } catch (err) {
+          showForgotError('Network error. Please try again.');
+        }
       }
 
       function startCodeTimer() {
@@ -1540,8 +1552,9 @@
         }
       }
 
-      function verifyResetCode() {
+      async function verifyResetCode() {
         const code = document.getElementById('forgot-code').value;
+        const email = document.getElementById('forgot-email').value;
         document.getElementById('forgot-error').classList.add('hidden');
 
         if (!code || code.length !== 6) {
@@ -1549,17 +1562,39 @@
           return;
         }
 
-        if (code === '123456' || code === '000000') {
-          showForgotStep(3);
-          setupPasswordStrengthCheck();
-        } else {
-          showForgotError('Invalid verification code. Please try again.');
+        try {
+          const response = await fetch('/api/forgot/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email, code: code })
+          });
+          const result = await response.json();
+
+          if (result.success) {
+            _resetTicket = result.reset_ticket;
+            showForgotStep(3);
+            setupPasswordStrengthCheck();
+          } else {
+            showForgotError(result.message || 'Invalid verification code.');
+          }
+        } catch (err) {
+          showForgotError('Network error. Please try again.');
         }
       }
 
-      function resendCode() {
+      async function resendCode() {
+        const email = document.getElementById('forgot-email').value;
         document.getElementById('forgot-code').value = '';
         document.getElementById('forgot-error').classList.add('hidden');
+
+        try {
+          await fetch('/api/forgot/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+          });
+        } catch (_) { }
+
         startCodeTimer();
         showForgotError('A new verification code has been sent to your email.');
         setTimeout(() => {
@@ -1605,7 +1640,7 @@
         if (strength === 3) strengthText.textContent = 'Strong - ready to use';
       }
 
-      function resetPassword() {
+      async function resetPassword() {
         const newPassword = document.getElementById('forgot-new-password').value;
         const confirmPassword = document.getElementById('forgot-confirm-password').value;
         document.getElementById('forgot-error').classList.add('hidden');
@@ -1620,18 +1655,29 @@
           return;
         }
 
-        if (newPassword.length < 6) {
-          showForgotError('Access code must be at least 6 characters');
+        if (newPassword.length < 8) {
+          showForgotError('Access code must be at least 8 characters');
           return;
         }
 
-        if (currentUser) {
-          currentUser.password = newPassword;
-          users[currentUser.email].password = newPassword;
-        }
+        try {
+          const response = await fetch('/api/forgot/reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reset_ticket: _resetTicket, new_password: newPassword })
+          });
+          const result = await response.json();
 
-        showForgotStep('success');
-        if (codeTimerInterval) clearInterval(codeTimerInterval);
+          if (result.success) {
+            _resetTicket = null;
+            showForgotStep('success');
+            if (codeTimerInterval) clearInterval(codeTimerInterval);
+          } else {
+            showForgotError(result.message || 'Password reset failed.');
+          }
+        } catch (err) {
+          showForgotError('Network error. Please try again.');
+        }
       }
 
       function backToLogin() {

@@ -6,3 +6,4 @@ opencv-python>=4.10.0,<5
 numpy>=1.24,<3
 scipy>=1.11,<2
 bleach>=6.0.0
+itsdangerous>=2.1

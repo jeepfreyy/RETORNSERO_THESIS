@@ -1,14 +1,25 @@
+from dotenv import load_dotenv
+load_dotenv()  # Load .env before anything reads os.environ
+
 from flask import Flask, render_template, request, jsonify, session, Response, send_file
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+import secrets
+import random
 import shutil
 import os
 import time
 import cv2
 import bleach
+import logging
+
+from mailer import send_reset_code
+
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -57,6 +68,30 @@ class IncidentArchive(db.Model):
     clip_filename = db.Column(db.String(200), nullable=False)
     clip_path = db.Column(db.String(500), nullable=False)
     duration = db.Column(db.Float, nullable=True)
+
+
+class PasswordResetToken(db.Model):
+    """Stores hashed OTP codes for the password-recovery flow."""
+    __tablename__ = "password_reset_tokens"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    code_hash = db.Column(db.String(256), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    attempts = db.Column(db.Integer, default=0)
+    used_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    requester_ip = db.Column(db.String(64), nullable=True)
+
+
+# --- PASSWORD RESET CONFIGURATION ---
+PASSWORD_RESET_TTL = int(os.environ.get('PASSWORD_RESET_TTL_MINUTES', '10'))
+PASSWORD_RESET_MAX_ATTEMPTS = int(os.environ.get('PASSWORD_RESET_MAX_ATTEMPTS', '5'))
+
+# itsdangerous serializer for reset tickets
+_ticket_serializer = URLSafeTimedSerializer(app.secret_key, salt='pw-reset-ticket')
+
+# Simple in-memory rate-limiter: {email: [timestamps]}
+_reset_request_log: dict[str, list[float]] = {}
 
 # --- ROUTES ---
 
@@ -122,6 +157,160 @@ def login():
 def logout():
     session.clear()
     return jsonify({'success': True})
+
+
+
+# ---------------------------------------------------------------------------
+# PASSWORD RECOVERY ENDPOINTS
+# ---------------------------------------------------------------------------
+
+def _rate_limit_ok(email: str, max_requests: int = 3, window_seconds: int = 900) -> bool:
+    """Return True if *email* hasn't exceeded the rate limit."""
+    now = time.time()
+    timestamps = _reset_request_log.get(email, [])
+    timestamps = [t for t in timestamps if now - t < window_seconds]
+    _reset_request_log[email] = timestamps
+    return len(timestamps) < max_requests
+
+
+@app.route('/api/forgot/request', methods=['POST'])
+def forgot_request():
+    """Step 1 — Accept an email; if the account exists, send a 6-digit OTP.
+
+    Always returns 200 with a generic message to prevent email enumeration.
+    """
+    data = request.json or {}
+    email = (data.get('email') or '').strip().lower()
+    generic_msg = 'If an account exists for that email, a verification code has been sent.'
+
+    if not email:
+        return jsonify({'success': False, 'message': 'Email is required.'}), 400
+
+    user = User.query.filter_by(email=email).first()
+
+    if not user:
+        # Flat timing — sleep a random interval so response time matches the happy path
+        time.sleep(random.uniform(0.2, 0.5))
+        return jsonify({'success': True, 'message': generic_msg})
+
+    # Per-email rate limit: 3 requests per 15 minutes
+    if not _rate_limit_ok(email):
+        return jsonify({'success': True, 'message': generic_msg})  # silent
+
+    _reset_request_log.setdefault(email, []).append(time.time())
+
+    # Invalidate any previous active tokens for this user
+    PasswordResetToken.query.filter_by(user_id=user.id, used_at=None).update(
+        {'used_at': datetime.utcnow()}
+    )
+
+    # Generate a 6-digit code and hash it
+    code = str(secrets.randbelow(1_000_000)).zfill(6)
+    token = PasswordResetToken(
+        user_id=user.id,
+        code_hash=generate_password_hash(code),
+        expires_at=datetime.utcnow() + timedelta(minutes=PASSWORD_RESET_TTL),
+        requester_ip=request.remote_addr,
+    )
+    db.session.add(token)
+    db.session.commit()
+
+    # Send the email (errors are caught so the user always sees the generic message)
+    try:
+        send_reset_code(recipient=email, code=code)
+    except Exception:
+        logger.exception('Failed to send password-reset email')
+
+    return jsonify({'success': True, 'message': generic_msg})
+
+
+@app.route('/api/forgot/verify', methods=['POST'])
+def forgot_verify():
+    """Step 2 — Verify the 6-digit OTP and return a signed reset ticket."""
+    data = request.json or {}
+    email = (data.get('email') or '').strip().lower()
+    code = (data.get('code') or '').strip()
+
+    if not email or not code:
+        return jsonify({'success': False, 'message': 'Email and code are required.'}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'success': False, 'message': 'Invalid or expired verification code.'}), 400
+
+    token = (
+        PasswordResetToken.query
+        .filter_by(user_id=user.id, used_at=None)
+        .filter(PasswordResetToken.expires_at > datetime.utcnow())
+        .filter(PasswordResetToken.attempts < PASSWORD_RESET_MAX_ATTEMPTS)
+        .order_by(PasswordResetToken.created_at.desc())
+        .first()
+    )
+
+    if not token:
+        return jsonify({'success': False, 'message': 'Invalid or expired verification code.'}), 400
+
+    if not check_password_hash(token.code_hash, code):
+        token.attempts += 1
+        db.session.commit()
+        remaining = PASSWORD_RESET_MAX_ATTEMPTS - token.attempts
+        if remaining <= 0:
+            return jsonify({'success': False, 'message': 'Too many failed attempts. Please request a new code.'}), 400
+        return jsonify({'success': False, 'message': f'Invalid code. {remaining} attempt(s) remaining.'}), 400
+
+    # Code is correct — issue a signed ticket
+    ticket = _ticket_serializer.dumps({'tid': token.id, 'uid': user.id})
+    return jsonify({'success': True, 'reset_ticket': ticket})
+
+
+@app.route('/api/forgot/reset', methods=['POST'])
+def forgot_reset():
+    """Step 3 — Accept the signed ticket + new password and update the hash."""
+    data = request.json or {}
+    ticket = data.get('reset_ticket', '')
+    new_password = data.get('new_password', '')
+
+    # --- validate password strength server-side ---
+    if len(new_password) < 8:
+        return jsonify({'success': False, 'message': 'Password must be at least 8 characters.'}), 400
+    if not any(c.isupper() for c in new_password):
+        return jsonify({'success': False, 'message': 'Password must contain at least one uppercase letter.'}), 400
+    if not any(c.isdigit() or not c.isalnum() for c in new_password):
+        return jsonify({'success': False, 'message': 'Password must contain at least one digit or symbol.'}), 400
+
+    # --- unsign ticket (10-minute TTL) ---
+    try:
+        payload = _ticket_serializer.loads(ticket, max_age=PASSWORD_RESET_TTL * 60)
+    except (BadSignature, SignatureExpired):
+        return jsonify({'success': False, 'message': 'Reset session expired or invalid. Please start over.'}), 400
+
+    tid = payload.get('tid')
+    uid = payload.get('uid')
+
+    token = PasswordResetToken.query.get(tid)
+    if not token or token.user_id != uid or token.used_at is not None:
+        return jsonify({'success': False, 'message': 'Reset session expired or invalid. Please start over.'}), 400
+
+    if token.expires_at < datetime.utcnow():
+        return jsonify({'success': False, 'message': 'Reset session expired. Please start over.'}), 400
+
+    user = User.query.get(uid)
+    if not user:
+        return jsonify({'success': False, 'message': 'Account not found.'}), 400
+
+    # Update password
+    user.password_hash = generate_password_hash(new_password)
+
+    # Mark this token (and any siblings) as used
+    PasswordResetToken.query.filter_by(user_id=uid, used_at=None).update(
+        {'used_at': datetime.utcnow()}
+    )
+    db.session.commit()
+
+    # Clear any active session (don't auto-login)
+    session.clear()
+
+    return jsonify({'success': True, 'message': 'Your password has been reset successfully.'})
 
 
 @app.route('/video_feed')
