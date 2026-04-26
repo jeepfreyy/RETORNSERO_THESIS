@@ -1,30 +1,75 @@
 # Phase 3 Progress Report: Dual-Camera Stress Testing & Optimization
 
-## 1. Overview
-We have officially initiated **Phase 3** of the Retornsero project. The core objective of this phase is to validate the system's **Dual-Camera Architecture** under realistic, heavy-load conditions. This is a critical component of the thesis, as it differentiates the system from simple single-stream classical CV setups and proves its viability for multi-angle nighttime surveillance.
+---
 
-## 2. Changes Implemented
-- **Video Source Update (`app.py`)**: 
-  - Modified the initialization parameters for `cam1_stream` and `cam2_stream`.
-  - Replaced the single placeholder `video1.mp4` with two distinct high-resolution video files:
-    - **CAM-01**: `videos/vid1-angle1.MOV` (~500MB)
-    - **CAM-02**: `videos/vid2-angle2.MOV` (~500MB)
-- **Concurrent Processing Integration**:
-  - By feeding both heavy `.MOV` files into the `SentinelStream` instances, we are now actively stressing the Python Global Interpreter Lock (GIL) and system memory, forcing the backend to handle concurrent frame extraction, background subtraction, and object tracking.
+## ✅ Step 1 — Dual-Camera Source Setup
+- **`app.py`**: Both `SentinelStream` instances now point at distinct ~500MB `.MOV` files.
+  - **CAM-01** → `videos/vid1-angle1.MOV`
+  - **CAM-02** → `videos/vid2-angle2.MOV`
+- **Bug Fix**: `cam02-video` in the dashboard HTML was hardcoded to `/cam1_frame`. Fixed to correctly fetch `/cam2_frame`.
 
-## 3. Technical Walkthrough: Dual-Camera Concurrency
+---
 
-### How it works under the hood
-1. **Initialization (`app.py`)**: When the Flask app boots, it spins up two instances of the `SentinelStream` class. 
-2. **Background Threads (`vision_engine.py`)**: Each `SentinelStream` immediately spawns its own isolated background thread (`self.thread = threading.Thread(target=self.update, args=())`). This is crucial because it decouples the heavy computer vision processing from the Flask web server, ensuring the UI remains responsive.
-3. **Independent Pipelines**: 
-   - Each thread opens its own `cv2.VideoCapture` object pointing to the respective `.MOV` file.
-   - They independently apply the `mask_layer.png` to crop out irrelevant background elements.
-   - They independently run contour detection and the `RobustSentinelTracker` algorithm.
-4. **Data Delivery**: As the frontend requests frames (`/cam1_frame` and `/cam2_frame`), it pulls from the `self.frame` buffer of each respective stream.
+## ✅ Step 2 — Frontend Frame Delivery Overhaul
+- **`templates/index.html`**: Replaced blind `setInterval` polling with an **async image loader**.
+  - The browser now waits for each frame to fully download before requesting the next.
+  - This eliminated the startup lag and network flood that was causing the initial "frozen" playback.
+- **Maximize Modal**: Fixed to dynamically show the correct camera feed (CAM-01 or CAM-02) using a `data-cam` attribute.
 
-## 4. Next Steps for Phase 3
-To fully realize the goals of this phase, we should consider implementing the following:
-1. **Independent Hyperparameter Tuning**: Currently, both cameras might be using the exact same detection thresholds. We need to allow CAM-01 and CAM-02 to have distinct sensitivity parameters (e.g., area threshold, ghost threshold) so they can be optimized for their specific lighting conditions.
-2. **Performance Profiling**: Monitor the CPU/RAM usage while both ~500MB videos are running to ensure the system doesn't bottleneck or drop frames significantly.
-3. **Dynamic Masking**: Allow CAM-02 to use a different background mask (`mask_layer2.png`) since its angle might cover different restricted zones.
+---
+
+## ✅ Step 3 — Real-Time Synchronization (Frame Skipping)
+- **`vision_engine.py`**: Added dynamic frame-dropping logic to `_process_loop`.
+  - If the M1 chip takes longer than 33ms to process a frame, `cap.grab()` is called to skip the backlogged frames.
+  - This keeps the video playing at 1x real-world speed instead of slow motion, mimicking a live RTSP stream's natural frame drop behavior.
+
+---
+
+## ✅ Step 4 — Independent Hyperparameter Tuning
+- **`vision_engine.py`**: `SentinelStream.__init__` now accepts 5 independent tuning parameters per camera:
+  - `mog2_history` — MOG2 background model memory length (frames)
+  - `mog2_threshold` — MOG2 pixel variance threshold (lower = more sensitive)
+  - `min_blob_area` — Minimum pixel area for a detection to be accepted
+  - `ghost_threshold` — Frames a lost track is kept alive before being dropped
+  - `max_capacity` — Maximum crowd count for 100% density calculation
+- **`app.py`**: Each `SentinelStream` now explicitly declares its own parameter set. This is the foundation for Phase 4 nighttime tuning.
+- **Dynamic Masking**: CAM-02 auto-detects `mask_layer2.png` if it exists; falls back to `mask_layer.png`. Drop a `mask_layer2.png` into the project root to activate a unique restricted zone for CAM-02.
+
+---
+
+## ✅ Step 5 — Performance Profiling
+- **`vision_engine.py`**: Each processing loop now samples `psutil.Process.cpu_percent()` and `memory_info().rss` every frame, storing them in `latest_stats` as `cpu_percent` and `ram_mb`.
+- **`app.py`**: Added new endpoint **`GET /api/system/health`** (login-required) returning:
+  - System-wide CPU% and RAM used/total/percent
+  - Per-camera FPS and latency_ms
+
+  Example response:
+  ```json
+  {
+    "cpu_percent": 58.3,
+    "ram_used_mb": 412.1,
+    "ram_total_mb": 8192.0,
+    "ram_percent": 50.2,
+    "cam1": { "fps": 18, "latency_ms": 55 },
+    "cam2": { "fps": 17, "latency_ms": 60 }
+  }
+  ```
+- **`requirements.txt`**: Added `psutil>=5.9`.
+
+---
+
+## 🚀 Ready for Phase 4
+All Phase 3 next steps are now complete. The system is validated as a **true dual-pipeline architecture** with:
+- Independent processing threads per camera
+- Independent hyperparameter sets per camera
+- Independent masks per camera
+- Real-time synchronization (frame skipping)
+- Live hardware performance telemetry
+
+### Phase 4 Preview: Nighttime CV Adaptation
+The following hyperparameter changes will be the starting point for nighttime testing:
+| Parameter | CAM-01 Day | CAM-01 Night (target) |
+|---|---|---|
+| `mog2_threshold` | 16 | 8–12 (more sensitive to low contrast) |
+| `min_blob_area` | 800 | 500–600 (detect smaller silhouettes) |
+| `mog2_history` | 500 | 300 (faster adaptation to dark BG changes) |

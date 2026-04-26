@@ -6,6 +6,7 @@ import collections
 import time
 import threading
 import os
+import psutil
 from datetime import datetime
 
 
@@ -238,10 +239,23 @@ class SentinelStream:
     sleek dot overlays.
     """
 
-    def __init__(self, stream_id, source="video1.mp4", mask_path="mask_layer.png"):
+    def __init__(
+        self,
+        stream_id,
+        source="video1.mp4",
+        mask_path="mask_layer.png",
+        # --- Independent Hyperparameters per Camera ---
+        mog2_history=500,
+        mog2_threshold=16,
+        min_blob_area=800,
+        ghost_threshold=30,
+        max_capacity=30,
+    ):
         self.stream_id = stream_id
         self.source = source
         self.mask_path = mask_path
+        self.min_blob_area = min_blob_area
+        self.max_capacity = max_capacity
 
         self.latest_jpeg = None
         self.latest_stats = {
@@ -250,13 +264,18 @@ class SentinelStream:
             "status": "SAFE",
             "locations": [],
             "fps": 0,
-            "latency_ms": 0
+            "latency_ms": 0,
+            # --- Performance Profiling ---
+            "cpu_percent": 0.0,
+            "ram_mb": 0.0,
         }
 
-        # MOG2 calibrated using localized Grid Search optimization
+        # MOG2 — independent thresholds per camera
         self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
-            history=500, varThreshold=16, detectShadows=True
+            history=mog2_history, varThreshold=mog2_threshold, detectShadows=True
         )
+        # Pass ghost_threshold into tracker
+        self._ghost_threshold = ghost_threshold
 
         # --- Ring Buffer & Event Clip Recording ---
         self.pause_saving = os.environ.get('PAUSE_SAVING', 'False').lower() in ['true', '1', 't']
@@ -297,8 +316,9 @@ class SentinelStream:
 
     # ------------------------------------------------------------------
     def _process_loop(self):
-        tracker = RobustSentinelTracker()
+        tracker = RobustSentinelTracker(max_ghost=self._ghost_threshold)
         fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 50))
+        proc = psutil.Process(os.getpid())
         ema_frame_time = 0.033
 
         while self.running:
@@ -367,8 +387,7 @@ class SentinelStream:
                 # ── HUD Overlay Removed (UI renders stats) ──────────
 
                 # Phase 2.1 & 2.2: Density and Status
-                MAX_CAPACITY = 30
-                density = int(min(100, (total_count / MAX_CAPACITY) * 100))
+                density = int(min(100, (total_count / self.max_capacity) * 100))
 
                 if density < 50:
                     status = "SAFE"
@@ -380,14 +399,20 @@ class SentinelStream:
                 # Calculate latency/fps
                 proc_time = time.time() - start_t
                 ema_frame_time = 0.9 * ema_frame_time + 0.1 * max(0.001, proc_time)
-                
+
+                # --- Performance Profiling ---
+                cpu_pct = proc.cpu_percent(interval=None)
+                ram_mb = round(proc.memory_info().rss / 1024 / 1024, 1)
+
                 self.latest_stats = {
                     "count": int(total_count),
                     "density": int(density),
                     "status": status,
                     "locations": [],
                     "fps": int(1.0 / ema_frame_time),
-                    "latency_ms": int(ema_frame_time * 1000)
+                    "latency_ms": int(ema_frame_time * 1000),
+                    "cpu_percent": cpu_pct,
+                    "ram_mb": ram_mb,
                 }
 
                 # Phase 2.3: EVENT CLIP RECORDING (Grounded thresholds)

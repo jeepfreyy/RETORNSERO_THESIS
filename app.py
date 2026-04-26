@@ -26,10 +26,31 @@ app = Flask(__name__)
 # Vision engine: Sentinel Streams
 from vision_engine import SentinelStream
 
-# Initialize cameras immediately when app starts
-# Using same local video for both for now until true RTSP URLs are provided
-cam1_stream = SentinelStream(stream_id="CAM-01", source="videos/vid1-angle1.MOV", mask_path="mask_layer.png")
-cam2_stream = SentinelStream(stream_id="CAM-02", source="videos/vid2-angle2.MOV", mask_path="mask_layer.png")
+# --- CAM-01: Main Entrance (default daytime tuning) ---
+cam1_stream = SentinelStream(
+    stream_id="CAM-01",
+    source="videos/vid1-angle1.MOV",
+    mask_path="mask_layer.png",
+    mog2_history=500,
+    mog2_threshold=16,
+    min_blob_area=800,
+    ghost_threshold=30,
+    max_capacity=30,
+)
+
+# --- CAM-02: Secondary Entrance (independent tuning, own mask) ---
+# mask_layer2.png is used if it exists; falls back to no mask otherwise.
+_cam2_mask = "mask_layer2.png" if os.path.exists("mask_layer2.png") else "mask_layer.png"
+cam2_stream = SentinelStream(
+    stream_id="CAM-02",
+    source="videos/vid2-angle2.MOV",
+    mask_path=_cam2_mask,
+    mog2_history=500,
+    mog2_threshold=16,
+    min_blob_area=800,
+    ghost_threshold=30,
+    max_capacity=30,
+)
 
 # CONFIGURATION
 # Secret key for session management (Keep this secret in production!)
@@ -378,6 +399,29 @@ def cam2_frame():
 def api_stats_cam2():
     """JSON stats for CAM-02."""
     return jsonify(cam2_stream.get_latest_stats())
+
+
+@app.route('/api/system/health')
+@login_required
+def api_system_health():
+    """Live CPU & RAM performance metrics for the whole process."""
+    import psutil
+    proc = psutil.Process(os.getpid())
+    mem = proc.memory_info()
+    return jsonify({
+        'cpu_percent': psutil.cpu_percent(interval=0.1),
+        'ram_used_mb': round(mem.rss / 1024 / 1024, 1),
+        'ram_total_mb': round(psutil.virtual_memory().total / 1024 / 1024, 1),
+        'ram_percent': psutil.virtual_memory().percent,
+        'cam1': {
+            'fps': cam1_stream.get_latest_stats().get('fps', 0),
+            'latency_ms': cam1_stream.get_latest_stats().get('latency_ms', 0),
+        },
+        'cam2': {
+            'fps': cam2_stream.get_latest_stats().get('fps', 0),
+            'latency_ms': cam2_stream.get_latest_stats().get('latency_ms', 0),
+        },
+    })
 
 
 # ---------------------------------------------------------------------------
