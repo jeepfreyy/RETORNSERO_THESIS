@@ -26,30 +26,32 @@ app = Flask(__name__)
 # Vision engine: Sentinel Streams
 from vision_engine import SentinelStream
 
-# --- CAM-01: Main Entrance (default daytime tuning) ---
+# --- CAM-01: Main Entrance (NIGHTTIME OPTIMIZED - MAE: 2.02) ---
 cam1_stream = SentinelStream(
     stream_id="CAM-01",
-    source="videos/vid1-angle1.MOV",
-    mask_path="mask_layer.png",
+    source="videos/vid2-angle2.MOV",
+    mask_path="mask_layer1.png",
     mog2_history=500,
-    mog2_threshold=16,
-    min_blob_area=800,
+    mog2_threshold=8,
+    min_blob_area=400,
     ghost_threshold=30,
     max_capacity=30,
+    morph_kernel=(7, 50),
+    dilate_kernel=1
 )
 
-# --- CAM-02: Secondary Entrance (independent tuning, own mask) ---
-# mask_layer2.png is used if it exists; falls back to no mask otherwise.
-_cam2_mask = "mask_layer2.png" if os.path.exists("mask_layer2.png") else "mask_layer.png"
+# --- CAM-02: Secondary Entrance (NIGHTTIME OPTIMIZED - MAE: 2.02) ---
 cam2_stream = SentinelStream(
     stream_id="CAM-02",
     source="videos/vid2-angle2.MOV",
-    mask_path=_cam2_mask,
+    mask_path="mask_layer1.png",
     mog2_history=500,
-    mog2_threshold=16,
-    min_blob_area=800,
+    mog2_threshold=8,
+    min_blob_area=400,
     ghost_threshold=30,
     max_capacity=30,
+    morph_kernel=(7, 50),
+    dilate_kernel=1
 )
 
 # CONFIGURATION

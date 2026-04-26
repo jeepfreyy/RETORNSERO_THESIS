@@ -110,13 +110,13 @@ def get_perspective_weight(y_coord, frame_height):
 # ---------------------------------------------------------------------------
 # Structural Blob Validation (uses Distance Transform profile)
 # ---------------------------------------------------------------------------
-def is_human_blob(roi_thresh, x, y, w, h, frame_height):
+def is_human_blob(roi_thresh, x, y, w, h, frame_height, min_blob_area=800):
     """
     Validates whether a detected blob is likely a human using:
       1. Aspect Ratio  –  people are generally taller than wide
       2. Distance Transform peak profile  –  people have a narrow/round peak,
          vehicles and boxes have a wide, flat peak
-      3. Perspective-scaled minimum area
+      3. Perspective-scaled minimum area (tunable for nighttime)
     Returns True if the blob passes all checks.
     """
     if roi_thresh is None or roi_thresh.size == 0:
@@ -124,8 +124,8 @@ def is_human_blob(roi_thresh, x, y, w, h, frame_height):
 
     pw = get_perspective_weight(y + h, frame_height)
 
-    # 1. Minimum area scales with perspective
-    min_area = int(800 * pw)
+    # 1. Minimum area scales with perspective — base is tunable per camera
+    min_area = int(min_blob_area * pw)
     area = w * h
     if area < min_area:
         return False
@@ -250,12 +250,17 @@ class SentinelStream:
         min_blob_area=800,
         ghost_threshold=30,
         max_capacity=30,
+        # --- Morphological Tuning (nighttime-critical) ---
+        morph_kernel=(7, 50),      # MORPH_CLOSE fusion kernel (w, h)
+        dilate_kernel=3,           # Square dilation size in pixels
     ):
         self.stream_id = stream_id
         self.source = source
         self.mask_path = mask_path
         self.min_blob_area = min_blob_area
         self.max_capacity = max_capacity
+        self._morph_kernel = morph_kernel
+        self._dilate_kernel = dilate_kernel
 
         self.latest_jpeg = None
         self.latest_stats = {
@@ -317,7 +322,9 @@ class SentinelStream:
     # ------------------------------------------------------------------
     def _process_loop(self):
         tracker = RobustSentinelTracker(max_ghost=self._ghost_threshold)
-        fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 50))
+        # Build kernels from tunable params (nighttime-critical)
+        fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, self._morph_kernel)
+        d_kernel = np.ones((self._dilate_kernel, self._dilate_kernel), np.uint8)
         proc = psutil.Process(os.getpid())
         ema_frame_time = 0.033
 
@@ -355,7 +362,7 @@ class SentinelStream:
 
                 # ── PHASE 2: Fusion (stable mega-blobs) ─────────────
                 fused = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, fusion_k)
-                fused = cv2.dilate(fused, np.ones((3, 3), np.uint8), iterations=1)
+                fused = cv2.dilate(fused, d_kernel, iterations=1)
 
                 # ── PHASE 3: Detection with Structural Validation ───
                 conts, _ = cv2.findContours(fused, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -364,7 +371,7 @@ class SentinelStream:
                     x, y, w_box, h_box = cv2.boundingRect(c)
                     # Extract ROI from raw thresh for structural analysis
                     roi_check = thresh[y : y + h_box, x : x + w_box]
-                    if is_human_blob(roi_check, x, y, w_box, h_box, frame_height):
+                    if is_human_blob(roi_check, x, y, w_box, h_box, frame_height, self.min_blob_area):
                         detections.append([x, y, w_box, h_box])
 
                 tracks = tracker.update(detections)

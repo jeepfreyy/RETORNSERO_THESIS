@@ -2,8 +2,9 @@ import cv2
 import json
 import os
 
-VIDEO_PATH = 'video1.mp4'
+VIDEO_PATH = 'videos/vid2-angle2.MOV'
 OUTPUT_JSON = 'barangay_ground_truth.json'
+MASK_PATH = 'mask_layer1.png'
 SKIP_FRAMES = 60  # Skip 2 seconds ahead each time to get unique crowd positions
 
 # Global state for the UI
@@ -11,7 +12,14 @@ current_points = []
 ground_truth_db = {}
 frame_idx = 0
 
-def draw_instructions(img, current_count):
+def draw_instructions(img, current_count, mask_overlay=None):
+    # Apply semi-transparent mask overlay if provided
+    if mask_overlay is not None:
+        # Create a red tint for ignored areas
+        overlay = img.copy()
+        overlay[mask_overlay < 127] = [0, 0, 100] # BGR Reddish
+        cv2.addWeighted(overlay, 0.3, img, 0.7, 0, img)
+
     # Black background bar
     cv2.rectangle(img, (0, 0), (img.shape[1], 40), (0, 0, 0), -1)
     
@@ -46,6 +54,11 @@ def main():
         print(f"ERROR: Cannot open {VIDEO_PATH}")
         return
 
+    # Load mask for overlay
+    mask_img = cv2.imread(MASK_PATH, 0)
+    if mask_img is None:
+        print(f"Warning: {MASK_PATH} not found. Proceeding without overlay.")
+
     cv2.namedWindow('Ground Truth Annotator', cv2.WINDOW_NORMAL)
     cv2.setMouseCallback('Ground Truth Annotator', mouse_callback)
 
@@ -71,7 +84,7 @@ def main():
                 cv2.circle(display_frame, (pt["x"], pt["y"]), 8, (0, 255, 0), -1)
                 cv2.circle(display_frame, (pt["x"], pt["y"]), 10, (255, 255, 255), 2)
 
-            display_frame = draw_instructions(display_frame, len(current_points))
+            display_frame = draw_instructions(display_frame, len(current_points), mask_img)
             cv2.imshow('Ground Truth Annotator', display_frame)
 
             key = cv2.waitKey(15) & 0xFF

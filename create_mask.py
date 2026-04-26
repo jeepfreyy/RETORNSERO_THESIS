@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # CONFIGURATION
-VIDEO_SOURCE = "video1.mp4"
+VIDEO_SOURCE = "videos/vid2-angle2.MOV"
 
 # GLOBAL VARIABLES
 points = []
@@ -46,8 +46,8 @@ while True:
       # Invert mask: Black = Ignore, White = Keep
       # Actually, let's save the "Road Mask" directly. 
       # Any pixel that is WHITE in 'mask.png' will be ignored by the main engine.
-      cv2.imwrite("mask_layer.png", mask)
-      print("Success! 'mask_layer.png' saved.")
+      cv2.imwrite("mask_layer1.png", mask)
+      print("Success! 'mask_layer1.png' saved.")
       break
    elif key == ord('r'):
       img = frame.copy()
