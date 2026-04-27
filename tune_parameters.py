@@ -6,14 +6,14 @@ from vision_engine import RobustSentinelTracker, is_human_blob, count_people_in_
 import os
 
 # -------------------------------------------------------------
-# Configuration Matrix (The "Grid") - NIGHTTIME TUNING
+# Configuration Matrix (The "Grid") - ULTRA-SENSITIVITY TUNING
 # -------------------------------------------------------------
 PARAM_GRID = {
-    'varThreshold': [8, 12, 16],        # Lower is more sensitive (good for night)
-    'history': [200, 300, 500],         # Faster adaptation for fluctuating night light
-    'morph_kernel': [(5, 35), (7, 50)], # Smaller kernels may capture thin night silhouettes
-    'dilate_kernel': [1, 3],            # Minimal dilation to avoid merging noise
-    'min_blob_area': [400, 600, 800]    # Smaller threshold for distant/dim people
+    'varThreshold': [4, 8, 12],         # 4 is ultra-sensitive (might see sensor noise)
+    'history': [500, 1000, 2000],       # 2000 frames (~1 min) helps keep static people visible
+    'morph_kernel': [(3, 25), (5, 35), (7, 50)], # Smaller kernels for tiny/distant silhouettes
+    'dilate_kernel': [1, 2],            # Keep dilation minimal to avoid merging noise dots
+    'min_blob_area': [150, 300, 450]    # Significantly lower to catch people entering frame far away
 }
 
 def load_ground_truth(mask_path="mask_layer1.png"):

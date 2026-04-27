@@ -31,12 +31,12 @@ cam1_stream = SentinelStream(
     stream_id="CAM-01",
     source="videos/vid2-angle2.MOV",
     mask_path="mask_layer1.png",
-    mog2_history=500,
-    mog2_threshold=8,
-    min_blob_area=400,
+    mog2_history=2000,
+    mog2_threshold=4,
+    min_blob_area=450,
     ghost_threshold=30,
     max_capacity=30,
-    morph_kernel=(7, 50),
+    morph_kernel=(5, 35),
     dilate_kernel=1
 )
 
@@ -45,12 +45,12 @@ cam2_stream = SentinelStream(
     stream_id="CAM-02",
     source="videos/vid2-angle2.MOV",
     mask_path="mask_layer1.png",
-    mog2_history=500,
-    mog2_threshold=8,
-    min_blob_area=400,
+    mog2_history=2000,
+    mog2_threshold=4,
+    min_blob_area=450,
     ghost_threshold=30,
     max_capacity=30,
-    morph_kernel=(7, 50),
+    morph_kernel=(5, 35),
     dilate_kernel=1
 )
 
