@@ -29,7 +29,7 @@ from vision_engine import SentinelStream
 # --- CAM-01: Main Entrance (NIGHTTIME OPTIMIZED - MAE: 2.02) ---
 cam1_stream = SentinelStream(
     stream_id="CAM-01",
-    source="videos/vid2-angle2.MOV",
+    source="videos/vid1-angle1.MOV",
     mask_path="mask_layer1.png",
     mog2_history=2000,
     mog2_threshold=4,
@@ -37,7 +37,9 @@ cam1_stream = SentinelStream(
     ghost_threshold=30,
     max_capacity=30,
     morph_kernel=(5, 35),
-    dilate_kernel=1
+    dilate_kernel=1,
+    process_scale=0.667,
+    detect_shadows=False
 )
 
 # --- CAM-02: Secondary Entrance (NIGHTTIME OPTIMIZED - MAE: 2.02) ---
@@ -51,7 +53,9 @@ cam2_stream = SentinelStream(
     ghost_threshold=30,
     max_capacity=30,
     morph_kernel=(5, 35),
-    dilate_kernel=1
+    dilate_kernel=1,
+    process_scale=0.667,
+    detect_shadows=False
 )
 
 # CONFIGURATION

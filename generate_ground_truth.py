@@ -2,7 +2,7 @@ import cv2
 import json
 import os
 
-VIDEO_PATH = 'videos/vid2-angle2.MOV'
+VIDEO_PATH = 'videos/vid1-angle1.MOV'
 OUTPUT_JSON = 'barangay_ground_truth.json'
 MASK_PATH = 'mask_layer1.png'
 SKIP_FRAMES = 60  # Skip 2 seconds ahead each time to get unique crowd positions

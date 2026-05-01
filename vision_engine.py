@@ -10,12 +10,25 @@ import psutil
 from datetime import datetime
 
 
+def apply_gamma_correction(frame, target_mean=100):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    current_mean = gray.mean()
+    if current_mean < 1:
+        return frame
+    gamma = np.log(target_mean / 255.0) / np.log(current_mean / 255.0)
+    gamma = float(np.clip(gamma, 0.4, 2.5))
+    lut = np.array([min(255, int((i / 255.0) ** gamma * 255)) for i in range(256)], dtype=np.uint8)
+    return cv2.LUT(frame, lut)
+
+
 class RobustSentinelTracker:
-    def __init__(self, max_ghost=30, dist_thresh=100):
+    def __init__(self, max_ghost=30, dist_thresh=150, min_lifetime=10, merge_thresh=40):
         self.next_id = 1
         self.tracks = {}
         self.max_ghost = max_ghost
         self.dist_thresh = dist_thresh
+        self.min_lifetime = min_lifetime
+        self.merge_thresh = merge_thresh
 
     def get_center(self, box):
         return (int(box[0] + box[2] / 2), int(box[1] + box[3] / 2))
@@ -35,6 +48,7 @@ class RobustSentinelTracker:
                     tid = track_ids[r]
                     self.tracks[tid]['box'] = detections[c]
                     self.tracks[tid]['ghost'] = 0
+                    self.tracks[tid]['lifetime'] += 1
                     assigned_tracks.add(tid)
                     assigned_dets.add(c)
             for i, tid in enumerate(track_ids):
@@ -54,7 +68,9 @@ class RobustSentinelTracker:
                 del self.tracks[tid]
         return self.tracks
 
-    def merge_nearby_boxes(self, boxes, thresh=15):
+    def merge_nearby_boxes(self, boxes, thresh=None):
+        if thresh is None:
+            thresh = self.merge_thresh
         if not boxes:
             return []
         merged = []
@@ -86,7 +102,7 @@ class RobustSentinelTracker:
         return [x, y, w, h]
 
     def register(self, box):
-        self.tracks[self.next_id] = {'box': box, 'ghost': 0}
+        self.tracks[self.next_id] = {'box': box, 'ghost': 0, 'lifetime': 1}
         self.next_id += 1
 
 
@@ -159,20 +175,41 @@ def is_human_blob(roi_thresh, x, y, w, h, frame_height, min_blob_area=800):
 # ---------------------------------------------------------------------------
 # Sub-Counting inside a Validated Blob (Watershed-based)
 # ---------------------------------------------------------------------------
-def count_people_in_box(roi, box_width, box_y, frame_height):
+def count_people_in_box(roi, box_width, box_y, frame_height, solidity_threshold=0.75):
     """
-    Given the thresholded ROI of a validated human blob, estimate
-    how many people are clustered inside it using distance-transform
-    peaks and perspective-scaled person width.
+    Estimates how many people are clustered inside a validated blob.
+
+    Solidity gate (NEW): if the blob is one compact mass (solidity > threshold),
+    it is a single person — possibly seated with a chair — and the sub-counter
+    is skipped entirely. Only blobs with genuine concavities between bodies
+    (lower solidity) proceed to distance-transform sub-counting.
     """
     pw = get_perspective_weight(box_y, frame_height)
-    # SHANGHAITECH OPTIMIZATION: Bounding width mathematically derived from 16px median proximity
-    avg_person_width = int(32 * pw)
+
+    base_width = 32 if pw >= 0.6 else 22
+    avg_person_width = int(base_width * pw)
     max_possible_people = max(1, int(box_width / max(1, avg_person_width)))
 
     if roi is None or roi.size == 0:
         return 1
 
+    # ── Solidity Gate ─────────────────────────────────────────────────
+    # Compute solidity on the raw ROI before any erosion or distance transform.
+    # A seated person + chair is one compact mass → high solidity → return 1.
+    # A genuine cluster of multiple people has gaps between bodies → low solidity
+    # → proceed to sub-counting below.
+    roi_contours, _ = cv2.findContours(roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if roi_contours:
+        largest = max(roi_contours, key=cv2.contourArea)
+        contour_area = cv2.contourArea(largest)
+        hull = cv2.convexHull(largest)
+        hull_area = cv2.contourArea(hull)
+        if hull_area > 0:
+            solidity = contour_area / hull_area
+            if solidity > solidity_threshold:
+                return 1
+
+    # ── Distance-Transform Sub-Counter (clusters only) ────────────────
     kernel = np.ones((3, 3), np.uint8)
     eroded = cv2.erode(roi, kernel, iterations=1)
 
@@ -252,7 +289,13 @@ class SentinelStream:
         max_capacity=30,
         # --- Morphological Tuning (nighttime-critical) ---
         morph_kernel=(7, 50),      # MORPH_CLOSE fusion kernel (w, h)
+        h_morph_kernel=(40, 7),   # Horizontal MORPH_CLOSE kernel (w, h) — fuses seated-person fragments
         dilate_kernel=3,           # Square dilation size in pixels
+        merge_thresh=40,      # px gap tolerance for merging nearby body-part fragments
+        dist_thresh=150,      # px max centroid shift the tracker tolerates before dropping a track
+        detect_shadows=True,
+        enable_gamma=False,
+        process_scale=1.0     # Downscale factor for processing
     ):
         self.stream_id = stream_id
         self.source = source
@@ -260,7 +303,12 @@ class SentinelStream:
         self.min_blob_area = min_blob_area
         self.max_capacity = max_capacity
         self._morph_kernel = morph_kernel
+        self._h_morph_kernel = h_morph_kernel
         self._dilate_kernel = dilate_kernel
+        self._merge_thresh = merge_thresh
+        self._dist_thresh = dist_thresh
+        self._enable_gamma = enable_gamma
+        self._process_scale = process_scale
 
         self.latest_jpeg = None
         self.latest_stats = {
@@ -277,7 +325,7 @@ class SentinelStream:
 
         # MOG2 — independent thresholds per camera
         self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
-            history=mog2_history, varThreshold=mog2_threshold, detectShadows=True
+            history=mog2_history, varThreshold=mog2_threshold, detectShadows=detect_shadows
         )
         # Pass ghost_threshold into tracker
         self._ghost_threshold = ghost_threshold
@@ -321,9 +369,16 @@ class SentinelStream:
 
     # ------------------------------------------------------------------
     def _process_loop(self):
-        tracker = RobustSentinelTracker(max_ghost=self._ghost_threshold)
+        tracker = RobustSentinelTracker(
+            max_ghost=self._ghost_threshold,
+            min_lifetime=10,
+            dist_thresh=self._dist_thresh,
+            merge_thresh=self._merge_thresh,
+        )
         # Build kernels from tunable params (nighttime-critical)
+        open_k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
         fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, self._morph_kernel)
+        h_fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, self._h_morph_kernel)
         d_kernel = np.ones((self._dilate_kernel, self._dilate_kernel), np.uint8)
         proc = psutil.Process(os.getpid())
         ema_frame_time = 0.033
@@ -341,10 +396,19 @@ class SentinelStream:
                 time.sleep(2.0)
                 continue
 
+            if self._process_scale != 1.0:
+                proc_h = int(first_frame.shape[0] * self._process_scale)
+                proc_w = int(first_frame.shape[1] * self._process_scale)
+                first_frame = cv2.resize(first_frame, (proc_w, proc_h), interpolation=cv2.INTER_AREA)
+
             frame_height, frame_width = first_frame.shape[:2]
 
-            roi_mask = cv2.imread(self.mask_path, 0)
-            if roi_mask is None or roi_mask.shape[:2] != (frame_height, frame_width):
+            raw_mask = cv2.imread(self.mask_path, 0)
+            if raw_mask is not None:
+                roi_mask = cv2.resize(raw_mask, (frame_width, frame_height), interpolation=cv2.INTER_NEAREST)
+                if roi_mask.shape[:2] != (frame_height, frame_width):
+                    roi_mask = np.ones((frame_height, frame_width), dtype=np.uint8) * 255
+            else:
                 roi_mask = np.ones((frame_height, frame_width), dtype=np.uint8) * 255
 
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -355,13 +419,35 @@ class SentinelStream:
                 if not ret:
                     break
 
-                # ── PHASE 1: MOG2 & Shadow Removal ──────────────────
-                fg_mask = self.bg_subtractor.apply(frame)
+                if self._process_scale != 1.0:
+                    proc_h = int(frame.shape[0] * self._process_scale)
+                    proc_w = int(frame.shape[1] * self._process_scale)
+                    frame = cv2.resize(frame, (proc_w, proc_h), interpolation=cv2.INTER_AREA)
+
+                if self._enable_gamma:
+                    frame = apply_gamma_correction(frame)
+
+                # ── PHASE 1: MOG2 & Digital Scrub (Noise Removal) ──
+                # Nighttime: normalize local contrast before MOG2
+                lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+                l_ch, a_ch, b_ch = cv2.split(lab)
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+                l_ch = clahe.apply(l_ch)
+                lab = cv2.merge((l_ch, a_ch, b_ch))
+                frame_enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+                fg_mask = self.bg_subtractor.apply(frame_enhanced)
+                
+                # Digital Scrub: Remove high-frequency "salt & pepper" noise
+                fg_mask = cv2.medianBlur(fg_mask, 3)
+                
                 _, thresh = cv2.threshold(fg_mask, 254, 255, cv2.THRESH_BINARY)
                 thresh = cv2.bitwise_and(thresh, thresh, mask=roi_mask)
 
-                # ── PHASE 2: Fusion (stable mega-blobs) ─────────────
-                fused = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, fusion_k)
+                # ── PHASE 2: Fusion & Opening (Shape Cleanup) ──────
+                # Rub out tiny artifacts before merging
+                cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, open_k)
+                fused = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, fusion_k)    # vertical: closes gaps within upright silhouettes
+                fused = cv2.morphologyEx(fused, cv2.MORPH_CLOSE, h_fusion_k)    # horizontal: fuses seated/foreshortened fragments
                 fused = cv2.dilate(fused, d_kernel, iterations=1)
 
                 # ── PHASE 3: Detection with Structural Validation ───
@@ -380,7 +466,8 @@ class SentinelStream:
                 total_count = 0
 
                 for tid, data in tracks.items():
-                    if data['ghost'] == 0:
+                    # Temporal Validation: Only count if person exists for > min_lifetime frames
+                    if data['ghost'] == 0 and data['lifetime'] >= tracker.min_lifetime:
                         x, y, w_box, h_box = data['box']
                         cx = int(x + w_box / 2)
                         cy = int(y + h_box)
