@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # CONFIGURATION
-VIDEO_SOURCE = "videos/vid2-angle2.MOV"
+VIDEO_SOURCE = "videos/vid1-angle1.MOV"
 
 # GLOBAL VARIABLES
 points = []
@@ -27,9 +27,10 @@ cv2.imshow('Draw Polygon (Press s to save, r to reset, q to quit)', img)
 cv2.setMouseCallback('Draw Polygon (Press s to save, r to reset, q to quit)', click_event)
 
 print("INSTRUCTIONS:")
-print("1. Click points to outline the ROAD/CARS (the area to IGNORE).")
-print("2. Press 's' to save the mask.")
-print("3. Press 'r' to reset.")
+print("1. Click points to outline the MONITORING ZONE (the alley/gathering area to INCLUDE).")
+print("   White = monitored, Black = ignored. Draw around the area you want the engine to watch.")
+print("2. Press 's' to save the mask as mask_layer1.png.")
+print("3. Press 'r' to reset and redraw.")
 print("4. Press 'q' to quit without saving.")
 
 while True:

@@ -9,15 +9,15 @@ import os
 # Configuration Matrix (The "Grid") - NIGHTTIME / WELL-LIT TUNING
 # -------------------------------------------------------------
 PARAM_GRID = {
-    'varThreshold':    [8],
+    'varThreshold':    [16, 25],           # Increased to ignore dark noise
     'history':         [1000],
-    'morph_kernel':    [(7, 50)],
+    'morph_kernel':    [(5, 25), (7, 30)], # Conservative vertical bridging
     'dilate_kernel':   [1],
     'min_blob_area':   [450],
-    'ghost_threshold': [180],
-    'h_morph_kernel':  [(20, 5), (35, 7), (50, 9)],
-    'merge_thresh':    [20, 35, 50],
-    'dist_thresh':     [100, 150, 200],
+    'ghost_threshold': [60],               # STRICT 2-second ghost limit
+    'h_morph_kernel':  [(10, 3), (15, 5)], # STRICT horizontal fusion limit
+    'merge_thresh':    [20, 35],
+    'dist_thresh':     [100, 150],
 }
 
 def load_ground_truth(mask_path="mask_layer1.png"):
@@ -45,18 +45,19 @@ def test_configuration(video_path, frames_db, max_frame, params, mask_path="mask
     Returns: Mean Absolute Error (MAE)
     """
     process_scale = 0.667
+    warmup_frames = params['history']  # MOG2 needs this many frames to stabilize
+
     bg_subtractor = cv2.createBackgroundSubtractorMOG2(
-        history=params['history'], 
-        varThreshold=params['varThreshold'], 
+        history=params['history'],
+        varThreshold=params['varThreshold'],
         detectShadows=False
     )
-    # Build kernels matching new engine logic
     open_k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, params['morph_kernel'])
     h_fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, params['h_morph_kernel'])
     d_kernel = np.ones((params['dilate_kernel'], params['dilate_kernel']), np.uint8)
-    
-    # Enable Temporal Validation in the tuner
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+
     tracker = RobustSentinelTracker(
         max_ghost=params['ghost_threshold'],
         min_lifetime=10,
@@ -68,17 +69,16 @@ def test_configuration(video_path, frames_db, max_frame, params, mask_path="mask
     if not cap.isOpened():
         return float('inf')
 
-    # Read first frame to get dims
     ret, first = cap.read()
     if not ret: return float('inf')
-    
+
     if process_scale != 1.0:
         proc_h = int(first.shape[0] * process_scale)
         proc_w = int(first.shape[1] * process_scale)
         first = cv2.resize(first, (proc_w, proc_h), interpolation=cv2.INTER_AREA)
 
     h, w = first.shape[:2]
-    
+
     raw_mask = cv2.imread(mask_path, 0)
     if raw_mask is not None:
         roi_mask = cv2.resize(raw_mask, (w, h), interpolation=cv2.INTER_NEAREST)
@@ -87,9 +87,8 @@ def test_configuration(video_path, frames_db, max_frame, params, mask_path="mask
     else:
         roi_mask = np.ones((h, w), dtype=np.uint8) * 255
 
-    # Reset video
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-    
+
     frame_idx = 0
     errors = []
 
@@ -102,23 +101,19 @@ def test_configuration(video_path, frames_db, max_frame, params, mask_path="mask
             proc_w = int(frame.shape[1] * process_scale)
             frame = cv2.resize(frame, (proc_w, proc_h), interpolation=cv2.INTER_AREA)
 
-        # ── Pipeline (MATCHING NEW ENGINE) ──────────
-        # Nighttime: normalize local contrast before MOG2
+        # ── Pipeline (IDENTICAL TO vision_engine.py) ─────────────────
+        # CLAHE contrast normalization in LAB space (nighttime-critical)
         lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
         l_ch, a_ch, b_ch = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         l_ch = clahe.apply(l_ch)
         lab = cv2.merge((l_ch, a_ch, b_ch))
         frame_enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
         fg_mask = bg_subtractor.apply(frame_enhanced)
-        
-        # 1. Median Blur
+
         fg_mask = cv2.medianBlur(fg_mask, 3)
-        
         _, thresh = cv2.threshold(fg_mask, 254, 255, cv2.THRESH_BINARY)
         thresh = cv2.bitwise_and(thresh, thresh, mask=roi_mask)
 
-        # 2. Opening & Fusion
         cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, open_k)
         fused = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, fusion_k)
         fused = cv2.morphologyEx(fused, cv2.MORPH_CLOSE, h_fusion_k)
@@ -134,29 +129,28 @@ def test_configuration(video_path, frames_db, max_frame, params, mask_path="mask
 
         tracks = tracker.update(detections)
 
-        # ── Mathematical Grading ──────────────────────
-        if frame_idx in frames_db and frame_idx > 0:
+        # ── Scoring: skip frames inside MOG2 warm-up window ──────────
+        # Frames before `history` are unreliable — MOG2 treats everything as
+        # foreground while building its background model from scratch.
+        if frame_idx in frames_db and frame_idx >= warmup_frames:
             true_count = frames_db[frame_idx]
-            
-            # Count the engine's detections (WITH LIFETIME CHECK)
+
             predicted_count = 0
             for tid, data in tracks.items():
                 if data['ghost'] == 0 and data['lifetime'] >= tracker.min_lifetime:
                     px, py, pw_box, ph_box = data['box']
                     roi = thresh[py : py + ph_box, px : px + pw_box]
                     predicted_count += count_people_in_box(roi, pw_box, py + ph_box, h)
-                        
-            # Calculate Absolute Error
-            error = abs(predicted_count - true_count)
-            errors.append(error)
+
+            errors.append(abs(predicted_count - true_count))
 
         frame_idx += 1
 
     cap.release()
-    
-    if len(errors) == 0: 
+
+    if len(errors) == 0:
         return float('inf')
-    return sum(errors) / len(errors)  # True MAE
+    return sum(errors) / len(errors)
 
 def main():
     print("="*60)
