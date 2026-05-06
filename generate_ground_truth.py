@@ -2,7 +2,7 @@ import cv2
 import json
 import os
 
-VIDEO_PATH = 'videos/vid1-angle1.MOV'
+VIDEO_PATH = 'videos/main_video.mp4'
 OUTPUT_JSON = 'barangay_ground_truth.json'
 MASK_PATH = 'mask_layer1.png'
 SKIP_FRAMES = 60  # Default step (2 seconds at 30fps)
@@ -125,6 +125,8 @@ def main():
     print("Controls: SPACE/ENTER = next frame | B = back | G = go to frame | ESC = save & quit")
     print("Goal: annotate frames with 0, 1, 2-3, 4-5, and 8+ people for a balanced dataset.")
 
+    _overwrite_pending = False   # Tracks if a second-confirm is needed
+
     while True:
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
         ret, frame = cap.read()
@@ -137,25 +139,47 @@ def main():
         else:
             current_points = []
 
+        _overwrite_pending = False   # Reset confirm flag on every new frame
+
         while True:
             disp = frame.copy()
             disp = draw_ui(disp, frame_idx, total_frames, mask_img, ground_truth_db)
+
+            # Overwrite-protection warning overlay
+            prev_count = len(ground_truth_db.get(str(frame_idx), []))
+            if _overwrite_pending:
+                warn = f"!! Overwriting {prev_count}-person annotation with 0. Press SPACE again to confirm."
+                cv2.rectangle(disp, (0, 44), (disp.shape[1], 90), (0, 0, 160), -1)
+                cv2.putText(disp, warn, (10, 74),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.58, (0, 220, 255), 2)
+
             cv2.imshow('Ground Truth Annotator', disp)
 
             key = cv2.waitKey(15) & 0xFF
 
             if key in (32, 13):  # SPACE or ENTER — advance
+                # Overwrite protection: if existing annotation had people but
+                # current_points is empty, require a second press to confirm.
+                if (not current_points
+                        and prev_count > 0
+                        and not _overwrite_pending):
+                    _overwrite_pending = True
+                    continue   # Stay on this frame, show warning
+
                 ground_truth_db[str(frame_idx)] = current_points
+                _overwrite_pending = False
                 frame_idx = min(frame_idx + SKIP_FRAMES, total_frames - 1)
                 break
 
             elif key == ord('b') or key == ord('B'):  # Back
                 ground_truth_db[str(frame_idx)] = current_points
+                _overwrite_pending = False
                 frame_idx = max(0, frame_idx - SKIP_FRAMES)
                 break
 
             elif key == ord('g') or key == ord('G'):  # Go to frame
                 ground_truth_db[str(frame_idx)] = current_points
+                _overwrite_pending = False
                 target = ask_frame_number(total_frames)
                 if target is not None:
                     frame_idx = max(0, min(target, total_frames - 1))

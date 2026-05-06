@@ -583,7 +583,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg></button>
             </div><!-- Main Content -->
-            <div class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 overflow-auto">
+            <div class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 overflow-y-auto">
               <!-- Camera Feed Section -->
               <div class="lg:col-span-2 flex flex-col gap-4">
                 <!-- Camera Display -->
@@ -893,47 +893,28 @@
                       </svg></button>
                   </div>
                 </div>
-              </div><!-- Camera 2 -->
-              <div class="card-border rounded-xl overflow-hidden group" id="cam02-card">
-                <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative">
-                  <div class="absolute inset-0 flex items-center justify-center bg-slate-900/80">
-                    <img id="cam02-video" src="/cam2_frame" alt="CAM-02 Live" class="w-full h-full object-contain" />
-                  </div>
-                  <div id="cam02-stats-overlay"
-                    class="absolute top-12 left-3 right-3 flex items-center gap-2 flex-wrap text-xs font-mono">
-                    <span class="bg-slate-900/80 px-2 py-1 rounded text-amber-300">People: <strong
-                        id="cam02-count">0</strong></span>
-                    <span class="bg-slate-900/80 px-2 py-1 rounded text-slate-300">Density: <strong
-                        id="cam02-density">0</strong>%</span>
-                    <span class="bg-slate-900/80 px-2 py-1 rounded" id="cam02-status-wrap"><strong
-                        id="cam02-status">SAFE</strong></span>
+              </div><!-- Camera 2 — offline placeholder -->
+              <div class="card-border rounded-xl overflow-hidden opacity-60" id="cam02-card">
+                <div class="camera-feed aspect-video bg-black relative">
+                  <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 select-none">
+                    <svg class="w-12 h-12 text-slate-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9A2.25 2.25 0 0013.5 5.25h-9A2.25 2.25 0 002.25 9v9A2.25 2.25 0 004.5 18.75z" />
+                      <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                    <span class="text-xs font-mono text-slate-600 tracking-widest">OFFLINE — PENDING CALIBRATION</span>
                   </div>
                   <div class="absolute top-3 left-3 flex items-center gap-2">
-                    <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span
-                      class="text-xs font-mono text-emerald-400 bg-slate-900/70 px-2 py-0.5 rounded">LIVE</span>
+                    <div class="w-2 h-2 rounded-full bg-slate-600"></div>
+                    <span class="text-xs font-mono text-slate-600 bg-slate-900/70 px-2 py-0.5 rounded">OFFLINE</span>
                   </div>
-                  <div class="absolute top-3 right-3">
-                    <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
-                  </div>
-                  <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                    <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-02</span>
-                    <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time"
-                      id="cam02-time">--:--:--</span>
+                  <div class="absolute bottom-3 left-3">
+                    <span class="text-xs font-semibold text-slate-600 bg-slate-900/70 px-2 py-1 rounded">CAM-02</span>
                   </div>
                 </div>
                 <div class="p-3 flex items-center justify-between">
                   <div>
-                    <p class="text-sm font-semibold text-slate-200">Secondary Entrance</p>
-                    <p class="text-xs text-slate-500">Building A • Side Access</p>
-                  </div>
-                  <div class="flex gap-2">
-                    <button onclick="maximizeCamera('CAM-02', 'Secondary Entrance', '1080p')"
-                      class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all group"
-                      title="Maximize">
-                      <svg class="w-4 h-4 text-slate-400 group-hover:text-emerald-400 transition-colors" fill="none"
-                        stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6v4m12-4h4v4M6 14v4h4m8-4v4h-4" />
-                      </svg></button>
+                    <p class="text-sm font-semibold text-slate-500">Secondary Entrance</p>
+                    <p class="text-xs text-slate-600">Building A • Side Access</p>
                   </div>
                 </div>
               </div>
@@ -1276,13 +1257,13 @@
         };
 
         loadFrame('CAM-01', 'cam01-video', '/cam1_frame');
-        loadFrame('CAM-02', 'cam02-video', '/cam2_frame');
       }
 
       function classifyDensityByPeople(count) {
-        if (count <= 4) return 'LOW';
-        if (count <= 7) return 'MEDIUM';
-        return 'HIGH';
+        if (count >= 1 && count <= 5) return 'LOW';
+        if (count >= 6 && count <= 9) return 'MEDIUM';
+        if (count >= 10) return 'HIGH';
+        return 'LOW'; // 0 people — no crowd
       }
 
       function densityColorClass(level) {
@@ -1325,8 +1306,14 @@
       }
 
       function updateRealtimeDetections(camId, stats, now) {
-        const state = cameraRuntimeState[camId] || { previousCount: null, previousLevel: null };
+        const state = cameraRuntimeState[camId] || {
+          previousCount: null,
+          previousLevel: null,
+          lastNotifiedLevel: null,
+          lastNotifiedTime: null
+        };
         const level = classifyDensityByPeople(stats.count);
+        const RENOTIFY_INTERVAL_MS = 120000; // 2 minutes
 
         const camHistory = cameraHistory[camId];
         camHistory.push({
@@ -1338,24 +1325,53 @@
         });
         if (camHistory.length > 120) camHistory.shift();
 
+        // Entry / exit log (count delta)
         if (state.previousCount != null) {
           const delta = stats.count - state.previousCount;
           if (delta > 0) {
-            pushActivityLog(buildRealtimeLog(camId, 'ENTRY', `${delta} people entered`, 'normal', now));
+            pushActivityLog(buildRealtimeLog(camId, 'ENTRY', `${delta} ${delta === 1 ? 'person' : 'people'} entered`, 'normal', now));
           } else if (delta < 0) {
-            pushActivityLog(buildRealtimeLog(camId, 'EXIT', `${Math.abs(delta)} people left`, 'normal', now));
+            pushActivityLog(buildRealtimeLog(camId, 'EXIT', `${Math.abs(delta)} ${Math.abs(delta) === 1 ? 'person' : 'people'} left`, 'normal', now));
           }
         }
 
-        if (state.previousLevel && state.previousLevel !== level) {
-          if (level === 'HIGH' || level === 'MEDIUM') {
-            pushActivityLog(buildRealtimeLog(camId, 'CROWDING', `${level.toLowerCase()} density detected (${stats.count} people)`, 'warning', now));
-          } else if (level === 'LOW') {
-            pushActivityLog(buildRealtimeLog(camId, 'NORMAL', 'Low density restored', 'normal', now));
-          }
-        }
+        // Density notification: fire on level change OR after 2 minutes on same level
+        const levelChanged = state.lastNotifiedLevel !== level;
+        const timeSinceLastNotify = state.lastNotifiedTime != null
+          ? now.getTime() - state.lastNotifiedTime
+          : Infinity;
+        const shouldRenotify = !levelChanged && timeSinceLastNotify >= RENOTIFY_INTERVAL_MS;
 
-        cameraRuntimeState[camId] = { previousCount: stats.count, previousLevel: level };
+        if (levelChanged || shouldRenotify) {
+          let logType, description, severity;
+          if (level === 'HIGH') {
+            logType = 'CROWDING';
+            description = `High density detected — ${stats.count} people present`;
+            severity = 'warning';
+          } else if (level === 'MEDIUM') {
+            logType = 'CROWDING';
+            description = `Medium density detected — ${stats.count} people present`;
+            severity = 'warning';
+          } else {
+            logType = 'NORMAL';
+            description = `Low density — ${stats.count} ${stats.count === 1 ? 'person' : 'people'} present`;
+            severity = 'normal';
+          }
+          pushActivityLog(buildRealtimeLog(camId, logType, description, severity, now));
+
+          cameraRuntimeState[camId] = {
+            previousCount: stats.count,
+            previousLevel: level,
+            lastNotifiedLevel: level,
+            lastNotifiedTime: now.getTime()
+          };
+        } else {
+          cameraRuntimeState[camId] = {
+            ...state,
+            previousCount: stats.count,
+            previousLevel: level
+          };
+        }
       }
 
       function updateCam01Stats() {
@@ -1367,9 +1383,7 @@
           const now = new Date();
 
           updateCameraOverlay('CAM-01', stats);
-          updateCameraOverlay('CAM-02', stats);
           updateRealtimeDetections('CAM-01', stats, now);
-          updateRealtimeDetections('CAM-02', stats, now);
         }).catch(() => { });
       }
 
@@ -1386,7 +1400,12 @@
         allActivityLogs = [];
         Object.keys(cameraHistory).forEach(camId => {
           cameraHistory[camId] = [];
-          cameraRuntimeState[camId] = { previousCount: null, previousLevel: null };
+          cameraRuntimeState[camId] = {
+            previousCount: null,
+            previousLevel: null,
+            lastNotifiedLevel: null,
+            lastNotifiedTime: null
+          };
         });
       }
 
@@ -1839,10 +1858,12 @@
 
       function drawCameraSVG(camId) {
         const container = document.getElementById('max-camera-svg');
-        if (camId === 'CAM-01' || camId === 'CAM-02') {
-          // This image is also driven by startCam01FrameUpdates()
-          const route = camId === 'CAM-01' ? '/cam1_frame' : '/cam2_frame';
-          container.innerHTML = `<img id="max-cam01-video" data-cam="${camId}" src="${route}" alt="Live Camera Feed" class="w-full h-full object-contain" />`;
+        if (camId === 'CAM-01') {
+          container.innerHTML = `<img id="max-cam01-video" data-cam="${camId}" src="/cam1_frame" alt="Live Camera Feed" class="w-full h-full object-contain" />`;
+          return;
+        }
+        if (camId === 'CAM-02') {
+          container.innerHTML = `<div class="w-full h-full bg-black flex flex-col items-center justify-center gap-3"><svg class="w-16 h-16 text-slate-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9A2.25 2.25 0 0013.5 5.25h-9A2.25 2.25 0 002.25 9v9A2.25 2.25 0 004.5 18.75z"/><line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="1.5"/></svg><span class="text-xs font-mono text-slate-600 tracking-widest">OFFLINE — PENDING CALIBRATION</span></div>`;
           return;
         }
         const svgMap = {
@@ -1922,16 +1943,24 @@
           const safeTs = clip.timestamp.replace(/'/g, "\\'");
           const safeDensity = clip.density.replace(/'/g, "\\'");
 
+          const durationLabel = clip.duration > 0 ? `${clip.duration}s` : '...';
           html += `
           <div class="clip-card flex-shrink-0 w-56 rounded-xl border ${bc} ${bg} overflow-hidden">
             <div class="relative">
-              <img src="/clips/${clip.thumbnail}" alt="Clip" class="w-full h-28 object-cover bg-slate-800"
-                   onerror="this.style.display='none'"/>
+              <img src="/clips/${clip.thumbnail}" alt="Clip thumbnail"
+                   class="w-full h-28 object-cover bg-slate-800"
+                   onerror="this.classList.add('hidden');this.nextElementSibling.classList.remove('hidden')" />
+              <div class="hidden w-full h-28 bg-slate-800 flex items-center justify-center">
+                <svg class="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+              </div>
               <div class="absolute top-2 right-2">
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded ${bg} ${tc} border ${bc}">${clip.density}</span>
               </div>
               <div class="absolute bottom-2 left-2">
-                <span class="text-[10px] text-white bg-black/70 px-2 py-0.5 rounded font-mono">${clip.duration}s</span>
+                <span class="text-[10px] text-white bg-black/70 px-2 py-0.5 rounded font-mono">${durationLabel}</span>
               </div>
             </div>
             <div class="p-3">

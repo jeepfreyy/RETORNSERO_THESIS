@@ -1,0 +1,32 @@
+{
+    "avg_pixels_per_person": 1927.913636363636,
+    "area_at_zero": 4454.568181818186,
+    "r_squared": 0.2437084822928438,
+    "data_points": 199,
+    "per_count_median_area": {
+        "0": 2114,
+        "1": 12716,
+        "2": 15997,
+        "3": 3358,
+        "4": 3114,
+        "5": 7072,
+        "6": 3585,
+        "7": 39674,
+        "8": 30400,
+        "9": 27828,
+        "10": 9176
+    },
+    "pipeline_params": {
+        "varThreshold": 40,
+        "history": 1000,
+        "morph_kernel": [
+            5,
+            25
+        ],
+        "dilate_kernel": 1,
+        "h_morph_kernel": [
+            10,
+            3
+        ]
+    }
+}

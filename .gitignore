@@ -23,5 +23,8 @@ DATASETS/
 Thumbs.db
 
 # Ignore large video files
-videos/*.MOV
-videos/*.mp4
+videos/vid1-angle1.MOV
+videos/vid2-angle2.MOV
+videos/main_video.mov
+
+

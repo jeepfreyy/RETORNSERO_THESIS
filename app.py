@@ -26,10 +26,25 @@ app = Flask(__name__)
 # Vision engine: Sentinel Streams
 from vision_engine import SentinelStream
 
+import json as _json_cal
+
+# Load area-based counting calibration if available
+_AREA_CAL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'area_calibration.json')
+_area_px_per_person = None
+_area_baseline = 0.0
+if os.path.exists(_AREA_CAL_PATH):
+    with open(_AREA_CAL_PATH) as _f:
+        _cal = _json_cal.load(_f)
+    _area_px_per_person = float(_cal['avg_pixels_per_person'])
+    _area_baseline      = float(_cal['area_at_zero'])
+    print(f"[Area Cal] {_area_px_per_person:.1f} px/person  baseline={_area_baseline:.1f}px  R²={_cal.get('r_squared', '?')}")
+else:
+    print("[Area Cal] area_calibration.json not found — using watershed fallback.")
+
 # --- CAM-01: Main Entrance (NIGHTTIME OPTIMIZED - MAE: 2.02) ---
 cam1_stream = SentinelStream(
     stream_id="CAM-01",
-    source="videos/vid1-angle1.MOV",
+    source="videos/main_video.mp4",
     mask_path="mask_layer1.png",
     mog2_history=2000,
     mog2_threshold=4,
@@ -39,24 +54,13 @@ cam1_stream = SentinelStream(
     morph_kernel=(5, 35),
     dilate_kernel=1,
     process_scale=0.667,
-    detect_shadows=False
+    detect_shadows=False,
+    area_px_per_person=_area_px_per_person,
+    area_baseline=_area_baseline,
 )
 
-# --- CAM-02: Secondary Entrance (NIGHTTIME OPTIMIZED - MAE: 2.02) ---
-cam2_stream = SentinelStream(
-    stream_id="CAM-02",
-    source="videos/vid2-angle2.MOV",
-    mask_path="mask_layer1.png",
-    mog2_history=2000,
-    mog2_threshold=4,
-    min_blob_area=450,
-    ghost_threshold=30,
-    max_capacity=30,
-    morph_kernel=(5, 35),
-    dilate_kernel=1,
-    process_scale=0.667,
-    detect_shadows=False
-)
+# CAM-02 is temporarily disabled while CAM-01 tuning targets MAE < 1.
+# Re-enable by restoring the SentinelStream instantiation here.
 
 # CONFIGURATION
 # Secret key for session management (Keep this secret in production!)
@@ -390,21 +394,7 @@ def api_stats():
     """
     return jsonify(cam1_stream.get_latest_stats())
 
-# --- CAM-02 ENDPOINTS ---
-@app.route('/cam2_frame')
-@login_required
-def cam2_frame():
-    """Single JPEG frame for CAM-02."""
-    jpeg = cam2_stream.get_latest_jpeg()
-    if jpeg is None:
-        return Response(status=204)
-    return Response(jpeg, mimetype="image/jpeg", headers={"Cache-Control": "no-store"})
-
-@app.route('/api/stats/cam2')
-@login_required
-def api_stats_cam2():
-    """JSON stats for CAM-02."""
-    return jsonify(cam2_stream.get_latest_stats())
+# CAM-02 routes are disabled while the camera is offline for calibration.
 
 
 @app.route('/api/system/health')
@@ -423,10 +413,7 @@ def api_system_health():
             'fps': cam1_stream.get_latest_stats().get('fps', 0),
             'latency_ms': cam1_stream.get_latest_stats().get('latency_ms', 0),
         },
-        'cam2': {
-            'fps': cam2_stream.get_latest_stats().get('fps', 0),
-            'latency_ms': cam2_stream.get_latest_stats().get('latency_ms', 0),
-        },
+        'cam2': {'fps': 0, 'latency_ms': 0},  # offline
     })
 
 

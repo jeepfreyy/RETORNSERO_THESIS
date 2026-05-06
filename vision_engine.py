@@ -126,10 +126,11 @@ def get_perspective_weight(y_coord, frame_height):
 # ---------------------------------------------------------------------------
 # Structural Blob Validation (uses Distance Transform profile)
 # ---------------------------------------------------------------------------
-def is_human_blob(roi_thresh, x, y, w, h, frame_height, min_blob_area=800):
+def is_human_blob(roi_thresh, x, y, w, h, frame_height, min_blob_area=800, max_aspect=1.8):
     """
     Validates whether a detected blob is likely a human using:
-      1. Aspect Ratio  –  people are generally taller than wide
+      1. Aspect Ratio  –  tunable via max_aspect (default 1.8 for eye-level;
+         use 2.5–3.5 for elevated/overhead cameras with seated subjects)
       2. Distance Transform peak profile  –  people have a narrow/round peak,
          vehicles and boxes have a wide, flat peak
       3. Perspective-scaled minimum area (tunable for nighttime)
@@ -147,11 +148,10 @@ def is_human_blob(roi_thresh, x, y, w, h, frame_height, min_blob_area=800):
         return False
 
     # 2. Aspect ratio check (width / height)
-    #    Standing/walking people:   ratio < 1.3
-    #    Sitting/bending people:    ratio < 1.8 (more lenient)
-    #    Cars / wide objects:       ratio > 1.8  → reject
+    #    Standing/walking people (eye-level):  ratio < 1.3
+    #    Seated people (45-60° overhead):      ratio up to 3.0+ (chair+body = wide blob)
+    #    max_aspect is now a tunable parameter calibrated per camera angle.
     aspect = w / max(1, h)
-    max_aspect = 1.8  # lenient to allow crouching / off-angle people
     if aspect > max_aspect:
         return False
 
@@ -164,7 +164,6 @@ def is_human_blob(roi_thresh, x, y, w, h, frame_height, min_blob_area=800):
         return False  # too thin / noisy
 
     # Measure "peak sharpness": ratio of peak value to blob half-width
-    # Humans typically have peak_ratio > 0.15; flat boxes are < 0.10
     peak_ratio = max_val / max(1, min(w, h) / 2.0)
     if peak_ratio < 0.08:
         return False
@@ -175,18 +174,27 @@ def is_human_blob(roi_thresh, x, y, w, h, frame_height, min_blob_area=800):
 # ---------------------------------------------------------------------------
 # Sub-Counting inside a Validated Blob (Watershed-based)
 # ---------------------------------------------------------------------------
-def count_people_in_box(roi, box_width, box_y, frame_height, solidity_threshold=0.75):
+def count_people_in_box(roi, box_width, box_y, frame_height, solidity_threshold=0.75, base_width=32, dt_thresh=0.40):
     """
     Estimates how many people are clustered inside a validated blob.
 
-    Solidity gate (NEW): if the blob is one compact mass (solidity > threshold),
+    solidity_threshold: blobs more compact than this return count=1.
+      Lower values (0.5-0.6) unlock sub-counting within dense seated groups.
+      Higher values (0.75) are conservative.
+
+    dt_thresh: fraction of DT max used as watershed valley floor.
+      Lower (0.3) separates closely-seated person peaks better.
+
+    base_width: expected pixel width of one person at perspective weight 1.0.
+      Default 32 for eye-level cameras; use 60-100 for overhead cameras.
+
+    Solidity gate: if the blob is one compact mass (solidity > solidity_threshold),
     it is a single person — possibly seated with a chair — and the sub-counter
     is skipped entirely. Only blobs with genuine concavities between bodies
     (lower solidity) proceed to distance-transform sub-counting.
     """
     pw = get_perspective_weight(box_y, frame_height)
 
-    base_width = 32 if pw >= 0.6 else 22
     avg_person_width = int(base_width * pw)
     max_possible_people = max(1, int(box_width / max(1, avg_person_width)))
 
@@ -218,7 +226,7 @@ def count_people_in_box(roi, box_width, box_y, frame_height, solidity_threshold=
         return 1
 
     # SHANGHAITECH OPTIMIZATION: Mathematical separation valley floor derived at 8.0px
-    _, sure_fg = cv2.threshold(dist, max(8.0, 0.4 * dist.max()), 255, 0)
+    _, sure_fg = cv2.threshold(dist, max(8.0, dt_thresh * dist.max()), 255, 0)
     sure_fg = np.uint8(sure_fg)
 
     contours, _ = cv2.findContours(sure_fg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -226,6 +234,31 @@ def count_people_in_box(roi, box_width, box_y, frame_height, solidity_threshold=
 
     final_count = min(valid_blobs, max_possible_people)
     return max(1, final_count)
+
+
+# ---------------------------------------------------------------------------
+# Area-Based Crowd Counter
+# ---------------------------------------------------------------------------
+def count_people_by_area(fused_mask, avg_pixels_per_person, area_at_zero):
+    """
+    Area-based crowd counter. Estimates crowd size from total foreground
+    pixel area rather than blob topology.
+
+    Rationale: morphological CLOSE operations merge nearby people into compact
+    blobs, destroying the inter-person separation that watershed sub-counting
+    needs. Total foreground area remains proportional to crowd size regardless
+    of blob merging, bypassing this limitation entirely.
+
+    Args:
+        fused_mask:            Post-morphology binary mask after ROI masking.
+        avg_pixels_per_person: Slope from linear calibration.
+        area_at_zero:          Intercept — baseline noise at 0 people.
+    Returns:
+        Integer estimated person count, clamped to >= 0.
+    """
+    area = int(cv2.countNonZero(fused_mask))
+    estimated = (area - area_at_zero) / max(1.0, avg_pixels_per_person)
+    return max(0, round(estimated))
 
 
 # ---------------------------------------------------------------------------
@@ -295,7 +328,11 @@ class SentinelStream:
         dist_thresh=150,      # px max centroid shift the tracker tolerates before dropping a track
         detect_shadows=True,
         enable_gamma=False,
-        process_scale=1.0     # Downscale factor for processing
+        process_scale=1.0,    # Downscale factor for processing
+        max_aspect=1.8,       # Max blob w/h ratio for is_human_blob (use 2.5-3.5 for overhead cameras)
+        base_width=32,        # Expected pixel width per person for count_people_in_box
+        area_px_per_person=None,   # If set, use area-based counting instead of watershed
+        area_baseline=0.0,         # Intercept from area_calibration.json
     ):
         self.stream_id = stream_id
         self.source = source
@@ -309,6 +346,13 @@ class SentinelStream:
         self._dist_thresh = dist_thresh
         self._enable_gamma = enable_gamma
         self._process_scale = process_scale
+        self._max_aspect = max_aspect
+        self._base_width = base_width
+        self._area_px_per_person = area_px_per_person
+        self._area_baseline = area_baseline
+
+        self.bg_subtractor_threshold = mog2_threshold  # reused as absdiff threshold
+        self.bg_reference = None                        # set at stream start from frame 0
 
         self.latest_jpeg = None
         self.latest_stats = {
@@ -323,10 +367,6 @@ class SentinelStream:
             "ram_mb": 0.0,
         }
 
-        # MOG2 — independent thresholds per camera
-        self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
-            history=mog2_history, varThreshold=mog2_threshold, detectShadows=detect_shadows
-        )
         # Pass ghost_threshold into tracker
         self._ghost_threshold = ghost_threshold
 
@@ -403,6 +443,13 @@ class SentinelStream:
 
             frame_height, frame_width = first_frame.shape[:2]
 
+            # Initialize CLAHE for lighting normalization
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            # Prepare the static reference frame (locked background from frame 0)
+            ref_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
+            ref_gray = clahe.apply(ref_gray)
+            self.bg_reference = cv2.GaussianBlur(ref_gray, (5, 5), 0)
+
             raw_mask = cv2.imread(self.mask_path, 0)
             if raw_mask is not None:
                 roi_mask = cv2.resize(raw_mask, (frame_width, frame_height), interpolation=cv2.INTER_NEAREST)
@@ -427,21 +474,16 @@ class SentinelStream:
                 if self._enable_gamma:
                     frame = apply_gamma_correction(frame)
 
-                # ── PHASE 1: MOG2 & Digital Scrub (Noise Removal) ──
-                # Nighttime: normalize local contrast before MOG2
-                lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-                l_ch, a_ch, b_ch = cv2.split(lab)
-                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-                l_ch = clahe.apply(l_ch)
-                lab = cv2.merge((l_ch, a_ch, b_ch))
-                frame_enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
-                fg_mask = self.bg_subtractor.apply(frame_enhanced)
-                
-                # Digital Scrub: Remove high-frequency "salt & pepper" noise
-                fg_mask = cv2.medianBlur(fg_mask, 3)
-                
-                _, thresh = cv2.threshold(fg_mask, 254, 255, cv2.THRESH_BINARY)
-                thresh = cv2.bitwise_and(thresh, thresh, mask=roi_mask)
+                # ── PHASE 1: Static Reference Differencing ──
+                curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                curr_gray = clahe.apply(curr_gray)
+                curr_gray = cv2.GaussianBlur(curr_gray, (5, 5), 0)
+                # Absolute difference between current frame and locked background
+                diff = cv2.absdiff(curr_gray, self.bg_reference)
+                # Threshold to binary (mog2_threshold repurposed as absdiff threshold)
+                _, fg_mask = cv2.threshold(diff, self.bg_subtractor_threshold, 255, cv2.THRESH_BINARY)
+                # Apply ROI mask
+                thresh = cv2.bitwise_and(fg_mask, fg_mask, mask=roi_mask)
 
                 # ── PHASE 2: Fusion & Opening (Shape Cleanup) ──────
                 # Rub out tiny artifacts before merging
@@ -457,26 +499,43 @@ class SentinelStream:
                     x, y, w_box, h_box = cv2.boundingRect(c)
                     # Extract ROI from raw thresh for structural analysis
                     roi_check = thresh[y : y + h_box, x : x + w_box]
-                    if is_human_blob(roi_check, x, y, w_box, h_box, frame_height, self.min_blob_area):
+                    if is_human_blob(roi_check, x, y, w_box, h_box, frame_height, self.min_blob_area, self._max_aspect):
                         detections.append([x, y, w_box, h_box])
 
                 tracks = tracker.update(detections)
 
                 # ── PHASE 4: Counting & Rendering ───────────────────
-                total_count = 0
-
-                for tid, data in tracks.items():
-                    # Temporal Validation: Only count if person exists for > min_lifetime frames
-                    if data['ghost'] == 0 and data['lifetime'] >= tracker.min_lifetime:
-                        x, y, w_box, h_box = data['box']
-                        cx = int(x + w_box / 2)
-                        cy = int(y + h_box)
-
-                        roi = thresh[y : y + h_box, x : x + w_box]
-                        people_in_box = count_people_in_box(roi, w_box, y + h_box, frame_height)
-
-                        total_count += people_in_box
-                        draw_person_marker(frame, cx, cy, people_in_box, in_zone7=False)
+                if self._area_px_per_person is not None:
+                    # Area-based count — immune to blob merging
+                    total_count = count_people_by_area(
+                        fused,
+                        self._area_px_per_person,
+                        self._area_baseline
+                    )
+                    # Draw one dot per active track for position visualization
+                    for tid, data in tracks.items():
+                        if data['ghost'] == 0 and data['lifetime'] >= tracker.min_lifetime:
+                            x, y, w_box, h_box = data['box']
+                            cx = int(x + w_box / 2)
+                            cy = int(y + h_box)
+                            draw_person_marker(frame, cx, cy, 1, in_zone7=False)
+                else:
+                    # Legacy watershed counting (fallback when calibration not loaded)
+                    total_count = 0
+                    for tid, data in tracks.items():
+                        if data['ghost'] == 0 and data['lifetime'] >= tracker.min_lifetime:
+                            x, y, w_box, h_box = data['box']
+                            cx = int(x + w_box / 2)
+                            cy = int(y + h_box)
+                            roi = thresh[y : y + h_box, x : x + w_box]
+                            people_in_box = count_people_in_box(
+                                roi, w_box, y + h_box, frame_height,
+                                solidity_threshold=0.6,
+                                base_width=self._base_width,
+                                dt_thresh=0.3
+                            )
+                            total_count += people_in_box
+                            draw_person_marker(frame, cx, cy, people_in_box, in_zone7=False)
 
                 # ── HUD Overlay Removed (UI renders stats) ──────────
 
