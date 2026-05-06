@@ -5,7 +5,7 @@ import os
 
 PIPELINE_PARAMS = {
     'varThreshold':   40,
-    'history':        1000,
+    'history':        30000,
     'morph_kernel':   (5, 25),
     'dilate_kernel':  1,
     'h_morph_kernel': (10, 3),

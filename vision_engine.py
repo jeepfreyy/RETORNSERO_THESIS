@@ -351,8 +351,10 @@ class SentinelStream:
         self._area_px_per_person = area_px_per_person
         self._area_baseline = area_baseline
 
-        self.bg_subtractor_threshold = mog2_threshold  # reused as absdiff threshold
-        self.bg_reference = None                        # set at stream start from frame 0
+        # MOG2 — high history resists stationary-crowd absorption
+        self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
+            history=mog2_history, varThreshold=mog2_threshold, detectShadows=detect_shadows
+        )
 
         self.latest_jpeg = None
         self.latest_stats = {
@@ -443,13 +445,6 @@ class SentinelStream:
 
             frame_height, frame_width = first_frame.shape[:2]
 
-            # Initialize CLAHE for lighting normalization
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-            # Prepare the static reference frame (locked background from frame 0)
-            ref_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
-            ref_gray = clahe.apply(ref_gray)
-            self.bg_reference = cv2.GaussianBlur(ref_gray, (5, 5), 0)
-
             raw_mask = cv2.imread(self.mask_path, 0)
             if raw_mask is not None:
                 roi_mask = cv2.resize(raw_mask, (frame_width, frame_height), interpolation=cv2.INTER_NEAREST)
@@ -474,14 +469,10 @@ class SentinelStream:
                 if self._enable_gamma:
                     frame = apply_gamma_correction(frame)
 
-                # ── PHASE 1: Static Reference Differencing ──
-                curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                curr_gray = clahe.apply(curr_gray)
-                curr_gray = cv2.GaussianBlur(curr_gray, (5, 5), 0)
-                # Absolute difference between current frame and locked background
-                diff = cv2.absdiff(curr_gray, self.bg_reference)
-                # Threshold to binary (mog2_threshold repurposed as absdiff threshold)
-                _, fg_mask = cv2.threshold(diff, self.bg_subtractor_threshold, 255, cv2.THRESH_BINARY)
+                # ── PHASE 1: MOG2 Background Subtraction ──
+                fg_mask = self.bg_subtractor.apply(frame)
+                # Scrub MOG2 shadows (gray=127 when detectShadows=True)
+                _, fg_mask = cv2.threshold(fg_mask, 200, 255, cv2.THRESH_BINARY)
                 # Apply ROI mask
                 thresh = cv2.bitwise_and(fg_mask, fg_mask, mask=roi_mask)
 
@@ -498,7 +489,7 @@ class SentinelStream:
                 for c in conts:
                     x, y, w_box, h_box = cv2.boundingRect(c)
                     # Extract ROI from raw thresh for structural analysis
-                    roi_check = thresh[y : y + h_box, x : x + w_box]
+                    roi_check = fused[y : y + h_box, x : x + w_box]
                     if is_human_blob(roi_check, x, y, w_box, h_box, frame_height, self.min_blob_area, self._max_aspect):
                         detections.append([x, y, w_box, h_box])
 
@@ -527,7 +518,7 @@ class SentinelStream:
                             x, y, w_box, h_box = data['box']
                             cx = int(x + w_box / 2)
                             cy = int(y + h_box)
-                            roi = thresh[y : y + h_box, x : x + w_box]
+                            roi = fused[y : y + h_box, x : x + w_box]
                             people_in_box = count_people_in_box(
                                 roi, w_box, y + h_box, frame_height,
                                 solidity_threshold=0.6,
