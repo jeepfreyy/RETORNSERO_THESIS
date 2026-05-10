@@ -1,0 +1,1168 @@
+import cv2
+import numpy as np
+from scipy.optimize import linear_sum_assignment
+from scipy.spatial import distance
+import collections
+import time
+import threading
+import os
+import psutil
+from datetime import datetime
+
+
+# ---------------------------------------------------------------------------
+# Headlight Suppression
+# ---------------------------------------------------------------------------
+def suppress_headlights(fg_mask, hsv_frame, v_threshold=200, dilation_px=60):
+    """
+    Remove vehicle headlight blobs from a foreground mask.
+
+    Motorcycle headlights are the only objects in a nighttime barangay street
+    that exceed V=200 in HSV — human clothing and skin never reach this level
+    under ambient street lighting.  The bright core is dilated by dilation_px
+    to also erase the dim halo that survives a pixel-level brightness cut
+    (which is why the earlier brightness-scrubber attempt failed — it cut
+    the core but left the halo, which then fused via morphology into a
+    phantom foreground blob).
+    """
+    v = hsv_frame[:, :, 2]
+    bright_core = (v > v_threshold).astype(np.uint8) * 255
+    if dilation_px > 1:
+        k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilation_px, dilation_px))
+        bright_zone = cv2.dilate(bright_core, k)
+    else:
+        bright_zone = bright_core
+    return cv2.bitwise_and(fg_mask, cv2.bitwise_not(bright_zone))
+
+
+# ---------------------------------------------------------------------------
+# Occupancy Map  (decoupled presence tracker)
+# ---------------------------------------------------------------------------
+class OccupancyMap:
+    """
+    Persistent presence tracker that is completely decoupled from motion.
+
+    WHY THIS EXISTS
+    ---------------
+    MOG2 is a motion detector.  It removes stationary pixels from the
+    foreground once they stop changing.  This is the Stationary Absorption
+    Paradox: a seated person disappears from the count within 1–2 minutes
+    even though they are physically still there.
+
+    HOW IT WORKS
+    ------------
+    Pixels ENTER the map only after they have been consistently foreground
+    for `confirm_frames` consecutive frames.  This blocks transient headlight
+    flashes (which last 2–5 frames) from entering.
+
+    Pixels LEAVE the map only when they have been PHYSICALLY DARK
+    (V-channel < dark_v_thresh) for `evict_frames` consecutive frames.
+    "Physically dark" means the actual road surface is visible — no person,
+    no reflected light, no clothing.  A person standing still is NOT dark,
+    so they stay in the map indefinitely.  A person who walks away exposes
+    the dark road beneath them, and after `evict_frames` that pixel is
+    evicted.
+
+    HEADLIGHT INTERACTION
+    ---------------------
+    When a headlight illuminates the road, the road pixels become very
+    BRIGHT — the opposite of dark.  Their dark_count resets to zero.
+    The moment the light passes, those pixels return to their natural
+    dark state and begin accumulating dark_count again.  If suppress_headlights()
+    is applied upstream, headlight pixels never enter the map at all.
+    """
+
+    def __init__(self, shape, confirm_frames=10, evict_frames=150, dark_v_thresh=40):
+        h, w = shape[:2]
+        self._map         = np.zeros((h, w), dtype=np.uint8)
+        self._fg_count    = np.zeros((h, w), dtype=np.int32)
+        # Per-pixel V value stored at the moment of confirmation.
+        # Eviction fires when the pixel has been absent from fg_mask long enough
+        # AND its current V differs noticeably from the confirmation-time V —
+        # meaning the spot now looks different (person has left, background is back).
+        self._baseline_v  = np.zeros((h, w), dtype=np.uint8)
+        self._absent_count = np.zeros((h, w), dtype=np.int32)
+        self._confirm     = confirm_frames
+        self._evict       = evict_frames
+        # V_CHANGE_THRESH: how much brightness change at a location signals departure.
+        # 25 catches dark-clothed (V≈40) person leaving concrete (V≈70): Δ=30 > 25.
+        # Also catches light-clothed (V≈120) person leaving concrete (V≈80): Δ=40 > 25.
+        # Medium clothing on similar-brightness concrete may be missed — acceptable.
+        self._v_change    = 25
+        # dark_v_thresh kept for API compatibility but no longer drives eviction
+        self._dv          = dark_v_thresh
+
+    def update(self, fg_additions, hsv_frame):
+        v       = hsv_frame[:, :, 2]           # HSV value channel
+        fg_bool = fg_additions > 127
+
+        # ── Confirmation ─────────────────────────────────────────────────
+        # Track consecutive foreground frames; enter the map after confirm_frames.
+        self._fg_count[fg_bool]  += 1
+        self._fg_count[~fg_bool]  = 0
+
+        new_confirmed = (self._fg_count >= self._confirm) & (self._map == 0)
+        if np.any(new_confirmed):
+            self._map[new_confirmed]        = 255
+            self._baseline_v[new_confirmed] = v[new_confirmed]   # snapshot V at entry
+            self._absent_count[new_confirmed] = 0
+
+        # ── Absence tracking ──────────────────────────────────────────────
+        # Only count absence for pixels already in the map.
+        confirmed_mask = self._map > 0
+        absent = confirmed_mask & ~fg_bool
+        present = confirmed_mask & fg_bool
+
+        self._absent_count[absent]  += 1
+        self._absent_count[present]  = 0    # reset when pixel reappears in fg
+
+        # ── Eviction ──────────────────────────────────────────────────────
+        # Evict a confirmed pixel when it has been absent for evict_frames AND
+        # the current brightness at that spot differs from the stored baseline.
+        # This distinguishes "person sitting still (absorbed by MOG2, V unchanged)"
+        # from "person left (empty background, V changed back to original)".
+        v_changed  = np.abs(v.astype(np.int32) - self._baseline_v.astype(np.int32)) > self._v_change
+        to_evict   = confirmed_mask & (self._absent_count >= self._evict) & v_changed
+        self._map[to_evict]          = 0
+        self._absent_count[to_evict] = 0
+
+        return self._map
+
+    def reset(self):
+        self._map[:]          = 0
+        self._fg_count[:]     = 0
+        self._baseline_v[:]   = 0
+        self._absent_count[:] = 0
+
+
+def apply_gamma_correction(frame, target_mean=100):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    current_mean = gray.mean()
+    if current_mean < 1:
+        return frame
+    gamma = np.log(target_mean / 255.0) / np.log(current_mean / 255.0)
+    gamma = float(np.clip(gamma, 0.4, 2.5))
+    lut = np.array([min(255, int((i / 255.0) ** gamma * 255)) for i in range(256)], dtype=np.uint8)
+    return cv2.LUT(frame, lut)
+
+
+class RobustSentinelTracker:
+    """
+    Centroid tracker with per-track Kalman filters (constant-velocity model).
+
+    Each track carries a cv2.KalmanFilter(4, 2) with state [x, y, vx, vy].
+    Every update cycle:
+      1. predict()  — advances each filter; predicted center used for Hungarian matching.
+      2. correct()  — called only for matched tracks; corrected center stored in
+                       smooth_center for rendering.
+    Unmatched (ghosting) tracks keep the Kalman prediction as smooth_center so dots
+    drift naturally rather than snapping or disappearing on a single missed frame.
+    """
+
+    def __init__(self, max_ghost=30, dist_thresh=150, min_lifetime=10, merge_thresh=40):
+        self.next_id = 1
+        self.tracks = {}
+        self.max_ghost = max_ghost
+        self.dist_thresh = dist_thresh
+        self.min_lifetime = min_lifetime
+        self.merge_thresh = merge_thresh
+
+    # ── Kalman Filter Factory ──────────────────────────────────────────
+    @staticmethod
+    def _make_kalman(cx, cy):
+        kf = cv2.KalmanFilter(4, 2)
+        kf.transitionMatrix = np.array([
+            [1, 0, 1, 0],
+            [0, 1, 0, 1],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1],
+        ], dtype=np.float32)
+        kf.measurementMatrix = np.array([
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+        ], dtype=np.float32)
+        # processNoiseCov=1e-2 keeps the filter responsive to real motion;
+        # measurementNoiseCov=0.5 smooths watershed centroid jitter without lag.
+        kf.processNoiseCov    = np.eye(4, dtype=np.float32) * 1e-2
+        kf.measurementNoiseCov = np.eye(2, dtype=np.float32) * 0.5
+        kf.errorCovPost       = np.eye(4, dtype=np.float32)
+        kf.statePost = np.array([[float(cx)], [float(cy)], [0.0], [0.0]], dtype=np.float32)
+        return kf
+
+    def get_center(self, box):
+        return (int(box[0] + box[2] / 2), int(box[1] + box[3] / 2))
+
+    def update(self, detections):
+        detections = self.merge_nearby_boxes(detections)
+        track_ids = list(self.tracks.keys())
+
+        # ── Step 1: Kalman predict — get expected positions this frame ───
+        predicted_centers = []
+        for tid in track_ids:
+            pred = self.tracks[tid]['kf'].predict()
+            px, py = int(pred[0, 0]), int(pred[1, 0])
+            # Default to predicted position; overwritten by correct() if matched.
+            self.tracks[tid]['smooth_center'] = (px, py)
+            predicted_centers.append((px, py))
+
+        det_centers = [self.get_center(box) for box in detections]
+
+        # ── Step 2: Hungarian assignment on predicted vs detected centers ─
+        if len(predicted_centers) > 0 and len(det_centers) > 0:
+            cost = distance.cdist(predicted_centers, det_centers)
+            row_idx, col_idx = linear_sum_assignment(cost)
+            assigned_tracks, assigned_dets = set(), set()
+            for r, c in zip(row_idx, col_idx):
+                if cost[r, c] < self.dist_thresh:
+                    tid = track_ids[r]
+                    self.tracks[tid]['box'] = detections[c]
+                    # Kalman correct — fuse prediction with actual measurement
+                    cx, cy = self.get_center(detections[c])
+                    meas = np.array([[float(cx)], [float(cy)]], dtype=np.float32)
+                    corrected = self.tracks[tid]['kf'].correct(meas)
+                    self.tracks[tid]['smooth_center'] = (int(corrected[0, 0]), int(corrected[1, 0]))
+                    self.tracks[tid]['ghost'] = 0
+                    self.tracks[tid]['lifetime'] += 1
+                    assigned_tracks.add(tid)
+                    assigned_dets.add(c)
+
+            for tid in track_ids:
+                if tid not in assigned_tracks:
+                    self.tracks[tid]['ghost'] += 1
+
+            for i in range(len(detections)):
+                if i not in assigned_dets:
+                    self.register(detections[i])
+        else:
+            for tid in self.tracks:
+                self.tracks[tid]['ghost'] += 1
+            for det in detections:
+                self.register(det)
+
+        # ── Step 3: Prune dead tracks ─────────────────────────────────────
+        for tid in list(self.tracks.keys()):
+            if self.tracks[tid]['ghost'] > self.max_ghost:
+                del self.tracks[tid]
+        return self.tracks
+
+    def merge_nearby_boxes(self, boxes, thresh=None):
+        if thresh is None:
+            thresh = self.merge_thresh
+        if not boxes:
+            return []
+        merged = []
+        while len(boxes) > 0:
+            curr = boxes.pop(0)
+            combined = False
+            for i, other in enumerate(merged):
+                if self.is_close(curr, other, thresh):
+                    merged[i] = self.combine_boxes(curr, other)
+                    combined = True
+                    break
+            if not combined:
+                merged.append(curr)
+        return merged
+
+    def is_close(self, b1, b2, t):
+        return not (
+            b1[0] + b1[2] + t < b2[0]
+            or b2[0] + b2[2] + t < b1[0]
+            or b1[1] + b1[3] + t < b2[1]
+            or b2[1] + b2[3] + t < b1[1]
+        )
+
+    def combine_boxes(self, b1, b2):
+        x = min(b1[0], b2[0])
+        y = min(b1[1], b2[1])
+        w = max(b1[0] + b1[2], b2[0] + b2[2]) - x
+        h = max(b1[1] + b1[3], b2[1] + b2[3]) - y
+        return [x, y, w, h]
+
+    def register(self, box):
+        cx, cy = self.get_center(box)
+        self.tracks[self.next_id] = {
+            'box': box,
+            'ghost': 0,
+            'lifetime': 1,
+            'kf': self._make_kalman(cx, cy),
+            'smooth_center': (cx, cy),
+        }
+        self.next_id += 1
+
+
+# ---------------------------------------------------------------------------
+# Perspective Scaling
+# ---------------------------------------------------------------------------
+def get_perspective_weight(y_coord, frame_height):
+    """
+    Returns a scaling factor (0.3 to 1.0) based on where the object sits
+    on the Y-axis. Objects near the top of the frame (far away) get a low
+    weight, objects near the bottom (close) get a high weight.
+    This is used to dynamically adjust minimum area and aspect-ratio
+    thresholds so nearby objects are not over-filtered and distant objects
+    are not under-filtered.
+    """
+    ratio = y_coord / max(1, frame_height)
+    # Clamp between 0.3 (very top) and 1.0 (very bottom)
+    return max(0.3, min(1.0, 0.3 + 0.7 * ratio))
+
+
+# ---------------------------------------------------------------------------
+# Structural Blob Validation (uses Distance Transform profile)
+# ---------------------------------------------------------------------------
+def is_human_blob(roi_thresh, _x, y, w, h, frame_height, min_blob_area=800, max_aspect=1.8):
+    """
+    Validates whether a detected blob is likely a human using:
+      1. Aspect Ratio  –  tunable via max_aspect (default 1.8 for eye-level;
+         use 2.5–3.5 for elevated/overhead cameras with seated subjects)
+      2. Distance Transform peak profile  –  people have a narrow/round peak,
+         vehicles and boxes have a wide, flat peak
+      3. Perspective-scaled minimum area (tunable for nighttime)
+    Returns True if the blob passes all checks.
+    """
+    if roi_thresh is None or roi_thresh.size == 0:
+        return False
+
+    pw = get_perspective_weight(y + h, frame_height)
+
+    # 1. Minimum area scales with perspective — base is tunable per camera
+    min_area = int(min_blob_area * pw)
+    area = w * h
+    if area < min_area:
+        return False
+
+    # 2. Aspect ratio check (width / height)
+    #    Standing/walking people (eye-level):  ratio < 1.3
+    #    Seated people (45-60° overhead):      ratio up to 3.0+ (chair+body = wide blob)
+    #    max_aspect is now a tunable parameter calibrated per camera angle.
+    aspect = w / max(1, h)
+    if aspect > max_aspect:
+        return False
+
+    # 3. Distance transform peak flatness check
+    #    A human body produces a narrow peak in the distance transform.
+    #    A vehicle/box produces a wide, flat plateau.
+    dist = cv2.distanceTransform(roi_thresh, cv2.DIST_L2, 5)
+    max_val = dist.max()
+    if max_val < 3:
+        return False  # too thin / noisy
+
+    # Measure "peak sharpness": ratio of peak value to blob half-width
+    peak_ratio = max_val / max(1, min(w, h) / 2.0)
+    if peak_ratio < 0.08:
+        return False
+
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Sub-Counting inside a Validated Blob (Watershed-based)
+# ---------------------------------------------------------------------------
+def count_people_in_box(roi, box_width, box_y, frame_height, solidity_threshold=0.75, base_width=32, dt_thresh=0.40):
+    """
+    Estimates how many people are clustered inside a validated blob.
+
+    solidity_threshold: blobs more compact than this return count=1.
+      Lower values (0.5-0.6) unlock sub-counting within dense seated groups.
+      Higher values (0.75) are conservative.
+
+    dt_thresh: fraction of DT max used as watershed valley floor.
+      Lower (0.3) separates closely-seated person peaks better.
+
+    base_width: expected pixel width of one person at perspective weight 1.0.
+      Default 32 for eye-level cameras; use 60-100 for overhead cameras.
+
+    Solidity gate: if the blob is one compact mass (solidity > solidity_threshold),
+    it is a single person — possibly seated with a chair — and the sub-counter
+    is skipped entirely. Only blobs with genuine concavities between bodies
+    (lower solidity) proceed to distance-transform sub-counting.
+    """
+    pw = get_perspective_weight(box_y, frame_height)
+
+    avg_person_width = int(base_width * pw)
+    max_possible_people = max(1, int(box_width / max(1, avg_person_width)))
+
+    if roi is None or roi.size == 0:
+        return 1
+
+    # ── Solidity Gate ─────────────────────────────────────────────────
+    # Compute solidity on the raw ROI before any erosion or distance transform.
+    # A seated person + chair is one compact mass → high solidity → return 1.
+    # A genuine cluster of multiple people has gaps between bodies → low solidity
+    # → proceed to sub-counting below.
+    roi_contours, _ = cv2.findContours(roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if roi_contours:
+        largest = max(roi_contours, key=cv2.contourArea)
+        contour_area = cv2.contourArea(largest)
+        hull = cv2.convexHull(largest)
+        hull_area = cv2.contourArea(hull)
+        if hull_area > 0:
+            solidity = contour_area / hull_area
+            if solidity > solidity_threshold:
+                return 1
+
+    # ── Distance-Transform Sub-Counter (clusters only) ────────────────
+    kernel = np.ones((3, 3), np.uint8)
+    eroded = cv2.erode(roi, kernel, iterations=1)
+
+    dist = cv2.distanceTransform(eroded, cv2.DIST_L2, 5)
+    if dist.max() == 0:
+        return 1
+
+    # SHANGHAITECH OPTIMIZATION: Mathematical separation valley floor derived at 8.0px
+    _, sure_fg = cv2.threshold(dist, max(8.0, dt_thresh * dist.max()), 255, 0)
+    sure_fg = np.uint8(sure_fg)
+
+    contours, _ = cv2.findContours(sure_fg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    valid_blobs = sum(1 for c in contours if cv2.contourArea(c) > 50)
+
+    final_count = min(valid_blobs, max_possible_people)
+    return max(1, final_count)
+
+
+# ---------------------------------------------------------------------------
+# Area-Based Crowd Counter
+# ---------------------------------------------------------------------------
+def count_people_by_area(fused_mask, avg_pixels_per_person, area_at_zero):
+    """
+    Area-based crowd counter. Estimates crowd size from total foreground
+    pixel area rather than blob topology.
+
+    Rationale: morphological CLOSE operations merge nearby people into compact
+    blobs, destroying the inter-person separation that watershed sub-counting
+    needs. Total foreground area remains proportional to crowd size regardless
+    of blob merging, bypassing this limitation entirely.
+
+    Args:
+        fused_mask:            Post-morphology binary mask after ROI masking.
+        avg_pixels_per_person: Slope from linear calibration.
+        area_at_zero:          Intercept — baseline noise at 0 people.
+    Returns:
+        Integer estimated person count, clamped to >= 0.
+    """
+    area = int(cv2.countNonZero(fused_mask))
+    estimated = (area - area_at_zero) / max(1.0, avg_pixels_per_person)
+    return max(0, round(estimated))
+
+
+# ---------------------------------------------------------------------------
+# Watershed Scene-Level Counter
+# ---------------------------------------------------------------------------
+def count_people_watershed_scene(fused_mask, min_blob_area=350, dt_thresh=0.30,
+                                  min_peak_area=50):
+    """
+    Scene-level watershed crowd counter using distance-transform peak detection.
+
+    Operates on the entire fused foreground mask (not per-blob): finds every
+    independent blob, applies distance-transform peak separation, and counts
+    the resulting watershed nuclei.  Works best on sparse/moderately-dense
+    crowds where individuals are not completely merged.
+
+    Args:
+        fused_mask:     Post-morphology binary mask.
+        min_blob_area:  Minimum contour area to be considered a crowd blob.
+        dt_thresh:      Fraction of each blob's DT max to use as the valley floor.
+                        Lower values (0.25–0.35) separate tightly-seated peaks.
+        min_peak_area:  Minimum area (px²) of a DT peak to count as one person.
+
+    Returns:
+        (total_count, centroids)
+            total_count: integer estimated person count (>= 0)
+            centroids:   list of (cx, cy) tuples — one per watershed segment
+    """
+    contours, _ = cv2.findContours(fused_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    total_count = 0
+    centroids   = []
+
+    erode_k = np.ones((3, 3), np.uint8)
+
+    for c in contours:
+        if cv2.contourArea(c) < min_blob_area:
+            continue
+
+        x, y, w, h = cv2.boundingRect(c)
+        roi = fused_mask[y:y + h, x:x + w].copy()
+
+        # Erode slightly to break thin bridges between bodies
+        roi_e = cv2.erode(roi, erode_k, iterations=1)
+
+        dist = cv2.distanceTransform(roi_e, cv2.DIST_L2, 5)
+        if dist.max() < 4.0:
+            # Blob too thin after erosion — count as 1 person
+            M = cv2.moments(c)
+            if M['m00'] > 0:
+                centroids.append((int(M['m10'] / M['m00']),
+                                  int(M['m01'] / M['m00'])))
+            total_count += 1
+            continue
+
+        # Threshold the distance transform to isolate peak regions (sure foreground)
+        _, sure_fg = cv2.threshold(
+            dist, max(4.0, dt_thresh * dist.max()), 255, cv2.THRESH_BINARY
+        )
+        sure_fg = np.uint8(sure_fg)
+
+        # Count connected peaks — each peak is one person nucleus
+        peak_contours, _ = cv2.findContours(sure_fg, cv2.RETR_EXTERNAL,
+                                             cv2.CHAIN_APPROX_SIMPLE)
+        blob_people = 0
+        for pc in peak_contours:
+            if cv2.contourArea(pc) < min_peak_area:
+                continue
+            blob_people += 1
+            M = cv2.moments(pc)
+            if M['m00'] > 0:
+                # Map centroid back to full-frame coordinates
+                cx_roi = int(M['m10'] / M['m00'])
+                cy_roi = int(M['m01'] / M['m00'])
+                centroids.append((x + cx_roi, y + cy_roi))
+
+        total_count += max(1, blob_people)
+
+    return total_count, centroids
+
+
+def count_people_hybrid(fused_mask, persistent_fg,
+                        avg_pixels_per_person, area_at_zero,
+                        min_blob_area=350, dt_thresh=0.30):
+    """
+    Hybrid Watershed + Area-Based Crowd Density Estimation.
+
+    Architecture:
+      1. Watershed segmentation (distance-transform peaks on fused_mask):
+         Directly counts separated individuals.  Accurate for sparse–medium
+         density where people are visually distinct blobs.
+
+      2. Area estimation (occupancy map area ÷ px/person from calibration):
+         Robust when dense crowds or morphological fusion collapses many
+         people into a single large blob that watershed cannot sub-divide.
+
+      3. Decision rule — take the maximum:
+         • Sparse crowd: watershed correctly identifies each person;
+           area estimate may undercount (low area if occupancy map is new).
+         • Dense crowd: area estimate captures absorbed/fused people;
+           watershed undercounts (insufficient peak separation).
+         Taking max ensures neither method silently under-reports.
+
+    Returns:
+        (final_count, watershed_count, area_count, centroids)
+    """
+    watershed_count, centroids = count_people_watershed_scene(
+        fused_mask, min_blob_area=min_blob_area, dt_thresh=dt_thresh
+    )
+    area_count = count_people_by_area(
+        persistent_fg, avg_pixels_per_person, area_at_zero
+    )
+    final_count = max(watershed_count, area_count)
+    return final_count, watershed_count, area_count, centroids
+
+
+# ---------------------------------------------------------------------------
+# Sleek Dot Overlay Rendering
+# ---------------------------------------------------------------------------
+def draw_person_marker(frame, cx, cy, count, in_zone7=False):
+    """
+    Draws a clean, glowing dot at the person's foot-center position.
+    If count > 1 it draws a small numeric badge above the dot.
+    
+    Colors:
+        Zone 7 (z7):  Cyan   (#00FFFF)
+        Zone 6 (z6):  Green  (#00FF88)
+        Outside zones: Amber (#FFD700)
+    """
+    if in_zone7:
+        color_inner = (255, 255, 0)   # Cyan  (BGR)
+        color_outer = (200, 200, 0)
+    else:
+        color_inner = (136, 255, 0)   # Green (BGR)
+        color_outer = (100, 200, 0)
+
+    # Outer glow ring
+    cv2.circle(frame, (cx, cy), 14, color_outer, 2, cv2.LINE_AA)
+    # Solid inner dot
+    cv2.circle(frame, (cx, cy), 7, color_inner, -1, cv2.LINE_AA)
+
+    # Badge for clusters
+    if count > 1:
+        badge_text = str(count)
+        (tw, th), _ = cv2.getTextSize(badge_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
+        bx = cx - tw // 2
+        by = cy - 22
+        # Dark background pill
+        cv2.rectangle(frame, (bx - 4, by - th - 4), (bx + tw + 4, by + 4), (0, 0, 0), -1)
+        cv2.rectangle(frame, (bx - 4, by - th - 4), (bx + tw + 4, by + 4), color_inner, 1)
+        cv2.putText(frame, badge_text, (bx, by), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+
+
+# ---------------------------------------------------------------------------
+# Main Stream Class
+# ---------------------------------------------------------------------------
+class SentinelStream:
+    """
+    Thread-safe class that reads an RTSP stream (or video file),
+    applies MOG2 background subtraction, validates blobs structurally,
+    counts people via distance-transform watershed logic, and renders
+    sleek dot overlays.
+    """
+
+    def __init__(
+        self,
+        stream_id,
+        source="video1.mp4",
+        mask_path="mask_layer.png",
+        # --- Independent Hyperparameters per Camera ---
+        mog2_history=500,
+        mog2_threshold=16,
+        min_blob_area=800,
+        ghost_threshold=30,
+        max_capacity=30,
+        # --- Morphological Tuning (nighttime-critical) ---
+        morph_kernel=(7, 40),      # MORPH_CLOSE fusion kernel (w, h)
+        h_morph_kernel=(35, 7),   # Horizontal MORPH_CLOSE kernel (w, h) — fuses seated-person fragments
+        dilate_kernel=3,           # Square dilation size in pixels
+        merge_thresh=40,      # px gap tolerance for merging nearby body-part fragments
+        dist_thresh=150,      # px max centroid shift the tracker tolerates before dropping a track
+        detect_shadows=True,
+        enable_gamma=False,
+        process_scale=1.0,    # Downscale factor for processing
+        max_aspect=1.8,       # Max blob w/h ratio for is_human_blob (use 2.5-3.5 for overhead cameras)
+        base_width=32,        # Expected pixel width per person for count_people_in_box
+        area_px_per_person=None,   # If set, use area-based counting instead of watershed
+        area_baseline=0.0,         # Intercept from area_calibration.json
+        # --- Headlight Suppression ---
+        headlight_v_thresh=200,    # HSV V-channel cutoff; pixels above this are headlights
+        headlight_dilation_px=60,  # px radius to expand bright core (kills the halo)
+        # --- Occupancy Map ---
+        occupancy_confirm_frames=10,   # fg frames before a pixel enters the map (blocks transients)
+        occupancy_evict_sec=5.0,       # seconds physically dark before a pixel is evicted
+        occupancy_dark_v_thresh=40,    # V < this = "physically dark" (empty road surface)
+        # --- Warmup ---
+        warmup_frames=1500,            # frames to suppress count while MOG2 stabilises
+    ):
+        self.stream_id = stream_id
+        self.source = source
+        self.mask_path = mask_path
+        self.min_blob_area = min_blob_area
+        self.max_capacity = max_capacity
+        self._morph_kernel = morph_kernel
+        self._h_morph_kernel = h_morph_kernel
+        self._dilate_kernel = dilate_kernel
+        self._merge_thresh = merge_thresh
+        self._dist_thresh = dist_thresh
+        self._enable_gamma = enable_gamma
+        self._process_scale = process_scale
+        self._max_aspect = max_aspect
+        self._base_width = base_width
+        self._area_px_per_person = area_px_per_person
+        self._area_baseline = area_baseline
+        self._headlight_v_thresh = headlight_v_thresh
+        self._headlight_dilation_px = headlight_dilation_px
+        self._occupancy_confirm_frames = occupancy_confirm_frames
+        self._occupancy_evict_sec = occupancy_evict_sec
+        self._occupancy_dark_v_thresh = occupancy_dark_v_thresh
+
+        # Store MOG2 construction params so we can recreate the subtractor on
+        # video switch (MOG2 has no reset() method — must be re-instantiated).
+        self._mog2_history    = mog2_history
+        self._mog2_threshold  = mog2_threshold
+        self._detect_shadows  = detect_shadows
+
+        # MOG2 — high history resists stationary-crowd absorption
+        self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
+            history=mog2_history, varThreshold=mog2_threshold, detectShadows=detect_shadows
+        )
+
+        # Per-video warmup / source-switch state
+        self._warmup_frames        = warmup_frames
+        self._switch_source        = None   # set by switch_source(); outer loop picks it up
+        self._switch_warmup        = None
+        self._switch_recreate_mog2 = False  # whether to throw away the MOG2 model on next switch
+        self._switch_mask_path     = None   # None = keep current mask_path on next switch
+        self.is_warming_up         = True   # True until the first warmup window expires
+
+        self.latest_jpeg = None
+        self.latest_stats = {
+            "count": 0,
+            "density": 0,
+            "status": "SAFE",
+            "locations": [],
+            "fps": 0,
+            "latency_ms": 0,
+            # --- Performance Profiling ---
+            "cpu_percent": 0.0,
+            "ram_mb": 0.0,
+        }
+
+        # Pass ghost_threshold into tracker
+        self._ghost_threshold = ghost_threshold
+
+        # --- Ring Buffer & Event Clip Recording ---
+        self.pause_saving = os.environ.get('PAUSE_SAVING', 'False').lower() in ['true', '1', 't']
+        self.frame_buffer = collections.deque(maxlen=150)   # ~5 sec @ 30fps
+        self.clip_writer = None
+        self.clip_recording = False
+        self.clip_start_time = None
+        self.clip_filename = None
+        self.clip_max_duration = 15       # max seconds per event clip
+        self.temp_clips_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Temp_Clips")
+        self.temp_clips = []              # in-memory metadata list
+        self._prev_clip_level = "LOW"
+        self._clip_cooldown = 0           # frames to skip after video restart
+        os.makedirs(self.temp_clips_dir, exist_ok=True)
+        
+        # Load persisted temp clips
+        for f in os.listdir(self.temp_clips_dir):
+            if f.endswith('.mp4') and f.startswith(self.stream_id):
+                thumb = f.replace('.mp4', '.jpg')
+                parts = f.replace('.mp4', '').split('_')
+                if len(parts) >= 4:
+                    timestamp = parts[1] + " " + parts[2].replace('-', ':')
+                    density_tag = parts[3]
+                    self.temp_clips.append({
+                        "filename": f,
+                        "thumbnail": thumb,
+                        "timestamp": timestamp,
+                        "density": density_tag,
+                        "camera_id": self.stream_id,
+                        "duration": 0
+                    })
+        self.temp_clips.sort(key=lambda x: x['timestamp'], reverse=True)
+        self.temp_clips = self.temp_clips[:20]
+
+        self.running = True
+        self.thread = threading.Thread(target=self._process_loop, daemon=True)
+        self.thread.start()
+
+    # ------------------------------------------------------------------
+    def switch_source(self, new_source, new_warmup_frames=None,
+                      recreate_mog2=False, new_mask_path=None):
+        """
+        Hot-swap to a different video file without stopping the thread.
+
+        The inner frame-read loop checks self._switch_source on every iteration.
+        When it is set, the loop breaks immediately, the outer loop applies the
+        new source + warmup, optionally recreates MOG2 and swaps the ROI mask,
+        then restarts.
+
+        new_warmup_frames : frames to suppress count on the new video.
+        recreate_mog2     : True  → throw away the current background model and
+                                    let MOG2 re-learn from the new video's first
+                                    frames.  Required when the new video has a
+                                    different background from the current one
+                                    (e.g. truck is parked throughout VIDEO3 but
+                                    was absent in the main-video background model).
+                                    Set warmup_frames to the number of empty-scene
+                                    frames so MOG2 finishes learning before people
+                                    arrive and the occupancy map resets.
+                            False → keep the existing background model.  Correct
+                                    when the new video shares the same empty-alley
+                                    background (VIDEO2: people present from frame 0,
+                                    no empty phase to re-learn from).
+        new_mask_path     : path to the ROI mask PNG for the new video.
+                            Pass None to keep the current mask unchanged.
+        """
+        self._switch_source        = new_source
+        self._switch_warmup        = new_warmup_frames if new_warmup_frames is not None \
+                                     else self._warmup_frames
+        self._switch_recreate_mog2 = recreate_mog2
+        self._switch_mask_path     = new_mask_path   # None = keep current mask
+        self.is_warming_up         = True
+
+    # ------------------------------------------------------------------
+    def _process_loop(self):
+        # Build kernels from tunable params (nighttime-critical).
+        # These never change between videos, so they live outside the outer loop.
+        open_k     = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        fusion_k   = cv2.getStructuringElement(cv2.MORPH_RECT, self._morph_kernel)
+        h_fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, self._h_morph_kernel)
+        d_kernel   = np.ones((self._dilate_kernel, self._dilate_kernel), np.uint8)
+        proc       = psutil.Process(os.getpid())
+        ema_frame_time = 0.033
+
+        # Tracker is recreated inside the outer loop so track state does not
+        # carry over from a previous video loop or after a source switch.
+        tracker = None
+
+        while self.running:
+            # ── Apply any pending source switch ──────────────────────────
+            # switch_source() sets _switch_source; the inner loop breaks when
+            # it sees it set.  We apply it here at the start of the outer loop
+            # so the new source takes effect before we open the cap.
+            if self._switch_source is not None:
+                self.source          = self._switch_source
+                self._warmup_frames  = self._switch_warmup
+                do_recreate          = self._switch_recreate_mog2
+                if self._switch_mask_path is not None:
+                    self.mask_path   = self._switch_mask_path
+                self._switch_source        = None
+                self._switch_warmup        = None
+                self._switch_recreate_mog2 = False
+                self._switch_mask_path     = None
+
+                if do_recreate:
+                    # Recreate MOG2 so it re-learns the new video's background.
+                    # Required when the scenario video has objects (e.g. the
+                    # parked truck in VIDEO1/VIDEO3) that were ABSENT in the
+                    # current background model.  If we kept the old model those
+                    # objects would appear as foreground indefinitely → haywire.
+                    # Set warmup_frames = the number of empty-scene frames in the
+                    # new video so MOG2 finishes learning BEFORE people arrive,
+                    # at which point the occupancy map resets cleanly.
+                    self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
+                        history=self._mog2_history,
+                        varThreshold=self._mog2_threshold,
+                        detectShadows=self._detect_shadows,
+                    )
+                # else: keep the existing background model.
+                #   Correct for VIDEO2 (people present from frame 0 with no
+                #   empty-background phase to re-learn from).  The main video's
+                #   "empty alley" model lets the people appear as foreground
+                #   immediately rather than being absorbed during bootstrapping.
+
+            # Fresh tracker on every (re)start so stale tracks don't bleed across videos.
+            tracker = RobustSentinelTracker(
+                max_ghost=self._ghost_threshold,
+                min_lifetime=10,
+                dist_thresh=self._dist_thresh,
+                merge_thresh=self._merge_thresh,
+            )
+
+            cap = cv2.VideoCapture(self.source)
+            if not cap.isOpened():
+                print(f"[SentinelStream {self.stream_id}] Error: Cannot open '{self.source}'")
+                time.sleep(2.0)
+                continue
+
+            ret, first_frame = cap.read()
+            if not ret:
+                cap.release()
+                time.sleep(2.0)
+                continue
+
+            if self._process_scale != 1.0:
+                proc_h = int(first_frame.shape[0] * self._process_scale)
+                proc_w = int(first_frame.shape[1] * self._process_scale)
+                first_frame = cv2.resize(first_frame, (proc_w, proc_h), interpolation=cv2.INTER_AREA)
+
+            frame_height, frame_width = first_frame.shape[:2]
+
+            raw_mask = cv2.imread(self.mask_path, 0)
+            if raw_mask is not None:
+                roi_mask = cv2.resize(raw_mask, (frame_width, frame_height), interpolation=cv2.INTER_NEAREST)
+                if roi_mask.shape[:2] != (frame_height, frame_width):
+                    roi_mask = np.ones((frame_height, frame_width), dtype=np.uint8) * 255
+            else:
+                roi_mask = np.ones((frame_height, frame_width), dtype=np.uint8) * 255
+
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
+            # Occupancy map is reset on every video restart so stale
+            # presence state from a previous loop does not corrupt the new one.
+            occupancy = OccupancyMap(
+                (frame_height, frame_width),
+                confirm_frames=self._occupancy_confirm_frames,
+                evict_frames=int(self._occupancy_evict_sec * 30),
+                dark_v_thresh=self._occupancy_dark_v_thresh,
+            )
+
+            # How many frames MOG2 needs before its background model is stable.
+            # During warmup: count is forced to 0 so startup chair/background
+            # noise never reaches the dashboard.
+            # At the END of warmup: occupancy map is reset, purging any false
+            # positives (chairs, walls, vehicles) accumulated while MOG2 was
+            # still learning.
+            # WARMUP_FRAMES is now per-video (set via switch_source or __init__
+            # warmup_frames= param).  Default 1500 for the main demo video with
+            # vehicles; 60–150 for no-vehicle scenario videos.
+            warmup_frames = self._warmup_frames
+
+            # Temporal smoothing: EMA over recent count values damps single-frame
+            # spikes caused by mass simultaneous movement (everybody shifting at once
+            # briefly inflates fused_px, which inflates the area estimate).
+            # alpha=0.4 means each new reading contributes 40%; prior history 60%.
+            # This gives ~3-frame settling time while staying responsive to real changes.
+            count_ema     = 0.0
+            COUNT_ALPHA   = 0.4
+            loop_frame_idx = 0
+
+            while self.running:
+                # Break immediately when a source switch is requested so the
+                # outer loop can apply the new source and restart cleanly.
+                if self._switch_source is not None:
+                    break
+
+                start_t = time.time()
+                ret, frame = cap.read()
+                if not ret:
+                    break
+
+                if self._process_scale != 1.0:
+                    proc_h = int(frame.shape[0] * self._process_scale)
+                    proc_w = int(frame.shape[1] * self._process_scale)
+                    frame = cv2.resize(frame, (proc_w, proc_h), interpolation=cv2.INTER_AREA)
+
+                if self._enable_gamma:
+                    frame = apply_gamma_correction(frame)
+
+                # Pre-compute HSV once per frame (used by headlight suppressor
+                # and occupancy map — avoids redundant color conversions)
+                hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+                # ── PHASE 1: MOG2 Background Subtraction ──
+                fg_mask = self.bg_subtractor.apply(frame)
+                # Scrub MOG2 shadows (gray=127 when detectShadows=True)
+                _, fg_mask = cv2.threshold(fg_mask, 200, 255, cv2.THRESH_BINARY)
+                # Apply ROI mask
+                thresh = cv2.bitwise_and(fg_mask, fg_mask, mask=roi_mask)
+
+                # ── HEADLIGHT SUPPRESSION ─────────────────────────────
+                # Must run AFTER ROI masking (so we don't fight the mask)
+                # and BEFORE morphology (so the halo never gets fused into
+                # a phantom blob).  dilation_px is already in process-space
+                # coordinates (the frame is already downscaled).
+                if self._headlight_v_thresh < 255:
+                    thresh = suppress_headlights(
+                        thresh, hsv_frame,
+                        v_threshold=self._headlight_v_thresh,
+                        dilation_px=self._headlight_dilation_px,
+                    )
+
+                # ── PHASE 2: Fusion & Opening (Shape Cleanup) ──────
+                # Rub out tiny artifacts before merging
+                cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, open_k)
+                fused = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, fusion_k)    # vertical: closes gaps within upright silhouettes
+                fused = cv2.morphologyEx(fused, cv2.MORPH_CLOSE, h_fusion_k)    # horizontal: fuses seated/foreshortened fragments
+                fused = cv2.dilate(fused, d_kernel, iterations=1)
+
+                # ── WARMUP GATE ───────────────────────────────────────
+                # At the exact frame MOG2 stabilises, wipe the occupancy map.
+                # Any chairs/walls that filled it during startup are erased.
+                # After this point only real post-warmup detections accumulate.
+                if loop_frame_idx == warmup_frames:
+                    occupancy.reset()
+                loop_frame_idx += 1
+
+                # ── OCCUPANCY MAP UPDATE ──────────────────────────────
+                # Feed the post-morphology fused mask into the occupancy map.
+                # The map adds pixels that have been consistently foreground
+                # (confirm_frames) and only removes them when physically dark
+                # (evict_frames).  This preserves seated people after MOG2
+                # absorbs them, while not accumulating transient headlight hits.
+                persistent_fg = occupancy.update(fused, hsv_frame)
+
+                # ── PHASE 3: Detection with Structural Validation ───
+                conts, _ = cv2.findContours(fused, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                detections = []
+                for c in conts:
+                    x, y, w_box, h_box = cv2.boundingRect(c)
+                    # Extract ROI from raw thresh for structural analysis
+                    roi_check = fused[y : y + h_box, x : x + w_box]
+                    if is_human_blob(roi_check, x, y, w_box, h_box, frame_height, self.min_blob_area, self._max_aspect):
+                        detections.append([x, y, w_box, h_box])
+
+                tracks = tracker.update(detections)
+
+                # ── PHASE 4: Triple Hybrid Counting ──────────────────
+                #
+                # Three independent estimators — take the maximum so no method
+                # silently under-reports:
+                #  1. ws_fused : Watershed on MOG2 fused_mask  → moving people
+                #  2. ws_occ   : Watershed on occupancy map    → stationary/absorbed people
+                #  3. ar_count : Area ÷ px/person calibration  → dense merged blobs
+                if self._area_px_per_person is not None:
+                    ws_fused_count, _ = count_people_watershed_scene(
+                        fused, min_blob_area=self.min_blob_area, dt_thresh=0.30,
+                    )
+                    ws_occ_count, _ = count_people_watershed_scene(
+                        persistent_fg, min_blob_area=self.min_blob_area, dt_thresh=0.30,
+                    )
+                    ar_count = count_people_by_area(
+                        persistent_fg, self._area_px_per_person, self._area_baseline,
+                    )
+                    total_count = max(ws_fused_count, ws_occ_count, ar_count)
+                    ws_count    = ws_fused_count
+                else:
+                    ws_fused_count, _ = count_people_watershed_scene(
+                        fused, min_blob_area=self.min_blob_area, dt_thresh=0.30
+                    )
+                    ws_occ_count, _ = count_people_watershed_scene(
+                        persistent_fg, min_blob_area=self.min_blob_area, dt_thresh=0.30
+                    )
+                    ws_count    = ws_fused_count
+                    ar_count    = 0
+                    total_count = max(ws_fused_count, ws_occ_count)
+
+                # ── PHASE 4.5: Kalman-smoothed tracker dots ───────────
+                # Dots are rendered from each confirmed track's Kalman-corrected
+                # smooth_center — NOT from raw watershed centroids.  This
+                # eliminates 10–30 px per-frame jitter for all motion states
+                # (walking, swaying, seated, stationary).  Ghost tracks keep
+                # their Kalman prediction so dots drift naturally during brief
+                # occlusions instead of snapping or blinking.
+                if loop_frame_idx > warmup_frames:
+                    for tid, track in tracks.items():
+                        if track['lifetime'] >= tracker.min_lifetime and track['ghost'] == 0:
+                            cx_t, cy_t = track['smooth_center']
+                            if 0 <= cx_t < frame_width and 0 <= cy_t < frame_height:
+                                draw_person_marker(frame, cx_t, cy_t, 1, in_zone7=False)
+
+                # ── HUD Overlay Removed (UI renders stats) ──────────
+
+                # Suppress the count during MOG2 warmup so startup
+                # chair/background noise never triggers alerts.
+                if loop_frame_idx <= warmup_frames:
+                    total_count = 0
+                    count_ema   = 0.0
+                    self.is_warming_up = True
+                else:
+                    self.is_warming_up = False
+
+                # Temporal EMA smoothing — damps single-frame spikes from
+                # mass simultaneous movement without adding noticeable lag.
+                count_ema   = COUNT_ALPHA * total_count + (1 - COUNT_ALPHA) * count_ema
+                total_count = round(count_ema)
+
+                # Phase 2.1 & 2.2: Density and Status
+                density = int(min(100, (total_count / self.max_capacity) * 100))
+
+                if density < 50:
+                    status = "SAFE"
+                elif density < 80:
+                    status = "WARNING"
+                else:
+                    status = "CRITICAL"
+
+                # Calculate latency/fps
+                proc_time = time.time() - start_t
+                ema_frame_time = 0.9 * ema_frame_time + 0.1 * max(0.001, proc_time)
+
+                # --- Performance Profiling ---
+                cpu_pct = proc.cpu_percent(interval=None)
+                ram_mb = round(proc.memory_info().rss / 1024 / 1024, 1)
+
+                self.latest_stats = {
+                    "count": int(total_count),
+                    "density": int(density),
+                    "status": status,
+                    "locations": [],
+                    "fps": int(1.0 / ema_frame_time),
+                    "latency_ms": int(ema_frame_time * 1000),
+                    "cpu_percent": cpu_pct,
+                    "ram_mb": ram_mb,
+                    # Hybrid pipeline breakdown (exposed for UI / thesis demo)
+                    "watershed_count": int(ws_count) if self._area_px_per_person is not None else int(total_count),
+                    "area_count":      int(ar_count) if self._area_px_per_person is not None else 0,
+                }
+
+                # Phase 2.3: EVENT CLIP RECORDING (Grounded thresholds)
+                if density < 50:
+                    clip_level = "LOW"
+                elif density < 80:
+                    clip_level = "MEDIUM"
+                else:
+                    clip_level = "HIGH" 
+
+                # Store frame in ring buffer
+                self.frame_buffer.append(frame.copy())
+
+                # Cooldown after video restart (skip first 90 frames)
+                if self._clip_cooldown > 0:
+                    self._clip_cooldown -= 1
+                else:
+                    # Start a new clip when density rises
+                    if not self.pause_saving and clip_level in ("MEDIUM", "HIGH") and not self.clip_recording:
+                        self._start_event_clip(frame, clip_level, frame_width, frame_height)
+                    elif self.clip_recording:
+                        self.clip_writer.write(frame)
+                        elapsed = time.time() - self.clip_start_time
+                        if clip_level == "LOW" or elapsed > self.clip_max_duration:
+                            self._stop_event_clip()
+
+                self._prev_clip_level = clip_level
+
+                ok, buf = cv2.imencode(".jpg", frame)
+                if ok:
+                    self.latest_jpeg = buf.tobytes()
+                    
+                # Real-time synchronization: skip frames if processing took too long
+                proc_time_total = time.time() - start_t
+                frames_to_skip = int(proc_time_total / 0.033)
+                if frames_to_skip > 0:
+                    for _ in range(frames_to_skip):
+                        cap.grab()
+
+                # Small sleep to yield CPU if processing is too fast
+                sleep_t = max(0, 0.033 - proc_time_total)
+                time.sleep(sleep_t)
+
+            cap.release()
+            # Stop any in-progress clip on video restart
+            if self.clip_recording:
+                self._stop_event_clip()
+            self._clip_cooldown = 90   # suppress false positives during MOG2 re-learning
+            print(f"[SentinelStream {self.stream_id}] Stream ended. Restarting...")
+            time.sleep(2.0)
+
+    # ------------------------------------------------------------------
+    def _start_event_clip(self, current_frame, level, width, height):
+        """Begin recording an event clip, dumping the ring buffer as pre-event footage."""
+        now = datetime.now()
+        tag = now.strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"{self.stream_id}_{tag}_{level}.mp4"
+        filepath = os.path.join(self.temp_clips_dir, filename)
+
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        self.clip_writer = cv2.VideoWriter(filepath, fourcc, 30.0, (width, height))
+
+        # Dump ring buffer (pre-event history)
+        for buffered_frame in self.frame_buffer:
+            self.clip_writer.write(buffered_frame)
+
+        # Save thumbnail JPEG for the frontend tray
+        thumb_filename = filename.replace('.mp4', '.jpg')
+        thumb_path = os.path.join(self.temp_clips_dir, thumb_filename)
+        cv2.imwrite(thumb_path, current_frame)
+
+        self.clip_recording = True
+        self.clip_start_time = time.time()
+        self.clip_filename = filename
+        print(f"[{self.stream_id}] Event clip started: {filename}")
+
+    def _stop_event_clip(self):
+        """Finalize and save the current event clip."""
+        if self.clip_writer:
+            self.clip_writer.release()
+            self.clip_writer = None
+
+            duration = round(time.time() - self.clip_start_time, 1)
+            thumb_filename = self.clip_filename.replace('.mp4', '.jpg')
+            density_tag = self.clip_filename.rsplit('_', 1)[-1].replace('.mp4', '')
+
+            self.temp_clips.append({
+                "filename": self.clip_filename,
+                "thumbnail": thumb_filename,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "density": density_tag,
+                "camera_id": self.stream_id,
+                "duration": duration
+            })
+
+            # Keep only the last 20 clips in metadata
+            if len(self.temp_clips) > 20:
+                self.temp_clips = self.temp_clips[-20:]
+
+            print(f"[{self.stream_id}] Event clip saved: {self.clip_filename} ({duration}s)")
+
+        self.clip_recording = False
+        self.clip_filename = None
+
+    # ------------------------------------------------------------------
+    def get_temp_clips(self):
+        """Return a copy of the current temp clip metadata list."""
+        return list(self.temp_clips)
+
+    def get_latest_jpeg(self):
+        return self.latest_jpeg
+
+    def get_latest_stats(self):
+        return self.latest_stats
