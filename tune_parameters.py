@@ -2,7 +2,7 @@ import cv2
 import json
 import itertools
 import numpy as np
-from vision_engine import is_human_blob
+from vision_engine import is_human_blob, suppress_headlights, OccupancyMap
 import os
 
 # -------------------------------------------------------------
@@ -54,9 +54,11 @@ def load_ground_truth(mask_path="mask_layer1.png"):
 
 def test_configuration(video_path, frames_db, max_frame, params, mask_path="mask_layer1.png"):
     """
-    Runs the MOG2 + area-based vision pipeline for one parameter combination
-    up to the maximum annotated frame.
-    Returns: Mean Absolute Error (MAE)
+    Runs the full vision pipeline for one parameter combination up to the
+    maximum annotated frame and returns Mean Absolute Error (MAE).
+
+    Pipeline mirrors app.py exactly:
+      MOG2 → headlight suppression → morphology → occupancy map → area count
     """
     process_scale = 0.667
     warmup_frames = min(500, params['history'] // 2)
@@ -91,6 +93,13 @@ def test_configuration(video_path, frames_db, max_frame, params, mask_path="mask
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
+    occupancy = OccupancyMap(
+        (h, w),
+        confirm_frames=10,
+        evict_frames=int(5.0 * 30),
+        dark_v_thresh=40,
+    )
+
     frame_idx = 0
     errors = []
 
@@ -102,10 +111,15 @@ def test_configuration(video_path, frames_db, max_frame, params, mask_path="mask
         if process_scale != 1.0:
             frame = cv2.resize(frame, (w, h), interpolation=cv2.INTER_AREA)
 
-        # ── PHASE 1: MOG2 Background Subtraction ─────────────────────
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+        # ── PHASE 1: MOG2 ─────────────────────────────────────────────
         fg_raw = mog2.apply(frame)
         _, fg_mask = cv2.threshold(fg_raw, 200, 255, cv2.THRESH_BINARY)
         thresh = cv2.bitwise_and(fg_mask, fg_mask, mask=roi_mask)
+
+        # ── HEADLIGHT SUPPRESSION ─────────────────────────────────────
+        thresh = suppress_headlights(thresh, hsv, v_threshold=200, dilation_px=40)
 
         # ── PHASE 2: Morphological Sculpting ─────────────────────────
         cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, open_k)
@@ -113,7 +127,10 @@ def test_configuration(video_path, frames_db, max_frame, params, mask_path="mask
         fused   = cv2.morphologyEx(fused, cv2.MORPH_CLOSE, h_fusion_k)
         fused   = cv2.dilate(fused, d_kernel, iterations=1)
 
-        # ── PHASE 3: Blob Detection (kept for is_human_blob gate) ─────
+        # ── OCCUPANCY MAP ─────────────────────────────────────────────
+        persistent_fg = occupancy.update(fused, hsv)
+
+        # ── PHASE 3: Blob Detection (is_human_blob gate) ──────────────
         conts, _ = cv2.findContours(fused, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         detections = []
         for c in conts:
@@ -122,10 +139,10 @@ def test_configuration(video_path, frames_db, max_frame, params, mask_path="mask
             if is_human_blob(roi_check, x, y, w_box, h_box, h, params['min_blob_area'], params['max_aspect']):
                 detections.append([x, y, w_box, h_box])
 
-        # ── PHASE 4: Area-Based Scoring ───────────────────────────────
+        # ── PHASE 4: Area-Based Scoring (from occupancy map) ──────────
         if frame_idx in frames_db and frame_idx >= warmup_frames:
             true_count = frames_db[frame_idx]
-            area = int(cv2.countNonZero(fused))
+            area = int(cv2.countNonZero(persistent_fg))
             predicted_count = max(0, round(
                 (area - params['area_baseline']) / max(1.0, params['area_px_per_person'])
             ))

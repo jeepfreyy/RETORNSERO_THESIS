@@ -2,15 +2,14 @@ import cv2
 import json
 import os
 
-VIDEO_PATH = 'videos/main_video.mp4'
-OUTPUT_JSON = 'barangay_ground_truth.json'
-MASK_PATH = 'mask_layer1.png'
+VIDEO_PATH = 'videos/VIDEO1.MOV'
+OUTPUT_JSON = 'barangay_ground_truth_calibration.json'
+MASK_PATH = 'mask_layer_calibration.png'
 SKIP_FRAMES = 60  # Default step (2 seconds at 30fps)
 
 current_points = []
 ground_truth_db = {}
 frame_idx = 0
-
 
 def get_distribution(db):
     counts = {}

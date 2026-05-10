@@ -10,6 +10,131 @@ import psutil
 from datetime import datetime
 
 
+# ---------------------------------------------------------------------------
+# Headlight Suppression
+# ---------------------------------------------------------------------------
+def suppress_headlights(fg_mask, hsv_frame, v_threshold=200, dilation_px=60):
+    """
+    Remove vehicle headlight blobs from a foreground mask.
+
+    Motorcycle headlights are the only objects in a nighttime barangay street
+    that exceed V=200 in HSV — human clothing and skin never reach this level
+    under ambient street lighting.  The bright core is dilated by dilation_px
+    to also erase the dim halo that survives a pixel-level brightness cut
+    (which is why the earlier brightness-scrubber attempt failed — it cut
+    the core but left the halo, which then fused via morphology into a
+    phantom foreground blob).
+    """
+    v = hsv_frame[:, :, 2]
+    bright_core = (v > v_threshold).astype(np.uint8) * 255
+    if dilation_px > 1:
+        k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilation_px, dilation_px))
+        bright_zone = cv2.dilate(bright_core, k)
+    else:
+        bright_zone = bright_core
+    return cv2.bitwise_and(fg_mask, cv2.bitwise_not(bright_zone))
+
+
+# ---------------------------------------------------------------------------
+# Occupancy Map  (decoupled presence tracker)
+# ---------------------------------------------------------------------------
+class OccupancyMap:
+    """
+    Persistent presence tracker that is completely decoupled from motion.
+
+    WHY THIS EXISTS
+    ---------------
+    MOG2 is a motion detector.  It removes stationary pixels from the
+    foreground once they stop changing.  This is the Stationary Absorption
+    Paradox: a seated person disappears from the count within 1–2 minutes
+    even though they are physically still there.
+
+    HOW IT WORKS
+    ------------
+    Pixels ENTER the map only after they have been consistently foreground
+    for `confirm_frames` consecutive frames.  This blocks transient headlight
+    flashes (which last 2–5 frames) from entering.
+
+    Pixels LEAVE the map only when they have been PHYSICALLY DARK
+    (V-channel < dark_v_thresh) for `evict_frames` consecutive frames.
+    "Physically dark" means the actual road surface is visible — no person,
+    no reflected light, no clothing.  A person standing still is NOT dark,
+    so they stay in the map indefinitely.  A person who walks away exposes
+    the dark road beneath them, and after `evict_frames` that pixel is
+    evicted.
+
+    HEADLIGHT INTERACTION
+    ---------------------
+    When a headlight illuminates the road, the road pixels become very
+    BRIGHT — the opposite of dark.  Their dark_count resets to zero.
+    The moment the light passes, those pixels return to their natural
+    dark state and begin accumulating dark_count again.  If suppress_headlights()
+    is applied upstream, headlight pixels never enter the map at all.
+    """
+
+    def __init__(self, shape, confirm_frames=10, evict_frames=150, dark_v_thresh=40):
+        h, w = shape[:2]
+        self._map         = np.zeros((h, w), dtype=np.uint8)
+        self._fg_count    = np.zeros((h, w), dtype=np.int32)
+        # Per-pixel V value stored at the moment of confirmation.
+        # Eviction fires when the pixel has been absent from fg_mask long enough
+        # AND its current V differs noticeably from the confirmation-time V —
+        # meaning the spot now looks different (person has left, background is back).
+        self._baseline_v  = np.zeros((h, w), dtype=np.uint8)
+        self._absent_count = np.zeros((h, w), dtype=np.int32)
+        self._confirm     = confirm_frames
+        self._evict       = evict_frames
+        # V_CHANGE_THRESH: how much brightness change at a location signals departure.
+        # 25 catches dark-clothed (V≈40) person leaving concrete (V≈70): Δ=30 > 25.
+        # Also catches light-clothed (V≈120) person leaving concrete (V≈80): Δ=40 > 25.
+        # Medium clothing on similar-brightness concrete may be missed — acceptable.
+        self._v_change    = 25
+        # dark_v_thresh kept for API compatibility but no longer drives eviction
+        self._dv          = dark_v_thresh
+
+    def update(self, fg_additions, hsv_frame):
+        v       = hsv_frame[:, :, 2]           # HSV value channel
+        fg_bool = fg_additions > 127
+
+        # ── Confirmation ─────────────────────────────────────────────────
+        # Track consecutive foreground frames; enter the map after confirm_frames.
+        self._fg_count[fg_bool]  += 1
+        self._fg_count[~fg_bool]  = 0
+
+        new_confirmed = (self._fg_count >= self._confirm) & (self._map == 0)
+        if np.any(new_confirmed):
+            self._map[new_confirmed]        = 255
+            self._baseline_v[new_confirmed] = v[new_confirmed]   # snapshot V at entry
+            self._absent_count[new_confirmed] = 0
+
+        # ── Absence tracking ──────────────────────────────────────────────
+        # Only count absence for pixels already in the map.
+        confirmed_mask = self._map > 0
+        absent = confirmed_mask & ~fg_bool
+        present = confirmed_mask & fg_bool
+
+        self._absent_count[absent]  += 1
+        self._absent_count[present]  = 0    # reset when pixel reappears in fg
+
+        # ── Eviction ──────────────────────────────────────────────────────
+        # Evict a confirmed pixel when it has been absent for evict_frames AND
+        # the current brightness at that spot differs from the stored baseline.
+        # This distinguishes "person sitting still (absorbed by MOG2, V unchanged)"
+        # from "person left (empty background, V changed back to original)".
+        v_changed  = np.abs(v.astype(np.int32) - self._baseline_v.astype(np.int32)) > self._v_change
+        to_evict   = confirmed_mask & (self._absent_count >= self._evict) & v_changed
+        self._map[to_evict]          = 0
+        self._absent_count[to_evict] = 0
+
+        return self._map
+
+    def reset(self):
+        self._map[:]          = 0
+        self._fg_count[:]     = 0
+        self._baseline_v[:]   = 0
+        self._absent_count[:] = 0
+
+
 def apply_gamma_correction(frame, target_mean=100):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     current_mean = gray.mean()
@@ -262,6 +387,118 @@ def count_people_by_area(fused_mask, avg_pixels_per_person, area_at_zero):
 
 
 # ---------------------------------------------------------------------------
+# Watershed Scene-Level Counter
+# ---------------------------------------------------------------------------
+def count_people_watershed_scene(fused_mask, min_blob_area=350, dt_thresh=0.30,
+                                  min_peak_area=50):
+    """
+    Scene-level watershed crowd counter using distance-transform peak detection.
+
+    Operates on the entire fused foreground mask (not per-blob): finds every
+    independent blob, applies distance-transform peak separation, and counts
+    the resulting watershed nuclei.  Works best on sparse/moderately-dense
+    crowds where individuals are not completely merged.
+
+    Args:
+        fused_mask:     Post-morphology binary mask.
+        min_blob_area:  Minimum contour area to be considered a crowd blob.
+        dt_thresh:      Fraction of each blob's DT max to use as the valley floor.
+                        Lower values (0.25–0.35) separate tightly-seated peaks.
+        min_peak_area:  Minimum area (px²) of a DT peak to count as one person.
+
+    Returns:
+        (total_count, centroids)
+            total_count: integer estimated person count (>= 0)
+            centroids:   list of (cx, cy) tuples — one per watershed segment
+    """
+    contours, _ = cv2.findContours(fused_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    total_count = 0
+    centroids   = []
+
+    erode_k = np.ones((3, 3), np.uint8)
+
+    for c in contours:
+        if cv2.contourArea(c) < min_blob_area:
+            continue
+
+        x, y, w, h = cv2.boundingRect(c)
+        roi = fused_mask[y:y + h, x:x + w].copy()
+
+        # Erode slightly to break thin bridges between bodies
+        roi_e = cv2.erode(roi, erode_k, iterations=1)
+
+        dist = cv2.distanceTransform(roi_e, cv2.DIST_L2, 5)
+        if dist.max() < 4.0:
+            # Blob too thin after erosion — count as 1 person
+            M = cv2.moments(c)
+            if M['m00'] > 0:
+                centroids.append((int(M['m10'] / M['m00']),
+                                  int(M['m01'] / M['m00'])))
+            total_count += 1
+            continue
+
+        # Threshold the distance transform to isolate peak regions (sure foreground)
+        _, sure_fg = cv2.threshold(
+            dist, max(4.0, dt_thresh * dist.max()), 255, cv2.THRESH_BINARY
+        )
+        sure_fg = np.uint8(sure_fg)
+
+        # Count connected peaks — each peak is one person nucleus
+        peak_contours, _ = cv2.findContours(sure_fg, cv2.RETR_EXTERNAL,
+                                             cv2.CHAIN_APPROX_SIMPLE)
+        blob_people = 0
+        for pc in peak_contours:
+            if cv2.contourArea(pc) < min_peak_area:
+                continue
+            blob_people += 1
+            M = cv2.moments(pc)
+            if M['m00'] > 0:
+                # Map centroid back to full-frame coordinates
+                cx_roi = int(M['m10'] / M['m00'])
+                cy_roi = int(M['m01'] / M['m00'])
+                centroids.append((x + cx_roi, y + cy_roi))
+
+        total_count += max(1, blob_people)
+
+    return total_count, centroids
+
+
+def count_people_hybrid(fused_mask, persistent_fg,
+                        avg_pixels_per_person, area_at_zero,
+                        min_blob_area=350, dt_thresh=0.30):
+    """
+    Hybrid Watershed + Area-Based Crowd Density Estimation.
+
+    Architecture:
+      1. Watershed segmentation (distance-transform peaks on fused_mask):
+         Directly counts separated individuals.  Accurate for sparse–medium
+         density where people are visually distinct blobs.
+
+      2. Area estimation (occupancy map area ÷ px/person from calibration):
+         Robust when dense crowds or morphological fusion collapses many
+         people into a single large blob that watershed cannot sub-divide.
+
+      3. Decision rule — take the maximum:
+         • Sparse crowd: watershed correctly identifies each person;
+           area estimate may undercount (low area if occupancy map is new).
+         • Dense crowd: area estimate captures absorbed/fused people;
+           watershed undercounts (insufficient peak separation).
+         Taking max ensures neither method silently under-reports.
+
+    Returns:
+        (final_count, watershed_count, area_count, centroids)
+    """
+    watershed_count, centroids = count_people_watershed_scene(
+        fused_mask, min_blob_area=min_blob_area, dt_thresh=dt_thresh
+    )
+    area_count = count_people_by_area(
+        persistent_fg, avg_pixels_per_person, area_at_zero
+    )
+    final_count = max(watershed_count, area_count)
+    return final_count, watershed_count, area_count, centroids
+
+
+# ---------------------------------------------------------------------------
 # Sleek Dot Overlay Rendering
 # ---------------------------------------------------------------------------
 def draw_person_marker(frame, cx, cy, count, in_zone7=False):
@@ -333,6 +570,15 @@ class SentinelStream:
         base_width=32,        # Expected pixel width per person for count_people_in_box
         area_px_per_person=None,   # If set, use area-based counting instead of watershed
         area_baseline=0.0,         # Intercept from area_calibration.json
+        # --- Headlight Suppression ---
+        headlight_v_thresh=200,    # HSV V-channel cutoff; pixels above this are headlights
+        headlight_dilation_px=60,  # px radius to expand bright core (kills the halo)
+        # --- Occupancy Map ---
+        occupancy_confirm_frames=10,   # fg frames before a pixel enters the map (blocks transients)
+        occupancy_evict_sec=5.0,       # seconds physically dark before a pixel is evicted
+        occupancy_dark_v_thresh=40,    # V < this = "physically dark" (empty road surface)
+        # --- Warmup ---
+        warmup_frames=1500,            # frames to suppress count while MOG2 stabilises
     ):
         self.stream_id = stream_id
         self.source = source
@@ -350,11 +596,30 @@ class SentinelStream:
         self._base_width = base_width
         self._area_px_per_person = area_px_per_person
         self._area_baseline = area_baseline
+        self._headlight_v_thresh = headlight_v_thresh
+        self._headlight_dilation_px = headlight_dilation_px
+        self._occupancy_confirm_frames = occupancy_confirm_frames
+        self._occupancy_evict_sec = occupancy_evict_sec
+        self._occupancy_dark_v_thresh = occupancy_dark_v_thresh
+
+        # Store MOG2 construction params so we can recreate the subtractor on
+        # video switch (MOG2 has no reset() method — must be re-instantiated).
+        self._mog2_history    = mog2_history
+        self._mog2_threshold  = mog2_threshold
+        self._detect_shadows  = detect_shadows
 
         # MOG2 — high history resists stationary-crowd absorption
         self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
             history=mog2_history, varThreshold=mog2_threshold, detectShadows=detect_shadows
         )
+
+        # Per-video warmup / source-switch state
+        self._warmup_frames        = warmup_frames
+        self._switch_source        = None   # set by switch_source(); outer loop picks it up
+        self._switch_warmup        = None
+        self._switch_recreate_mog2 = False  # whether to throw away the MOG2 model on next switch
+        self._switch_mask_path     = None   # None = keep current mask_path on next switch
+        self.is_warming_up         = True   # True until the first warmup window expires
 
         self.latest_jpeg = None
         self.latest_stats = {
@@ -410,22 +675,99 @@ class SentinelStream:
         self.thread.start()
 
     # ------------------------------------------------------------------
+    def switch_source(self, new_source, new_warmup_frames=None,
+                      recreate_mog2=False, new_mask_path=None):
+        """
+        Hot-swap to a different video file without stopping the thread.
+
+        The inner frame-read loop checks self._switch_source on every iteration.
+        When it is set, the loop breaks immediately, the outer loop applies the
+        new source + warmup, optionally recreates MOG2 and swaps the ROI mask,
+        then restarts.
+
+        new_warmup_frames : frames to suppress count on the new video.
+        recreate_mog2     : True  → throw away the current background model and
+                                    let MOG2 re-learn from the new video's first
+                                    frames.  Required when the new video has a
+                                    different background from the current one
+                                    (e.g. truck is parked throughout VIDEO3 but
+                                    was absent in the main-video background model).
+                                    Set warmup_frames to the number of empty-scene
+                                    frames so MOG2 finishes learning before people
+                                    arrive and the occupancy map resets.
+                            False → keep the existing background model.  Correct
+                                    when the new video shares the same empty-alley
+                                    background (VIDEO2: people present from frame 0,
+                                    no empty phase to re-learn from).
+        new_mask_path     : path to the ROI mask PNG for the new video.
+                            Pass None to keep the current mask unchanged.
+        """
+        self._switch_source        = new_source
+        self._switch_warmup        = new_warmup_frames if new_warmup_frames is not None \
+                                     else self._warmup_frames
+        self._switch_recreate_mog2 = recreate_mog2
+        self._switch_mask_path     = new_mask_path   # None = keep current mask
+        self.is_warming_up         = True
+
+    # ------------------------------------------------------------------
     def _process_loop(self):
-        tracker = RobustSentinelTracker(
-            max_ghost=self._ghost_threshold,
-            min_lifetime=10,
-            dist_thresh=self._dist_thresh,
-            merge_thresh=self._merge_thresh,
-        )
-        # Build kernels from tunable params (nighttime-critical)
-        open_k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-        fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, self._morph_kernel)
+        # Build kernels from tunable params (nighttime-critical).
+        # These never change between videos, so they live outside the outer loop.
+        open_k     = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        fusion_k   = cv2.getStructuringElement(cv2.MORPH_RECT, self._morph_kernel)
         h_fusion_k = cv2.getStructuringElement(cv2.MORPH_RECT, self._h_morph_kernel)
-        d_kernel = np.ones((self._dilate_kernel, self._dilate_kernel), np.uint8)
-        proc = psutil.Process(os.getpid())
+        d_kernel   = np.ones((self._dilate_kernel, self._dilate_kernel), np.uint8)
+        proc       = psutil.Process(os.getpid())
         ema_frame_time = 0.033
 
+        # Tracker is recreated inside the outer loop so track state does not
+        # carry over from a previous video loop or after a source switch.
+        tracker = None
+
         while self.running:
+            # ── Apply any pending source switch ──────────────────────────
+            # switch_source() sets _switch_source; the inner loop breaks when
+            # it sees it set.  We apply it here at the start of the outer loop
+            # so the new source takes effect before we open the cap.
+            if self._switch_source is not None:
+                self.source          = self._switch_source
+                self._warmup_frames  = self._switch_warmup
+                do_recreate          = self._switch_recreate_mog2
+                if self._switch_mask_path is not None:
+                    self.mask_path   = self._switch_mask_path
+                self._switch_source        = None
+                self._switch_warmup        = None
+                self._switch_recreate_mog2 = False
+                self._switch_mask_path     = None
+
+                if do_recreate:
+                    # Recreate MOG2 so it re-learns the new video's background.
+                    # Required when the scenario video has objects (e.g. the
+                    # parked truck in VIDEO1/VIDEO3) that were ABSENT in the
+                    # current background model.  If we kept the old model those
+                    # objects would appear as foreground indefinitely → haywire.
+                    # Set warmup_frames = the number of empty-scene frames in the
+                    # new video so MOG2 finishes learning BEFORE people arrive,
+                    # at which point the occupancy map resets cleanly.
+                    self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
+                        history=self._mog2_history,
+                        varThreshold=self._mog2_threshold,
+                        detectShadows=self._detect_shadows,
+                    )
+                # else: keep the existing background model.
+                #   Correct for VIDEO2 (people present from frame 0 with no
+                #   empty-background phase to re-learn from).  The main video's
+                #   "empty alley" model lets the people appear as foreground
+                #   immediately rather than being absorbed during bootstrapping.
+
+            # Fresh tracker on every (re)start so stale tracks don't bleed across videos.
+            tracker = RobustSentinelTracker(
+                max_ghost=self._ghost_threshold,
+                min_lifetime=10,
+                dist_thresh=self._dist_thresh,
+                merge_thresh=self._merge_thresh,
+            )
+
             cap = cv2.VideoCapture(self.source)
             if not cap.isOpened():
                 print(f"[SentinelStream {self.stream_id}] Error: Cannot open '{self.source}'")
@@ -455,7 +797,41 @@ class SentinelStream:
 
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
+            # Occupancy map is reset on every video restart so stale
+            # presence state from a previous loop does not corrupt the new one.
+            occupancy = OccupancyMap(
+                (frame_height, frame_width),
+                confirm_frames=self._occupancy_confirm_frames,
+                evict_frames=int(self._occupancy_evict_sec * 30),
+                dark_v_thresh=self._occupancy_dark_v_thresh,
+            )
+
+            # How many frames MOG2 needs before its background model is stable.
+            # During warmup: count is forced to 0 so startup chair/background
+            # noise never reaches the dashboard.
+            # At the END of warmup: occupancy map is reset, purging any false
+            # positives (chairs, walls, vehicles) accumulated while MOG2 was
+            # still learning.
+            # WARMUP_FRAMES is now per-video (set via switch_source or __init__
+            # warmup_frames= param).  Default 1500 for the main demo video with
+            # vehicles; 60–150 for no-vehicle scenario videos.
+            warmup_frames = self._warmup_frames
+
+            # Temporal smoothing: EMA over recent count values damps single-frame
+            # spikes caused by mass simultaneous movement (everybody shifting at once
+            # briefly inflates fused_px, which inflates the area estimate).
+            # alpha=0.4 means each new reading contributes 40%; prior history 60%.
+            # This gives ~3-frame settling time while staying responsive to real changes.
+            count_ema     = 0.0
+            COUNT_ALPHA   = 0.4
+            loop_frame_idx = 0
+
             while self.running:
+                # Break immediately when a source switch is requested so the
+                # outer loop can apply the new source and restart cleanly.
+                if self._switch_source is not None:
+                    break
+
                 start_t = time.time()
                 ret, frame = cap.read()
                 if not ret:
@@ -469,6 +845,10 @@ class SentinelStream:
                 if self._enable_gamma:
                     frame = apply_gamma_correction(frame)
 
+                # Pre-compute HSV once per frame (used by headlight suppressor
+                # and occupancy map — avoids redundant color conversions)
+                hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
                 # ── PHASE 1: MOG2 Background Subtraction ──
                 fg_mask = self.bg_subtractor.apply(frame)
                 # Scrub MOG2 shadows (gray=127 when detectShadows=True)
@@ -476,12 +856,40 @@ class SentinelStream:
                 # Apply ROI mask
                 thresh = cv2.bitwise_and(fg_mask, fg_mask, mask=roi_mask)
 
+                # ── HEADLIGHT SUPPRESSION ─────────────────────────────
+                # Must run AFTER ROI masking (so we don't fight the mask)
+                # and BEFORE morphology (so the halo never gets fused into
+                # a phantom blob).  dilation_px is already in process-space
+                # coordinates (the frame is already downscaled).
+                if self._headlight_v_thresh < 255:
+                    thresh = suppress_headlights(
+                        thresh, hsv_frame,
+                        v_threshold=self._headlight_v_thresh,
+                        dilation_px=self._headlight_dilation_px,
+                    )
+
                 # ── PHASE 2: Fusion & Opening (Shape Cleanup) ──────
                 # Rub out tiny artifacts before merging
                 cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, open_k)
                 fused = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, fusion_k)    # vertical: closes gaps within upright silhouettes
                 fused = cv2.morphologyEx(fused, cv2.MORPH_CLOSE, h_fusion_k)    # horizontal: fuses seated/foreshortened fragments
                 fused = cv2.dilate(fused, d_kernel, iterations=1)
+
+                # ── WARMUP GATE ───────────────────────────────────────
+                # At the exact frame MOG2 stabilises, wipe the occupancy map.
+                # Any chairs/walls that filled it during startup are erased.
+                # After this point only real post-warmup detections accumulate.
+                if loop_frame_idx == warmup_frames:
+                    occupancy.reset()
+                loop_frame_idx += 1
+
+                # ── OCCUPANCY MAP UPDATE ──────────────────────────────
+                # Feed the post-morphology fused mask into the occupancy map.
+                # The map adds pixels that have been consistently foreground
+                # (confirm_frames) and only removes them when physically dark
+                # (evict_frames).  This preserves seated people after MOG2
+                # absorbs them, while not accumulating transient headlight hits.
+                persistent_fg = occupancy.update(fused, hsv_frame)
 
                 # ── PHASE 3: Detection with Structural Validation ───
                 conts, _ = cv2.findContours(fused, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -495,40 +903,97 @@ class SentinelStream:
 
                 tracks = tracker.update(detections)
 
-                # ── PHASE 4: Counting & Rendering ───────────────────
+                # ── PHASE 4: Triple Hybrid Counting ──────────────────
+                #
+                # Three independent estimators — take the maximum so no method
+                # silently under-reports:
+                #
+                #  1. ws_fused  : Watershed on fused_mask (raw MOG2 output).
+                #                 Detects MOVING people who are currently visible
+                #                 to MOG2.  Fails for stationary/absorbed crowds.
+                #
+                #  2. ws_occ   : Watershed on persistent_fg (occupancy map).
+                #                 Detects CONFIRMED people — including those already
+                #                 absorbed by MOG2 — because the occupancy map
+                #                 retains pixels until the person physically leaves.
+                #                 This is the primary fix for stationary undercounting.
+                #
+                #  3. ar_count : Area estimate from occupancy-map pixel count vs
+                #                the calibration slope.  A useful sanity-check for
+                #                dense crowds where peak separation breaks down.
+                #
+                # DOT PLACEMENT (post-warmup only):
+                #   Dots are drawn at occupancy-map watershed centroids (ws_occ).
+                #   These centroids sit on confirmed-presence pixel clusters, i.e.
+                #   directly on the people, not on raw motion blobs.  When the
+                #   occupancy map is still empty (person just arrived, not yet
+                #   confirmed), we fall back to fused-mask centroids (ws_fused).
                 if self._area_px_per_person is not None:
-                    # Area-based count — immune to blob merging
-                    total_count = count_people_by_area(
+                    # Estimator 1 — fused watershed (moving people)
+                    ws_fused_count, ws_fused_centroids = count_people_watershed_scene(
                         fused,
-                        self._area_px_per_person,
-                        self._area_baseline
+                        min_blob_area=self.min_blob_area,
+                        dt_thresh=0.30,
                     )
-                    # Draw one dot per active track for position visualization
-                    for tid, data in tracks.items():
-                        if data['ghost'] == 0 and data['lifetime'] >= tracker.min_lifetime:
-                            x, y, w_box, h_box = data['box']
-                            cx = int(x + w_box / 2)
-                            cy = int(y + h_box)
-                            draw_person_marker(frame, cx, cy, 1, in_zone7=False)
+                    # Estimator 2 — occupancy watershed (confirmed / stationary people)
+                    ws_occ_count, ws_occ_centroids = count_people_watershed_scene(
+                        persistent_fg,
+                        min_blob_area=self.min_blob_area,
+                        dt_thresh=0.30,
+                    )
+                    # Estimator 3 — area formula from occupancy-map pixel count
+                    ar_count = count_people_by_area(
+                        persistent_fg,
+                        self._area_px_per_person,
+                        self._area_baseline,
+                    )
+                    # Final count: best estimate from all three
+                    total_count = max(ws_fused_count, ws_occ_count, ar_count)
+                    # Legacy aliases used by latest_stats
+                    ws_count      = ws_fused_count
+                    ws_centroids  = ws_fused_centroids
+
+                    # Draw dots only after warmup ends (panel sees the live system,
+                    # not noise from the MOG2 bootstrapping phase).
+                    # Prefer occupancy centroids (confirmed presence → on actual bodies).
+                    # Fall back to fused centroids for newly arriving people not yet
+                    # confirmed in the occupancy map.
+                    if loop_frame_idx > warmup_frames:
+                        draw_targets = ws_occ_centroids if ws_occ_centroids else ws_fused_centroids
+                        for (cx_d, cy_d) in draw_targets:
+                            draw_person_marker(frame, cx_d, cy_d, 1, in_zone7=False)
                 else:
-                    # Legacy watershed counting (fallback when calibration not loaded)
-                    total_count = 0
-                    for tid, data in tracks.items():
-                        if data['ghost'] == 0 and data['lifetime'] >= tracker.min_lifetime:
-                            x, y, w_box, h_box = data['box']
-                            cx = int(x + w_box / 2)
-                            cy = int(y + h_box)
-                            roi = fused[y : y + h_box, x : x + w_box]
-                            people_in_box = count_people_in_box(
-                                roi, w_box, y + h_box, frame_height,
-                                solidity_threshold=0.6,
-                                base_width=self._base_width,
-                                dt_thresh=0.3
-                            )
-                            total_count += people_in_box
-                            draw_person_marker(frame, cx, cy, people_in_box, in_zone7=False)
+                    # Fallback: watershed-only when no calibration is loaded
+                    ws_fused_count, ws_fused_centroids = count_people_watershed_scene(
+                        fused, min_blob_area=self.min_blob_area, dt_thresh=0.30
+                    )
+                    ws_occ_count, ws_occ_centroids = count_people_watershed_scene(
+                        persistent_fg, min_blob_area=self.min_blob_area, dt_thresh=0.30
+                    )
+                    ws_count     = ws_fused_count
+                    ws_centroids = ws_fused_centroids
+                    ar_count     = 0
+                    total_count  = max(ws_fused_count, ws_occ_count)
+                    if loop_frame_idx > warmup_frames:
+                        draw_targets = ws_occ_centroids if ws_occ_centroids else ws_fused_centroids
+                        for (cx_d, cy_d) in draw_targets:
+                            draw_person_marker(frame, cx_d, cy_d, 1, in_zone7=False)
 
                 # ── HUD Overlay Removed (UI renders stats) ──────────
+
+                # Suppress the count during MOG2 warmup so startup
+                # chair/background noise never triggers alerts.
+                if loop_frame_idx <= warmup_frames:
+                    total_count = 0
+                    count_ema   = 0.0
+                    self.is_warming_up = True
+                else:
+                    self.is_warming_up = False
+
+                # Temporal EMA smoothing — damps single-frame spikes from
+                # mass simultaneous movement without adding noticeable lag.
+                count_ema   = COUNT_ALPHA * total_count + (1 - COUNT_ALPHA) * count_ema
+                total_count = round(count_ema)
 
                 # Phase 2.1 & 2.2: Density and Status
                 density = int(min(100, (total_count / self.max_capacity) * 100))
@@ -557,6 +1022,9 @@ class SentinelStream:
                     "latency_ms": int(ema_frame_time * 1000),
                     "cpu_percent": cpu_pct,
                     "ram_mb": ram_mb,
+                    # Hybrid pipeline breakdown (exposed for UI / thesis demo)
+                    "watershed_count": int(ws_count) if self._area_px_per_person is not None else int(total_count),
+                    "area_count":      int(ar_count) if self._area_px_per_person is not None else 0,
                 }
 
                 # Phase 2.3: EVENT CLIP RECORDING (Grounded thresholds)

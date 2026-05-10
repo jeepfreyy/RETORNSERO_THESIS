@@ -22,9 +22,13 @@ DATASETS/
 .DS_Store
 Thumbs.db
 
-# Ignore large video files
+# Ignore large video files (too large for GitHub — keep locally)
 videos/vid1-angle1.MOV
 videos/vid2-angle2.MOV
 videos/main_video.mov
+videos/VIDEO1.MOV
+videos/VIDEO2.MOV
+videos/VIDEO3.MOV
+videos/calibration.MOV
 
 

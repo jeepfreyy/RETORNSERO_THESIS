@@ -41,22 +41,118 @@ if os.path.exists(_AREA_CAL_PATH):
 else:
     print("[Area Cal] area_calibration.json not found — using watershed fallback.")
 
-# --- CAM-01: Main Entrance (NIGHTTIME OPTIMIZED - MAE: 2.02) ---
+# ---------------------------------------------------------------------------
+# VIDEO CATALOG — one entry per switchable video file.
+#
+# warmup_frames  : frames the count is suppressed after the switch.
+# recreate_mog2  : whether to reset the MOG2 background model on switch.
+#
+#  WHY IT MATTERS
+#  ──────────────
+#  The main demo video builds an "empty alley, no truck" background model
+#  over its 1500-frame warmup.  Scenario videos filmed the same night share
+#  the same camera but may have the truck PARKED throughout (it doesn't leave
+#  in those clips).  If we kept the "no truck" model, the truck would look
+#  like permanent foreground → haywire count.
+#
+#  recreate_mog2=True  (VIDEO1, VIDEO3):
+#    MOG2 is reset on switch so it can re-learn the video's actual background
+#    (truck + empty alley) during the warmup window.  warmup_frames must equal
+#    the number of empty-scene frames before people arrive so the occupancy
+#    map resets cleanly right when the first person enters.
+#
+#  recreate_mog2=False (VIDEO2):
+#    4 people are present from frame 0 — there is no empty phase to re-learn
+#    from.  We keep the main video's "empty alley" model so the people appear
+#    as genuine foreground immediately rather than being baked into a fresh
+#    bootstrap model and then absorbed.
+#
+#   main_video : WARMUP=1500 (50 s) — truck/bike clears ROI ~40 s
+#   VIDEO1     : WARMUP=300  (10 s) — empty phase before people enter at 10 s
+#   VIDEO2     : WARMUP=30   ( 1 s) — no empty phase; minimal transition flush
+#   VIDEO3     : WARMUP=960  (32 s) — empty phase before first person at 32 s
+# ---------------------------------------------------------------------------
+VIDEO_CATALOG = {
+    "main_video": {
+        "label":          "Main Demo — Vehicle Present",
+        "source":         "videos/main_video.mp4",
+        "mask_path":      "mask_layer1.png",
+        "warmup_frames":  1500,
+        "recreate_mog2":  False,   # app startup always creates MOG2 fresh
+        "description":    "Main demonstration. Motorcycle/truck clears ROI ~40 s.",
+    },
+    "video1": {
+        "label":          "Scenario 1 — 4 People (10 s entry)",
+        "source":         "videos/VIDEO1.MOV",
+        "mask_path":      "mask_layer2.png",
+        "warmup_frames":  300,     # 10 s empty phase → MOG2 re-learns before people arrive
+        "recreate_mog2":  True,
+        "description":    "4 people enter at 10 s, all seated by 33 s.",
+    },
+    "video2": {
+        "label":          "Scenario 2 — 4 People (instant)",
+        "source":         "videos/VIDEO2.MOV",
+        "mask_path":      "mask_layer2.png",
+        "warmup_frames":  30,      # minimal flush; reuses main-video background model
+        "recreate_mog2":  False,
+        "description":    "4 people present from frame 0. Reuses background model — no empty phase to re-learn.",
+    },
+    "video3": {
+        "label":          "Scenario 3 — 4 People (32 s entry)",
+        "source":         "videos/VIDEO3.MOV",
+        "mask_path":      "mask_layer2.png",
+        "warmup_frames":  960,     # 32 s empty phase → MOG2 re-learns before first person
+        "recreate_mog2":  True,
+        "description":    "1 person at 32 s, 3 more follow, all seated by 1:22.",
+    },
+}
+
+# --- CAM-01: Main Entrance ---
+# IMPORTANT: mog2_history and morph_kernel must match the values in
+# area_calibration.json["pipeline_params"] exactly.  Mismatching these
+# causes the area measurement to differ from the calibration baseline,
+# which shifts the entire count by a fixed offset.
+#
+# After changing headlight_v_thresh or occupancy parameters, re-run:
+#   python calibrate_area.py
+# to regenerate area_calibration.json with the corrected px/person slope.
 cam1_stream = SentinelStream(
     stream_id="CAM-01",
     source="videos/main_video.mp4",
     mask_path="mask_layer1.png",
-    mog2_history=2000,
-    mog2_threshold=4,
-    min_blob_area=450,
-    ghost_threshold=30,
+    mog2_history=30000,       # must match calibration (was 2000 — wrong)
+    mog2_threshold=40,        # must match calibration (was 4 — wrong)
+    min_blob_area=350,
+    ghost_threshold=90,
     max_capacity=30,
-    morph_kernel=(5, 35),
+    morph_kernel=(5, 25),     # must match calibration
+    h_morph_kernel=(10, 3),   # must match calibration
     dilate_kernel=1,
     process_scale=0.667,
     detect_shadows=False,
     area_px_per_person=_area_px_per_person,
     area_baseline=_area_baseline,
+    # Headlight suppression — eliminates motorcycle glare inflation
+    # V > 200 in HSV = definitely a headlight in nighttime barangay footage.
+    # dilation_px=40 at process_scale=0.667 covers ~60px at full resolution,
+    # which kills the halo ring that survived the old pixel-level brightness cut.
+    headlight_v_thresh=160,    # lowered from 200 — halo sits at V=160-190
+    headlight_dilation_px=80,  # widened from 40 — kills full halo radius
+    # Occupancy map — preserves seated people after MOG2 absorbs them.
+    # confirm_frames=3: a pixel must appear in fg_mask for 3 consecutive frames
+    #   before entering the map. MOG2 absorbs newly-seated people in ~5-8 frames,
+    #   so 3 frames is fast enough to catch them. Still blocks 1-2 frame headlight
+    #   transients (which are suppressed at V=160 before reaching here).
+    # evict_sec=10.0: after 10 seconds of absence from fg_mask, the pixel is
+    #   evicted IF its brightness also differs from the value stored at confirmation
+    #   time (i.e. the spot now looks different — person has left, background back).
+    #   Seated people absorbed by MOG2 keep their V unchanged → NOT evicted.
+    #   People who physically leave expose different-brightness background → evicted.
+    # dark_v_thresh: kept for API compat, eviction no longer uses raw darkness.
+    occupancy_confirm_frames=3,
+    occupancy_evict_sec=10.0,
+    occupancy_dark_v_thresh=40,
+    warmup_frames=VIDEO_CATALOG["main_video"]["warmup_frames"],
 )
 
 # CAM-02 is temporarily disabled while CAM-01 tuning targets MAE < 1.
@@ -391,8 +487,72 @@ def cam1_frame():
 def api_stats():
     """
     JSON stats for CAM-01 (people count, density, status).
+    Includes is_warming_up flag so the UI can show a warmup overlay.
     """
-    return jsonify(cam1_stream.get_latest_stats())
+    stats = cam1_stream.get_latest_stats()
+    stats['is_warming_up'] = cam1_stream.is_warming_up
+    stats['active_video']  = cam1_stream.source
+    return jsonify(stats)
+
+
+@app.route('/api/videos')
+@login_required
+def api_videos():
+    """Return the video catalog for the dropdown selector."""
+    videos = []
+    for key, v in VIDEO_CATALOG.items():
+        videos.append({
+            'key':         key,
+            'label':       v['label'],
+            'description': v['description'],
+            'active':      cam1_stream.source == v['source'],
+        })
+    return jsonify(videos)
+
+
+@app.route('/api/switch_video', methods=['POST'])
+@login_required
+def api_switch_video():
+    """
+    Switch CAM-01 to a different video from the catalog.
+    Body: { "video_key": "video1" }
+    """
+    data      = request.json or {}
+    video_key = data.get('video_key', '').strip()
+
+    if video_key not in VIDEO_CATALOG:
+        return jsonify({'success': False, 'message': f'Unknown video key: {video_key}'}), 400
+
+    v              = VIDEO_CATALOG[video_key]
+    source         = v['source']
+    mask_path      = v.get('mask_path', None)
+    warmup         = v['warmup_frames']
+    recreate_mog2  = v.get('recreate_mog2', False)
+
+    # Verify the video file exists before switching
+    abs_source = os.path.join(os.path.dirname(os.path.abspath(__file__)), source)
+    if not os.path.exists(abs_source):
+        return jsonify({'success': False, 'message': f'Video file not found: {source}'}), 404
+
+    # Verify the mask file exists if one is specified
+    if mask_path:
+        abs_mask = os.path.join(os.path.dirname(os.path.abspath(__file__)), mask_path)
+        if not os.path.exists(abs_mask):
+            return jsonify({'success': False, 'message': f'Mask file not found: {mask_path}'}), 404
+
+    cam1_stream.switch_source(source, warmup,
+                              recreate_mog2=recreate_mog2,
+                              new_mask_path=mask_path)
+
+    return jsonify({
+        'success':        True,
+        'message':        f'Switching to {v["label"]}',
+        'warmup_frames':  warmup,
+        'warmup_seconds': round(warmup / 30, 1),
+        'label':          v['label'],
+        'recreate_mog2':  recreate_mog2,
+        'mask_path':      mask_path,
+    })
 
 # CAM-02 routes are disabled while the camera is offline for calibration.
 

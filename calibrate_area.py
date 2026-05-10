@@ -2,6 +2,7 @@ import cv2
 import json
 import numpy as np
 import os
+from vision_engine import suppress_headlights, OccupancyMap
 
 PIPELINE_PARAMS = {
     'varThreshold':   40,
@@ -10,10 +11,16 @@ PIPELINE_PARAMS = {
     'dilate_kernel':  1,
     'h_morph_kernel': (10, 3),
 }
+# These must match app.py so calibration and live pipeline are identical
+HEADLIGHT_V_THRESH   = 160   # lowered — halo sits at V=160-190
+HEADLIGHT_DILATION   = 80   # widened — kills full halo radius
+OCCUPANCY_CONFIRM    = 10    # frames
+OCCUPANCY_EVICT_SEC  = 5.0
+OCCUPANCY_DARK_THRESH= 40
 PROCESS_SCALE = 0.667
-VIDEO_PATH    = 'videos/main_video.mp4'
+VIDEO_PATH    = 'videos/calibration.MOV'
 MASK_PATH     = 'mask_layer1.png'
-GT_JSON       = 'barangay_ground_truth.json'
+GT_JSON       = 'barangay_ground_truth_calibration.json'
 OUTPUT_JSON   = 'area_calibration.json'
 WARMUP_FRAMES = 1000
 
@@ -76,9 +83,16 @@ def main():
     fusion_k  = cv2.getStructuringElement(cv2.MORPH_RECT, PIPELINE_PARAMS['morph_kernel'])
     h_fuse_k  = cv2.getStructuringElement(cv2.MORPH_RECT, PIPELINE_PARAMS['h_morph_kernel'])
     d_kernel  = np.ones((PIPELINE_PARAMS['dilate_kernel'], PIPELINE_PARAMS['dilate_kernel']), np.uint8)
-    clahe     = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
+    # Occupancy map — same parameters as app.py so calibration matches live system
+    occupancy = OccupancyMap(
+        (h, w),
+        confirm_frames=OCCUPANCY_CONFIRM,
+        evict_frames=int(OCCUPANCY_EVICT_SEC * 30),
+        dark_v_thresh=OCCUPANCY_DARK_THRESH,
+    )
 
     # {person_count: [area, area, ...]}
     raw_data = {}
@@ -93,30 +107,29 @@ def main():
 
         frame = cv2.resize(frame, (proc_w, proc_h), interpolation=cv2.INTER_AREA)
 
-        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-        l_ch, a_ch, b_ch = cv2.split(lab)
-        l_ch = clahe.apply(l_ch)
-        lab = cv2.merge((l_ch, a_ch, b_ch))
-        frame_enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
-        fg_mask = bg_subtractor.apply(frame_enhanced)
-
-        fg_mask = cv2.medianBlur(fg_mask, 3)
-
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        shadow_mask = cv2.inRange(hsv, np.array([0, 0, 0]), np.array([179, 255, 45]))
-        fg_mask = cv2.bitwise_and(fg_mask, fg_mask, mask=cv2.bitwise_not(shadow_mask))
 
-        _, thresh = cv2.threshold(fg_mask, 254, 255, cv2.THRESH_BINARY)
+        fg_mask = bg_subtractor.apply(frame)
+        _, thresh = cv2.threshold(fg_mask, 200, 255, cv2.THRESH_BINARY)
         thresh = cv2.bitwise_and(thresh, thresh, mask=roi_mask)
+
+        # Apply same headlight suppression as the live pipeline
+        thresh = suppress_headlights(thresh, hsv,
+                                     v_threshold=HEADLIGHT_V_THRESH,
+                                     dilation_px=HEADLIGHT_DILATION)
 
         cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, open_k)
         fused   = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, fusion_k)
         fused   = cv2.morphologyEx(fused, cv2.MORPH_CLOSE, h_fuse_k)
         fused   = cv2.dilate(fused, d_kernel, iterations=1)
 
+        # Update occupancy map — measure the SAME thing the live system will count
+        persistent_fg = occupancy.update(fused, hsv)
+
         if frame_idx in frames_db and frame_idx >= WARMUP_FRAMES:
             person_count = frames_db[frame_idx]
-            area = int(cv2.countNonZero(fused))
+            # Measure occupancy map area, not raw fused area
+            area = int(cv2.countNonZero(persistent_fg))
             raw_data.setdefault(person_count, []).append(area)
             scored += 1
 
@@ -134,25 +147,42 @@ def main():
     # Median area per person count
     aggregated = {k: float(np.median(v)) for k, v in raw_data.items()}
 
+    # Exclude count=0 from regression:
+    # End-of-video "empty" frames have a full occupancy map from prior activity,
+    # so their area is artifically inflated and poisons the linear fit.
+    # The intercept (area_at_zero) is set to 0 — an empty scene = 0 confirmed pixels
+    # once the system has had time to evict all previous occupants.
+    regression_counts = sorted(k for k in aggregated if k > 0)
+    if len(regression_counts) < 2:
+        print("ERROR: Need at least 2 distinct non-zero crowd sizes for regression.")
+        return
+    regression_areas = [aggregated[k] for k in regression_counts]
+
     counts = sorted(aggregated.keys())
     areas  = [aggregated[k] for k in counts]
 
-    slope, intercept = np.polyfit(counts, areas, 1)
+    slope, intercept = np.polyfit(regression_counts, regression_areas, 1)
     avg_pixels_per_person = float(slope)
-    area_at_zero          = float(intercept)
+    # Clamp intercept: a negative intercept is physically impossible (area ≥ 0)
+    area_at_zero          = float(max(0.0, intercept))
 
+    # R² computed only over the regression set (non-zero counts)
+    predicted_reg = [slope * c + intercept for c in regression_counts]
+    mean_a_reg    = sum(regression_areas) / len(regression_areas)
+    ss_res        = sum((a - p) ** 2 for a, p in zip(regression_areas, predicted_reg))
+    ss_tot        = sum((a - mean_a_reg) ** 2 for a in regression_areas)
+    r_squared     = float(1 - ss_res / ss_tot) if ss_tot > 0 else 0.0
+
+    # Build predicted for ALL counts (including 0) for display
     predicted = [slope * c + intercept for c in counts]
-    mean_a    = sum(areas) / len(areas)
-    ss_res    = sum((a - p) ** 2 for a, p in zip(areas, predicted))
-    ss_tot    = sum((a - mean_a) ** 2 for a in areas)
-    r_squared = float(1 - ss_res / ss_tot) if ss_tot > 0 else 0.0
 
     print()
-    print(f"{'Count':>6}  {'Median Area':>12}  {'Predicted':>10}  {'Samples':>7}")
-    print("-" * 42)
+    print(f"{'Count':>6}  {'Median Area':>12}  {'Predicted':>10}  {'Samples':>7}  {'In Fit':>6}")
+    print("-" * 52)
     for c, a, p in zip(counts, areas, predicted):
         n = len(raw_data[c])
-        print(f"{c:>6}  {a:>12.0f}  {p:>10.0f}  {n:>7}")
+        in_fit = "YES" if c > 0 else "EXCL"
+        print(f"{c:>6}  {a:>12.0f}  {p:>10.0f}  {n:>7}  {in_fit:>6}")
     print()
     print(f"avg_pixels_per_person : {avg_pixels_per_person:.2f}")
     print(f"area_at_zero          : {area_at_zero:.2f}")

@@ -872,6 +872,12 @@
                   <div class="absolute top-3 right-3">
                     <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded">1080p</span>
                   </div>
+                  <!-- Warmup overlay — shown when is_warming_up=true -->
+                  <div id="cam01-warmup-overlay"
+                    class="absolute inset-0 bg-slate-900/70 hidden flex-col items-center justify-center gap-3 pointer-events-none">
+                    <div class="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-xs font-mono text-amber-300 tracking-widest">INITIALIZING BACKGROUND MODEL…</span>
+                  </div>
                   <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                     <span class="text-xs font-semibold text-slate-200 bg-slate-900/70 px-2 py-1 rounded">CAM-01</span>
                     <span class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded camera-time"
@@ -893,28 +899,44 @@
                       </svg></button>
                   </div>
                 </div>
-              </div><!-- Camera 2 — offline placeholder -->
-              <div class="card-border rounded-xl overflow-hidden opacity-60" id="cam02-card">
-                <div class="camera-feed aspect-video bg-black relative">
-                  <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 select-none">
-                    <svg class="w-12 h-12 text-slate-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9A2.25 2.25 0 0013.5 5.25h-9A2.25 2.25 0 002.25 9v9A2.25 2.25 0 004.5 18.75z" />
-                      <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="1.5"/>
-                    </svg>
-                    <span class="text-xs font-mono text-slate-600 tracking-widest">OFFLINE — PENDING CALIBRATION</span>
+              </div><!-- Video Selector Panel — switch CAM-01 scenario video -->
+              <div class="card-border rounded-xl overflow-hidden" id="cam02-card">
+                <div class="aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative flex flex-col items-center justify-center gap-4 p-6">
+                  <!-- Icon -->
+                  <svg class="w-10 h-10 text-emerald-500/60" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-3.75.125V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-1.5A1.125 1.125 0 0118 18.375M20.625 4.5H3.375m17.25 0c.621 0 1.125.504 1.125 1.125M20.625 4.5h-1.5C18.504 4.5 18 5.004 18 5.625m3.75-.125V5.625m0 0v1.5c0 .621-.504 1.125-1.125 1.125M3.375 4.5c-.621 0-1.125.504-1.125 1.125M3.375 4.5h1.5C5.496 4.5 6 5.004 6 5.625m-3.75 0v1.5c0 .621.504 1.125 1.125 1.125m0 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m1.5-3.75C5.496 8.25 6 7.746 6 7.125v-1.5M4.875 8.25C5.496 8.25 6 8.754 6 9.375v1.5m0-5.25v5.25m0-5.25C6 5.004 6.504 4.5 7.125 4.5h9.75c.621 0 1.125.504 1.125 1.125m1.125 2.625h1.5m-1.5 0A1.125 1.125 0 0118 7.125v-1.5m1.5 2.625c.621 0 1.125.504 1.125 1.125v1.5m-2.625-5.25c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125M18 5.625v5.25M7.125 12h9.75m-9.75 0A1.125 1.125 0 016 10.875M7.125 12C6.504 12 6 12.504 6 13.125v1.5c0 .621.504 1.125 1.125 1.125m0-3.75c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m0 0h9.75m-9.75 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M18 13.125v1.5c0 .621-.504 1.125-1.125 1.125M18 13.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-9.75 0h9.75" />
+                  </svg>
+
+                  <div class="text-center">
+                    <p class="text-sm font-bold text-slate-200 tracking-wider mb-1">SCENARIO SELECTOR</p>
+                    <p class="text-xs text-slate-500">Switch CAM-01 to a different test scenario</p>
                   </div>
-                  <div class="absolute top-3 left-3 flex items-center gap-2">
-                    <div class="w-2 h-2 rounded-full bg-slate-600"></div>
-                    <span class="text-xs font-mono text-slate-600 bg-slate-900/70 px-2 py-0.5 rounded">OFFLINE</span>
-                  </div>
-                  <div class="absolute bottom-3 left-3">
-                    <span class="text-xs font-semibold text-slate-600 bg-slate-900/70 px-2 py-1 rounded">CAM-02</span>
+
+                  <!-- Dropdown -->
+                  <select id="video-select"
+                    class="w-full max-w-xs bg-slate-900/80 border border-slate-600 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition-all">
+                    <option value="">Loading videos…</option>
+                  </select>
+
+                  <!-- Description text -->
+                  <p id="video-description" class="text-xs text-slate-500 text-center max-w-xs min-h-[2rem]"></p>
+
+                  <!-- Switch button -->
+                  <button id="video-switch-btn" onclick="switchVideo()"
+                    class="px-5 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 text-emerald-400 font-semibold text-sm tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                    ▶ LOAD SCENARIO
+                  </button>
+
+                  <!-- Warmup status badge (hidden until switching) -->
+                  <div id="video-warmup-badge" class="hidden flex items-center gap-2 text-xs font-mono text-amber-300 bg-amber-900/30 border border-amber-500/30 px-3 py-1.5 rounded-full">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="video-warmup-text">WARMING UP…</span>
                   </div>
                 </div>
                 <div class="p-3 flex items-center justify-between">
                   <div>
-                    <p class="text-sm font-semibold text-slate-500">Secondary Entrance</p>
-                    <p class="text-xs text-slate-600">Building A • Side Access</p>
+                    <p class="text-sm font-semibold text-slate-200">Test Scenario Library</p>
+                    <p class="text-xs text-slate-500" id="video-active-label">Select a scenario above to load it on CAM-01</p>
                   </div>
                 </div>
               </div>
@@ -1225,6 +1247,7 @@
         updateCam01Stats();
         startCam01FrameUpdates();
         startTempClipUpdates();
+        loadVideoList();
       }
 
       // Periodically refresh CAM-01 frame so it appears as smooth video
@@ -1325,16 +1348,6 @@
         });
         if (camHistory.length > 120) camHistory.shift();
 
-        // Entry / exit log (count delta)
-        if (state.previousCount != null) {
-          const delta = stats.count - state.previousCount;
-          if (delta > 0) {
-            pushActivityLog(buildRealtimeLog(camId, 'ENTRY', `${delta} ${delta === 1 ? 'person' : 'people'} entered`, 'normal', now));
-          } else if (delta < 0) {
-            pushActivityLog(buildRealtimeLog(camId, 'EXIT', `${Math.abs(delta)} ${Math.abs(delta) === 1 ? 'person' : 'people'} left`, 'normal', now));
-          }
-        }
-
         // Density notification: fire on level change OR after 2 minutes on same level
         const levelChanged = state.lastNotifiedLevel !== level;
         const timeSinceLastNotify = state.lastNotifiedTime != null
@@ -1360,7 +1373,6 @@
           pushActivityLog(buildRealtimeLog(camId, logType, description, severity, now));
 
           cameraRuntimeState[camId] = {
-            previousCount: stats.count,
             previousLevel: level,
             lastNotifiedLevel: level,
             lastNotifiedTime: now.getTime()
@@ -1368,7 +1380,6 @@
         } else {
           cameraRuntimeState[camId] = {
             ...state,
-            previousCount: stats.count,
             previousLevel: level
           };
         }
@@ -1384,8 +1395,108 @@
 
           updateCameraOverlay('CAM-01', stats);
           updateRealtimeDetections('CAM-01', stats, now);
+
+          // Show / hide warmup overlay on CAM-01
+          const overlay = document.getElementById('cam01-warmup-overlay');
+          if (overlay) {
+            if (data.is_warming_up) {
+              overlay.classList.remove('hidden');
+              overlay.classList.add('flex');
+            } else {
+              overlay.classList.add('hidden');
+              overlay.classList.remove('flex');
+            }
+          }
+
+          // Sync warmup badge in the scenario selector panel
+          const badge = document.getElementById('video-warmup-badge');
+          if (badge) {
+            if (data.is_warming_up) {
+              badge.classList.remove('hidden');
+              badge.classList.add('flex');
+            } else {
+              badge.classList.add('hidden');
+              badge.classList.remove('flex');
+              // Re-enable the switch button once warm
+              const btn = document.getElementById('video-switch-btn');
+              if (btn) btn.disabled = false;
+            }
+          }
         }).catch(() => { });
       }
+
+      // ── Video Catalog ──────────────────────────────────────────────────
+      let _videoCatalog = [];
+
+      function loadVideoList() {
+        fetch('/api/videos').then(r => r.json()).then(videos => {
+          _videoCatalog = videos;
+          const sel = document.getElementById('video-select');
+          if (!sel) return;
+          sel.innerHTML = '';
+          videos.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v.key;
+            opt.textContent = v.label;
+            if (v.active) opt.selected = true;
+            sel.appendChild(opt);
+          });
+          updateVideoDescription();
+        }).catch(() => { });
+      }
+
+      function updateVideoDescription() {
+        const sel = document.getElementById('video-select');
+        const desc = document.getElementById('video-description');
+        if (!sel || !desc) return;
+        const entry = _videoCatalog.find(v => v.key === sel.value);
+        desc.textContent = entry ? entry.description : '';
+      }
+
+      function switchVideo() {
+        const sel = document.getElementById('video-select');
+        const btn = document.getElementById('video-switch-btn');
+        const badge = document.getElementById('video-warmup-badge');
+        const warmupText = document.getElementById('video-warmup-text');
+        const activeLabel = document.getElementById('video-active-label');
+        if (!sel) return;
+
+        const key = sel.value;
+        if (!key) return;
+
+        btn.disabled = true;
+
+        fetch('/api/switch_video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ video_key: key })
+        }).then(r => r.json()).then(data => {
+          if (data.success) {
+            // Show warmup badge
+            if (badge) {
+              badge.classList.remove('hidden');
+              badge.classList.add('flex');
+            }
+            if (warmupText) {
+              warmupText.textContent = `WARMING UP — ${data.warmup_seconds}s`;
+            }
+            if (activeLabel) {
+              activeLabel.textContent = `Now loading: ${data.label}`;
+            }
+          } else {
+            alert('Switch failed: ' + data.message);
+            btn.disabled = false;
+          }
+        }).catch(() => {
+          btn.disabled = false;
+        });
+      }
+
+      // Wire up description update when dropdown changes
+      document.addEventListener('DOMContentLoaded', () => {
+        const sel = document.getElementById('video-select');
+        if (sel) sel.addEventListener('change', updateVideoDescription);
+      });
 
       function updateTime() {
         const now = new Date();

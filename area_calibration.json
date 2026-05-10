@@ -1,20 +1,17 @@
 {
-    "avg_pixels_per_person": 5187.154545454545,
-    "area_at_zero": 4680.31818181819,
-    "r_squared": 0.832460462386881,
-    "data_points": 199,
+    "avg_pixels_per_person": 4984.8,
+    "area_at_zero": 6968.87,
+    "r_squared": 0.8713,
+    "data_points": 197,
+    "regression_note": "count=0 excluded from fit (end-of-video empty frames carry full occupancy map history); intercept floored at 0",
     "per_count_median_area": {
-        "0": 4690,
-        "1": 19054,
-        "2": 23173,
-        "3": 9217,
-        "4": 14610,
-        "5": 23897,
-        "6": 32115,
-        "7": 52524,
-        "8": 49538,
-        "9": 52750,
-        "10": 55208
+        "0": 44010,
+        "1": 8354,
+        "2": 16248,
+        "3": 27655,
+        "4": 29818,
+        "5": 29638,
+        "6": 34781
     },
     "pipeline_params": {
         "varThreshold": 40,
