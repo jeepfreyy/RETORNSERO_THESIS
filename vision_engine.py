@@ -1,4 +1,5 @@
 import cv2
+import json
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import distance
@@ -133,6 +134,104 @@ class OccupancyMap:
         self._fg_count[:]     = 0
         self._baseline_v[:]   = 0
         self._absent_count[:] = 0
+
+
+# ---------------------------------------------------------------------------
+# Tripwire Line Counter
+# ---------------------------------------------------------------------------
+class TripwireCounter:
+    """
+    Virtual entry/exit line counter immune to MOG2 absorption.
+
+    Direction is determined by which SIDE of the tripwire line a track was on
+    BEFORE crossing — not by dx sign.  This is correct for diagonal lines.
+
+    Side convention (matches setup_tripwire.py):
+      cross(P2-P1, P-P1) > 0  →  IN  side (inside the monitored ROI)
+      cross(P2-P1, P-P1) < 0  →  OUT side (outside / approach zone)
+
+    Track on OUT side crosses to IN  → ENTRY (+n)
+    Track on IN  side crosses to OUT → EXIT  (-n)
+
+    Group counting: if a crossing blob is wide enough for more than one
+    person, n > 1 is credited so a group of 4 walking through together is
+    not collapsed to 1 event.
+    """
+
+    MIN_MOVE        = 12   # px — centroid must travel this far to register a crossing
+    COOLDOWN_FRAMES = 60   # frames locked after crossing (~2 s at 30 fps)
+    PERSON_WIDTH_PX = 40   # expected blob width per person at process_scale=0.667
+
+    def __init__(self, x1, y1, x2, y2, process_scale=1.0):
+        s = process_scale
+        self.p1 = (int(x1 * s), int(y1 * s))
+        self.p2 = (int(x2 * s), int(y2 * s))
+        self._lx = self.p2[0] - self.p1[0]
+        self._ly = self.p2[1] - self.p1[1]
+        self.entries   = 0
+        self.exits     = 0
+        self._sides    = {}   # tid -> +1 (IN) or -1 (OUT)
+        self._prev     = {}   # tid -> (cx, cy)
+        self._cooldown = {}   # tid -> frames remaining
+
+    def _side(self, cx, cy):
+        val = self._lx * (cy - self.p1[1]) - self._ly * (cx - self.p1[0])
+        if val > 0:  return  1   # IN
+        if val < 0:  return -1   # OUT
+        return 0
+
+    def _group_count(self, box_w):
+        return max(1, round(box_w / self.PERSON_WIDTH_PX))
+
+    def update(self, centroids_by_id, boxes_by_id=None):
+        for tid in list(self._cooldown):
+            self._cooldown[tid] -= 1
+            if self._cooldown[tid] <= 0:
+                del self._cooldown[tid]
+
+        for tid, (cx, cy) in centroids_by_id.items():
+            s_now = self._side(cx, cy)
+
+            if tid not in self._sides:
+                self._sides[tid] = s_now
+                self._prev[tid]  = (cx, cy)
+                continue
+
+            if tid in self._cooldown:
+                self._prev[tid] = (cx, cy)
+                continue
+
+            s_prev = self._sides[tid]
+            px, py = self._prev[tid]
+            moved  = ((cx - px) ** 2 + (cy - py) ** 2) ** 0.5
+
+            if moved >= self.MIN_MOVE and s_prev != 0 and s_now != 0 and s_prev != s_now:
+                n = 1
+                if boxes_by_id and tid in boxes_by_id:
+                    _, _, w_box, _ = boxes_by_id[tid]
+                    n = self._group_count(w_box)
+                if s_prev == -1:
+                    self.entries += n
+                else:
+                    self.exits += n
+                self._cooldown[tid] = self.COOLDOWN_FRAMES
+
+            self._sides[tid] = s_now
+            self._prev[tid]  = (cx, cy)
+
+        active = set(centroids_by_id)
+        for tid in [t for t in list(self._sides) if t not in active]:
+            del self._sides[tid]
+            self._prev.pop(tid, None)
+
+        return self.entries, self.exits, max(0, self.entries - self.exits)
+
+    def reset(self):
+        self.entries = 0
+        self.exits   = 0
+        self._sides.clear()
+        self._prev.clear()
+        self._cooldown.clear()
 
 
 def apply_gamma_correction(frame, target_mean=100):
@@ -422,6 +521,13 @@ def count_people_watershed_scene(fused_mask, min_blob_area=350, dt_thresh=0.30,
             continue
 
         x, y, w, h = cv2.boundingRect(c)
+
+        # Reject shadow silhouettes: cast shadows are very elongated (narrow
+        # and long).  A real person blob from an overhead camera has aspect < 4.
+        # Lamp-post shadows are typically 8:1 or more.
+        if max(w, h) / max(1, min(w, h)) > 4.5:
+            continue
+
         roi = fused_mask[y:y + h, x:x + w].copy()
 
         # Erode slightly to break thin bridges between bodies
@@ -573,12 +679,17 @@ class SentinelStream:
         # --- Headlight Suppression ---
         headlight_v_thresh=200,    # HSV V-channel cutoff; pixels above this are headlights
         headlight_dilation_px=60,  # px radius to expand bright core (kills the halo)
+        # --- Shadow Suppression ---
+        shadow_v_thresh=0,         # pixel-level V+S mask; 0 = disabled (blob-level census handles it)
+        shadow_s_thresh=30,
         # --- Occupancy Map ---
         occupancy_confirm_frames=10,   # fg frames before a pixel enters the map (blocks transients)
         occupancy_evict_sec=5.0,       # seconds physically dark before a pixel is evicted
         occupancy_dark_v_thresh=40,    # V < this = "physically dark" (empty road surface)
         # --- Warmup ---
         warmup_frames=1500,            # frames to suppress count while MOG2 stabilises
+        # --- Tripwire ---
+        tripwire_path="tripwire.json", # path to tripwire config JSON; None disables
     ):
         self.stream_id = stream_id
         self.source = source
@@ -598,6 +709,8 @@ class SentinelStream:
         self._area_baseline = area_baseline
         self._headlight_v_thresh = headlight_v_thresh
         self._headlight_dilation_px = headlight_dilation_px
+        self._shadow_v_thresh = shadow_v_thresh
+        self._shadow_s_thresh = shadow_s_thresh
         self._occupancy_confirm_frames = occupancy_confirm_frames
         self._occupancy_evict_sec = occupancy_evict_sec
         self._occupancy_dark_v_thresh = occupancy_dark_v_thresh
@@ -615,6 +728,7 @@ class SentinelStream:
 
         # Per-video warmup / source-switch state
         self._warmup_frames        = warmup_frames
+        self._tripwire_path        = tripwire_path
         self._switch_source        = None   # set by switch_source(); outer loop picks it up
         self._switch_warmup        = None
         self._switch_recreate_mog2 = False  # whether to throw away the MOG2 model on next switch
@@ -797,6 +911,22 @@ class SentinelStream:
 
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
+            # Load tripwire on each restart so a fresh setup_tripwire.py run
+            # takes effect without restarting Flask.
+            tripwire = None
+            if self._tripwire_path and os.path.exists(self._tripwire_path):
+                try:
+                    with open(self._tripwire_path) as _tf:
+                        _tw = json.load(_tf)
+                    tripwire = TripwireCounter(
+                        _tw['x1'], _tw['y1'], _tw['x2'], _tw['y2'],
+                        process_scale=self._process_scale,
+                    )
+                    print(f"[{self.stream_id}] Tripwire loaded: "
+                          f"({_tw['x1']},{_tw['y1']}) → ({_tw['x2']},{_tw['y2']})")
+                except Exception as _e:
+                    print(f"[{self.stream_id}] Tripwire load failed: {_e}")
+
             # Occupancy map is reset on every video restart so stale
             # presence state from a previous loop does not corrupt the new one.
             occupancy = OccupancyMap(
@@ -822,9 +952,13 @@ class SentinelStream:
             # briefly inflates fused_px, which inflates the area estimate).
             # alpha=0.4 means each new reading contributes 40%; prior history 60%.
             # This gives ~3-frame settling time while staying responsive to real changes.
-            count_ema     = 0.0
-            COUNT_ALPHA   = 0.4
-            loop_frame_idx = 0
+            count_ema        = 0.0
+            COUNT_ALPHA      = 0.4
+            loop_frame_idx   = 0
+            recount_floor    = 0      # sticky lower-bound; updated every 2 s by census
+            RECOUNT_INTERVAL = 60     # frames between census runs (~2 s at 30 fps)
+            tripwire_active  = False  # becomes True once first crossing is detected
+            tw_entries = tw_exits = tw_net = 0
 
             while self.running:
                 # Break immediately when a source switch is requested so the
@@ -868,6 +1002,21 @@ class SentinelStream:
                         dilation_px=self._headlight_dilation_px,
                     )
 
+                # ── SHADOW SUPPRESSION ────────────────────────────────
+                # MOG2's detectShadows=True already labels moving shadow
+                # pixels as 127, stripped by the >200 threshold above.
+                # This V+S combined mask catches static and slow-moving
+                # shadows that MOG2 misses.
+                # Cast shadows: dark (V<35) AND grey (S<30, little colour).
+                # Real people: dark clothing has colour (S≥20+); skin V≥60.
+                if self._shadow_v_thresh > 0:
+                    _sv = hsv_frame[:, :, 2]
+                    _ss = hsv_frame[:, :, 1]
+                    _shadow_zone = (
+                        (_sv < self._shadow_v_thresh) & (_ss < self._shadow_s_thresh)
+                    ).astype(np.uint8) * 255
+                    thresh = cv2.bitwise_and(thresh, cv2.bitwise_not(_shadow_zone))
+
                 # ── PHASE 2: Fusion & Opening (Shape Cleanup) ──────
                 # Rub out tiny artifacts before merging
                 cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, open_k)
@@ -903,89 +1052,165 @@ class SentinelStream:
 
                 tracks = tracker.update(detections)
 
-                # ── PHASE 4: Triple Hybrid Counting ──────────────────
+                # ── PHASE 4: Collaborative Incremental Fusion ────────────
                 #
-                # Three independent estimators — take the maximum so no method
-                # silently under-reports:
+                # Three algorithms, three roles — each stage builds on the
+                # previous rather than competing for the highest value.
                 #
-                #  1. ws_fused  : Watershed on fused_mask (raw MOG2 output).
-                #                 Detects MOVING people who are currently visible
-                #                 to MOG2.  Fails for stationary/absorbed crowds.
+                #  Stage 1 │ ws_fused  │ Motion anchor.  Who MOG2 currently sees.
+                #           │           │ The most trustworthy real-time snapshot.
+                #           │           │
+                #  Stage 2 │ ws_occ    │ Absorption corrector.  Adds confirmed-
+                #           │           │ stationary people that MOG2 absorbed.
+                #           │           │ Capped at the motion baseline so stale
+                #           │           │ OccupancyMap pixels cannot inflate alone.
+                #           │           │
+                #  Stage 3 │ ar_count  │ Dense-crowd corrector.  Recovers the
+                #           │           │ shortfall when tightly packed blobs merge
+                #           │           │ and watershed undercounts peaks.  Bounded
+                #           │           │ by occ confirmation — stale pixels that
+                #           │           │ are not supported by occ are ignored.
                 #
-                #  2. ws_occ   : Watershed on persistent_fg (occupancy map).
-                #                 Detects CONFIRMED people — including those already
-                #                 absorbed by MOG2 — because the occupancy map
-                #                 retains pixels until the person physically leaves.
-                #                 This is the primary fix for stationary undercounting.
-                #
-                #  3. ar_count : Area estimate from occupancy-map pixel count vs
-                #                the calibration slope.  A useful sanity-check for
-                #                dense crowds where peak separation breaks down.
-                #
-                # DOT PLACEMENT (post-warmup only):
-                #   Dots are drawn at occupancy-map watershed centroids (ws_occ).
-                #   These centroids sit on confirmed-presence pixel clusters, i.e.
-                #   directly on the people, not on raw motion blobs.  When the
-                #   occupancy map is still empty (person just arrived, not yet
-                #   confirmed), we fall back to fused-mask centroids (ws_fused).
+                # No single stale estimator can dominate the output because
+                # each stage can only raise the count within defined limits.
+
+                # Run all three estimators
+                ws_fused_count, ws_fused_centroids = count_people_watershed_scene(
+                    fused,
+                    min_blob_area=self.min_blob_area,
+                    dt_thresh=0.30,
+                )
+                ws_occ_count, ws_occ_centroids = count_people_watershed_scene(
+                    persistent_fg,
+                    min_blob_area=self.min_blob_area,
+                    dt_thresh=0.30,
+                )
+                ws_count     = ws_fused_count
+                ws_centroids = ws_fused_centroids
+
                 if self._area_px_per_person is not None:
-                    # Estimator 1 — fused watershed (moving people)
-                    ws_fused_count, ws_fused_centroids = count_people_watershed_scene(
-                        fused,
-                        min_blob_area=self.min_blob_area,
-                        dt_thresh=0.30,
-                    )
-                    # Estimator 2 — occupancy watershed (confirmed / stationary people)
-                    ws_occ_count, ws_occ_centroids = count_people_watershed_scene(
-                        persistent_fg,
-                        min_blob_area=self.min_blob_area,
-                        dt_thresh=0.30,
-                    )
-                    # Estimator 3 — area formula from occupancy-map pixel count
                     ar_count = count_people_by_area(
                         persistent_fg,
                         self._area_px_per_person,
                         self._area_baseline,
                     )
-                    # Final count: best estimate from all three
-                    total_count = max(ws_fused_count, ws_occ_count, ar_count)
-                    # Legacy aliases used by latest_stats
-                    ws_count      = ws_fused_count
-                    ws_centroids  = ws_fused_centroids
-
-                    # Draw dots only after warmup ends (panel sees the live system,
-                    # not noise from the MOG2 bootstrapping phase).
-                    # Prefer occupancy centroids (confirmed presence → on actual bodies).
-                    # Fall back to fused centroids for newly arriving people not yet
-                    # confirmed in the occupancy map.
-                    if loop_frame_idx > warmup_frames:
-                        draw_targets = ws_occ_centroids if ws_occ_centroids else ws_fused_centroids
-                        for (cx_d, cy_d) in draw_targets:
-                            draw_person_marker(frame, cx_d, cy_d, 1, in_zone7=False)
                 else:
-                    # Fallback: watershed-only when no calibration is loaded
-                    ws_fused_count, ws_fused_centroids = count_people_watershed_scene(
-                        fused, min_blob_area=self.min_blob_area, dt_thresh=0.30
-                    )
-                    ws_occ_count, ws_occ_centroids = count_people_watershed_scene(
-                        persistent_fg, min_blob_area=self.min_blob_area, dt_thresh=0.30
-                    )
-                    ws_count     = ws_fused_count
-                    ws_centroids = ws_fused_centroids
-                    ar_count     = 0
-                    total_count  = max(ws_fused_count, ws_occ_count)
-                    if loop_frame_idx > warmup_frames:
-                        draw_targets = ws_occ_centroids if ws_occ_centroids else ws_fused_centroids
-                        for (cx_d, cy_d) in draw_targets:
-                            draw_person_marker(frame, cx_d, cy_d, 1, in_zone7=False)
+                    ar_count = 0
 
-                # ── HUD Overlay Removed (UI renders stats) ──────────
+                # Stage 1 — motion anchor
+                total_count = ws_fused_count
+
+                # Stage 2 — absorption correction
+                # OccupancyMap can add confirmed-stationary people that motion
+                # missed, but only up to the motion count itself.  If motion
+                # sees 3 people, occ cannot claim 8 absorbed — that would mean
+                # 8 invisible people appeared, which is physically implausible.
+                occ_surplus = max(0, ws_occ_count - total_count)
+                absorption_cap = max(total_count, 2)   # floor: allow at least 2 absorbed
+                total_count = total_count + min(occ_surplus, absorption_cap)
+
+                # Stage 3 — dense-crowd area correction
+                # When blobs merge in a dense crowd, watershed undercounts because
+                # distance-transform peaks collapse.  ar_count (pixel-mass formula)
+                # recovers that shortfall.  Only applied when:
+                #   a) area says MORE than the current estimate (genuine shortfall)
+                #   b) occ ALSO confirms the density (not just stale pixel noise)
+                # Bounded by occ_count to prevent area from overshooting reality.
+                if ar_count > total_count and ws_occ_count >= total_count:
+                    total_count = min(ar_count, ws_occ_count)
+
+                # ── PHASE 5: Tripwire hybrid count ───────────────────
+                # Feed track centroids to the tripwire counter.
+                # When the tripwire has fired, it becomes the authoritative
+                # source for occupancy — this bypasses the stale OccupancyMap
+                # which can hold departed-person pixels for many seconds after
+                # they leave, causing sustained overcounting.
+                tw_entries = tw_exits = tw_net = 0
+                tripwire_active = False
+                if tripwire is not None and loop_frame_idx > warmup_frames:
+                    track_cents = {}
+                    track_boxes = {}
+                    for tid, data in tracks.items():
+                        if data['ghost'] == 0:
+                            x, y, w_box, h_box = data['box']
+                            track_cents[tid] = (int(x + w_box / 2), int(y + h_box / 2))
+                            track_boxes[tid] = (x, y, w_box, h_box)
+                    tw_entries, tw_exits, tw_net = tripwire.update(
+                        track_cents, boxes_by_id=track_boxes
+                    )
+                    if tw_entries + tw_exits > 0:
+                        tripwire_active = True
+                    if tripwire_active:
+                        # Trust tripwire net count; use ws_fused_count (live motion)
+                        # as a floor for currently visible moving people.
+                        # Do NOT use ws_occ / ar_count here — they read from the
+                        # OccupancyMap which still holds pixels of departed people.
+                        total_count = max(tw_net, ws_fused_count)
+                    else:
+                        total_count = max(tw_net, total_count)
+
+                # Draw tripwire line overlay
+                if tripwire is not None:
+                    line_color = (0, 255, 255) if tripwire_active else (180, 180, 180)
+                    cv2.line(frame, tripwire.p1, tripwire.p2, line_color, 2, cv2.LINE_AA)
+                    mid = ((tripwire.p1[0] + tripwire.p2[0]) // 2,
+                           (tripwire.p1[1] + tripwire.p2[1]) // 2)
+                    cv2.putText(frame, f"IN:{tw_entries} OUT:{tw_exits}",
+                                (mid[0] - 50, mid[1] - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.55, line_color, 2, cv2.LINE_AA)
+
+                # ── 2-SECOND CENSUS WITH SHADOW VALIDATION ────────────
+                # Every 60 frames rescan the OccupancyMap to recount all
+                # confirmed people, including those absorbed by MOG2.
+                # Gated to NOT run when the tripwire is active — at that point
+                # the OccupancyMap may still hold pixels of departed people and
+                # the census floor would override the correct tripwire net count.
+                if (loop_frame_idx > warmup_frames and
+                        loop_frame_idx % RECOUNT_INTERVAL == 0 and
+                        not tripwire_active):
+                    _pf_conts, _ = cv2.findContours(
+                        persistent_fg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+                    )
+                    _validated = np.zeros_like(persistent_fg)
+                    for _bc in _pf_conts:
+                        if cv2.contourArea(_bc) < self.min_blob_area:
+                            continue
+                        _bx, _by, _bw, _bh = cv2.boundingRect(_bc)
+                        if max(_bw, _bh) / max(1, min(_bw, _bh)) > 4.5:
+                            continue
+                        _bm = np.zeros(persistent_fg.shape, dtype=np.uint8)
+                        cv2.drawContours(_bm, [_bc], -1, 255, -1)
+                        _v_mean = cv2.mean(hsv_frame[:, :, 2], mask=_bm)[0]
+                        _s_mean = cv2.mean(hsv_frame[:, :, 1], mask=_bm)[0]
+                        if _v_mean < 45 and _s_mean < 32:
+                            continue
+                        cv2.drawContours(_validated, [_bc], -1, 255, -1)
+
+                    _cws, _ = count_people_watershed_scene(
+                        _validated,
+                        min_blob_area=self.min_blob_area,
+                        dt_thresh=0.30,
+                    )
+                    _car = (count_people_by_area(
+                                _validated,
+                                self._area_px_per_person,
+                                self._area_baseline)
+                            if self._area_px_per_person is not None else 0)
+                    recount_floor = max(_cws, _car)
+
+                # Apply census floor only when tripwire is not active.
+                # When tripwire is tracking, stale recount_floor would undo
+                # the correct exit count.
+                if not tripwire_active:
+                    total_count = max(total_count, recount_floor)
 
                 # Suppress the count during MOG2 warmup so startup
                 # chair/background noise never triggers alerts.
                 if loop_frame_idx <= warmup_frames:
-                    total_count = 0
-                    count_ema   = 0.0
+                    total_count    = 0
+                    count_ema      = 0.0
+                    recount_floor  = 0
+                    tripwire_active = False
                     self.is_warming_up = True
                 else:
                     self.is_warming_up = False
@@ -1025,6 +1250,11 @@ class SentinelStream:
                     # Hybrid pipeline breakdown (exposed for UI / thesis demo)
                     "watershed_count": int(ws_count) if self._area_px_per_person is not None else int(total_count),
                     "area_count":      int(ar_count) if self._area_px_per_person is not None else 0,
+                    # Tripwire breakdown
+                    "tripwire_active":  tripwire_active,
+                    "tripwire_entries": int(tw_entries),
+                    "tripwire_exits":   int(tw_exits),
+                    "tripwire_net":     int(tw_net),
                 }
 
                 # Phase 2.3: EVENT CLIP RECORDING (Grounded thresholds)

@@ -129,7 +129,7 @@ cam1_stream = SentinelStream(
     h_morph_kernel=(10, 3),   # must match calibration
     dilate_kernel=1,
     process_scale=0.667,
-    detect_shadows=False,
+    detect_shadows=True,
     area_px_per_person=_area_px_per_person,
     area_baseline=_area_baseline,
     # Headlight suppression — eliminates motorcycle glare inflation

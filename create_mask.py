@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # CONFIGURATION
-VIDEO_SOURCE = "videos/calibration.MOV"
+VIDEO_SOURCE = "videos/main_video.mp4"
 
 # GLOBAL VARIABLES
 points = []
