@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # CONFIGURATION
-VIDEO_SOURCE = "videos/main_video.mp4"
+VIDEO_SOURCE = "videos/calibration.MOV"
 
 # GLOBAL VARIABLES
 points = []
@@ -48,7 +48,7 @@ while True:
       # Actually, let's save the "Road Mask" directly. 
       # Any pixel that is WHITE in 'mask.png' will be ignored by the main engine.
       cv2.imwrite("mask_layer_calibration.png", mask)
-      print("Success! 'mask_layer1.png' saved.")
+      print("Success! 'mask_layer_calibration.png' saved.")
       break
    elif key == ord('r'):
       img = frame.copy()

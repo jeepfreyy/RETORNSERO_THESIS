@@ -955,6 +955,8 @@ class SentinelStream:
             count_ema        = 0.0
             COUNT_ALPHA      = 0.4
             loop_frame_idx   = 0
+            mog2_lr          = -1     # -1 = auto learning; frozen to 0 after warmup
+            bg_reference     = None   # set at warmup end; used for static diff detection
             recount_floor    = 0      # sticky lower-bound; updated every 2 s by census
             RECOUNT_INTERVAL = 60     # frames between census runs (~2 s at 30 fps)
             tripwire_active  = False  # becomes True once first crossing is detected
@@ -984,7 +986,7 @@ class SentinelStream:
                 hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
                 # ── PHASE 1: MOG2 Background Subtraction ──
-                fg_mask = self.bg_subtractor.apply(frame)
+                fg_mask = self.bg_subtractor.apply(frame, learningRate=mog2_lr)
                 # Scrub MOG2 shadows (gray=127 when detectShadows=True)
                 _, fg_mask = cv2.threshold(fg_mask, 200, 255, cv2.THRESH_BINARY)
                 # Apply ROI mask
@@ -1017,6 +1019,26 @@ class SentinelStream:
                     ).astype(np.uint8) * 255
                     thresh = cv2.bitwise_and(thresh, cv2.bitwise_not(_shadow_zone))
 
+                # ── STATIC BACKGROUND REFERENCE DIFF ────────────────
+                # Secondary detector: compares current frame directly against
+                # the empty-scene reference captured at warmup end.
+                # Catches people who are seated and static long enough that
+                # MOG2 absorption / high variance makes them invisible to
+                # motion detection.  Fused with MOG2 output so both moving
+                # and stationary people reach the morphological pipeline.
+                if bg_reference is not None:
+                    _diff      = cv2.absdiff(frame, bg_reference)
+                    _diff_gray = cv2.cvtColor(_diff, cv2.COLOR_BGR2GRAY)
+                    _, _diff_mask = cv2.threshold(_diff_gray, 30, 255, cv2.THRESH_BINARY)
+                    _diff_mask = cv2.bitwise_and(_diff_mask, roi_mask)
+                    if self._headlight_v_thresh < 255:
+                        _diff_mask = suppress_headlights(
+                            _diff_mask, hsv_frame,
+                            v_threshold=self._headlight_v_thresh,
+                            dilation_px=self._headlight_dilation_px,
+                        )
+                    thresh = cv2.bitwise_or(thresh, _diff_mask)
+
                 # ── PHASE 2: Fusion & Opening (Shape Cleanup) ──────
                 # Rub out tiny artifacts before merging
                 cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, open_k)
@@ -1025,11 +1047,18 @@ class SentinelStream:
                 fused = cv2.dilate(fused, d_kernel, iterations=1)
 
                 # ── WARMUP GATE ───────────────────────────────────────
-                # At the exact frame MOG2 stabilises, wipe the occupancy map.
-                # Any chairs/walls that filled it during startup are erased.
-                # After this point only real post-warmup detections accumulate.
+                # At the exact frame MOG2 stabilises:
+                #   1. Occupancy map is wiped — erases chairs/walls from startup.
+                #   2. MOG2 learning rate frozen to 0 — background locked on the
+                #      empty-scene state.
+                #   3. Background reference frame captured from MOG2's learned
+                #      background model.  Used by the static-diff detector to find
+                #      seated people who fall within MOG2's variance envelope and
+                #      are therefore missed by motion detection alone.
                 if loop_frame_idx == warmup_frames:
                     occupancy.reset()
+                    mog2_lr      = 0
+                    bg_reference = self.bg_subtractor.getBackgroundImage()
                 loop_frame_idx += 1
 
                 # ── OCCUPANCY MAP UPDATE ──────────────────────────────

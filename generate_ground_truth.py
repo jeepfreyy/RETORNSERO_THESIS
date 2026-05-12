@@ -2,9 +2,9 @@ import cv2
 import json
 import os
 
-VIDEO_PATH = 'videos/main_video.mp4'
+VIDEO_PATH = 'videos/calibration.MOV'
 OUTPUT_JSON = 'barangay_ground_truth_calibration.json'
-MASK_PATH = 'mask_layer1.png'
+MASK_PATH = 'mask_layer_calibration.png'
 SKIP_FRAMES = 60  # Default step (2 seconds at 30fps)
 
 current_points = []

@@ -35,9 +35,13 @@ _area_baseline = 0.0
 if os.path.exists(_AREA_CAL_PATH):
     with open(_AREA_CAL_PATH) as _f:
         _cal = _json_cal.load(_f)
-    _area_px_per_person = float(_cal['avg_pixels_per_person'])
-    _area_baseline      = float(_cal['area_at_zero'])
-    print(f"[Area Cal] {_area_px_per_person:.1f} px/person  baseline={_area_baseline:.1f}px  R²={_cal.get('r_squared', '?')}")
+    _r2 = float(_cal.get('r_squared', 0.0))
+    if _r2 >= 0.70:
+        _area_px_per_person = float(_cal['avg_pixels_per_person'])
+        _area_baseline      = float(_cal['area_at_zero'])
+        print(f"[Area Cal] {_area_px_per_person:.1f} px/person  baseline={_area_baseline:.1f}px  R²={_r2:.4f}")
+    else:
+        print(f"[Area Cal] Calibration rejected — R²={_r2:.4f} < 0.70 (non-linear area-count relationship). Using watershed fallback.")
 else:
     print("[Area Cal] area_calibration.json not found — using watershed fallback.")
 

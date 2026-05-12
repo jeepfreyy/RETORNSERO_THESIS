@@ -14,12 +14,12 @@ PIPELINE_PARAMS = {
 # These must match app.py so calibration and live pipeline are identical
 HEADLIGHT_V_THRESH   = 160   # lowered — halo sits at V=160-190
 HEADLIGHT_DILATION   = 80   # widened — kills full halo radius
-OCCUPANCY_CONFIRM    = 10    # frames
-OCCUPANCY_EVICT_SEC  = 5.0
+OCCUPANCY_CONFIRM    = 3     # frames — must match app.py occupancy_confirm_frames
+OCCUPANCY_EVICT_SEC  = 10.0  # must match app.py occupancy_evict_sec
 OCCUPANCY_DARK_THRESH= 40
 PROCESS_SCALE = 0.667
 VIDEO_PATH    = 'videos/calibration.MOV'
-MASK_PATH     = 'mask_layer1.png'
+MASK_PATH     = 'mask_layer_calibration.png'
 GT_JSON       = 'barangay_ground_truth_calibration.json'
 OUTPUT_JSON   = 'area_calibration.json'
 WARMUP_FRAMES = 1000
