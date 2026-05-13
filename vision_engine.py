@@ -1,4 +1,5 @@
 import cv2
+import json
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import distance
@@ -135,6 +136,7 @@ class OccupancyMap:
         self._absent_count[:] = 0
 
 
+
 def apply_gamma_correction(frame, target_mean=100):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     current_mean = gray.mean()
@@ -147,18 +149,6 @@ def apply_gamma_correction(frame, target_mean=100):
 
 
 class RobustSentinelTracker:
-    """
-    Centroid tracker with per-track Kalman filters (constant-velocity model).
-
-    Each track carries a cv2.KalmanFilter(4, 2) with state [x, y, vx, vy].
-    Every update cycle:
-      1. predict()  — advances each filter; predicted center used for Hungarian matching.
-      2. correct()  — called only for matched tracks; corrected center stored in
-                       smooth_center for rendering.
-    Unmatched (ghosting) tracks keep the Kalman prediction as smooth_center so dots
-    drift naturally rather than snapping or disappearing on a single missed frame.
-    """
-
     def __init__(self, max_ghost=30, dist_thresh=150, min_lifetime=10, merge_thresh=40):
         self.next_id = 1
         self.tracks = {}
@@ -167,69 +157,30 @@ class RobustSentinelTracker:
         self.min_lifetime = min_lifetime
         self.merge_thresh = merge_thresh
 
-    # ── Kalman Filter Factory ──────────────────────────────────────────
-    @staticmethod
-    def _make_kalman(cx, cy):
-        kf = cv2.KalmanFilter(4, 2)
-        kf.transitionMatrix = np.array([
-            [1, 0, 1, 0],
-            [0, 1, 0, 1],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ], dtype=np.float32)
-        kf.measurementMatrix = np.array([
-            [1, 0, 0, 0],
-            [0, 1, 0, 0],
-        ], dtype=np.float32)
-        # processNoiseCov=1e-2 keeps the filter responsive to real motion;
-        # measurementNoiseCov=0.5 smooths watershed centroid jitter without lag.
-        kf.processNoiseCov    = np.eye(4, dtype=np.float32) * 1e-2
-        kf.measurementNoiseCov = np.eye(2, dtype=np.float32) * 0.5
-        kf.errorCovPost       = np.eye(4, dtype=np.float32)
-        kf.statePost = np.array([[float(cx)], [float(cy)], [0.0], [0.0]], dtype=np.float32)
-        return kf
-
     def get_center(self, box):
         return (int(box[0] + box[2] / 2), int(box[1] + box[3] / 2))
 
     def update(self, detections):
         detections = self.merge_nearby_boxes(detections)
         track_ids = list(self.tracks.keys())
-
-        # ── Step 1: Kalman predict — get expected positions this frame ───
-        predicted_centers = []
-        for tid in track_ids:
-            pred = self.tracks[tid]['kf'].predict()
-            px, py = int(pred[0, 0]), int(pred[1, 0])
-            # Default to predicted position; overwritten by correct() if matched.
-            self.tracks[tid]['smooth_center'] = (px, py)
-            predicted_centers.append((px, py))
-
+        track_centers = [self.get_center(self.tracks[tid]['box']) for tid in track_ids]
         det_centers = [self.get_center(box) for box in detections]
 
-        # ── Step 2: Hungarian assignment on predicted vs detected centers ─
-        if len(predicted_centers) > 0 and len(det_centers) > 0:
-            cost = distance.cdist(predicted_centers, det_centers)
+        if len(track_centers) > 0 and len(det_centers) > 0:
+            cost = distance.cdist(track_centers, det_centers)
             row_idx, col_idx = linear_sum_assignment(cost)
             assigned_tracks, assigned_dets = set(), set()
             for r, c in zip(row_idx, col_idx):
                 if cost[r, c] < self.dist_thresh:
                     tid = track_ids[r]
                     self.tracks[tid]['box'] = detections[c]
-                    # Kalman correct — fuse prediction with actual measurement
-                    cx, cy = self.get_center(detections[c])
-                    meas = np.array([[float(cx)], [float(cy)]], dtype=np.float32)
-                    corrected = self.tracks[tid]['kf'].correct(meas)
-                    self.tracks[tid]['smooth_center'] = (int(corrected[0, 0]), int(corrected[1, 0]))
                     self.tracks[tid]['ghost'] = 0
                     self.tracks[tid]['lifetime'] += 1
                     assigned_tracks.add(tid)
                     assigned_dets.add(c)
-
-            for tid in track_ids:
+            for i, tid in enumerate(track_ids):
                 if tid not in assigned_tracks:
                     self.tracks[tid]['ghost'] += 1
-
             for i in range(len(detections)):
                 if i not in assigned_dets:
                     self.register(detections[i])
@@ -239,7 +190,6 @@ class RobustSentinelTracker:
             for det in detections:
                 self.register(det)
 
-        # ── Step 3: Prune dead tracks ─────────────────────────────────────
         for tid in list(self.tracks.keys()):
             if self.tracks[tid]['ghost'] > self.max_ghost:
                 del self.tracks[tid]
@@ -279,14 +229,7 @@ class RobustSentinelTracker:
         return [x, y, w, h]
 
     def register(self, box):
-        cx, cy = self.get_center(box)
-        self.tracks[self.next_id] = {
-            'box': box,
-            'ghost': 0,
-            'lifetime': 1,
-            'kf': self._make_kalman(cx, cy),
-            'smooth_center': (cx, cy),
-        }
+        self.tracks[self.next_id] = {'box': box, 'ghost': 0, 'lifetime': 1}
         self.next_id += 1
 
 
@@ -310,7 +253,7 @@ def get_perspective_weight(y_coord, frame_height):
 # ---------------------------------------------------------------------------
 # Structural Blob Validation (uses Distance Transform profile)
 # ---------------------------------------------------------------------------
-def is_human_blob(roi_thresh, _x, y, w, h, frame_height, min_blob_area=800, max_aspect=1.8):
+def is_human_blob(roi_thresh, x, y, w, h, frame_height, min_blob_area=800, max_aspect=1.8):
     """
     Validates whether a detected blob is likely a human using:
       1. Aspect Ratio  –  tunable via max_aspect (default 1.8 for eye-level;
@@ -481,6 +424,13 @@ def count_people_watershed_scene(fused_mask, min_blob_area=350, dt_thresh=0.30,
             continue
 
         x, y, w, h = cv2.boundingRect(c)
+
+        # Reject shadow silhouettes: cast shadows are very elongated (narrow
+        # and long).  A real person blob from an overhead camera has aspect < 4.
+        # Lamp-post shadows are typically 8:1 or more.
+        if max(w, h) / max(1, min(w, h)) > 4.5:
+            continue
+
         roi = fused_mask[y:y + h, x:x + w].copy()
 
         # Erode slightly to break thin bridges between bodies
@@ -617,8 +567,8 @@ class SentinelStream:
         ghost_threshold=30,
         max_capacity=30,
         # --- Morphological Tuning (nighttime-critical) ---
-        morph_kernel=(7, 40),      # MORPH_CLOSE fusion kernel (w, h)
-        h_morph_kernel=(35, 7),   # Horizontal MORPH_CLOSE kernel (w, h) — fuses seated-person fragments
+        morph_kernel=(7, 50),      # MORPH_CLOSE fusion kernel (w, h)
+        h_morph_kernel=(40, 7),   # Horizontal MORPH_CLOSE kernel (w, h) — fuses seated-person fragments
         dilate_kernel=3,           # Square dilation size in pixels
         merge_thresh=40,      # px gap tolerance for merging nearby body-part fragments
         dist_thresh=150,      # px max centroid shift the tracker tolerates before dropping a track
@@ -632,12 +582,19 @@ class SentinelStream:
         # --- Headlight Suppression ---
         headlight_v_thresh=200,    # HSV V-channel cutoff; pixels above this are headlights
         headlight_dilation_px=60,  # px radius to expand bright core (kills the halo)
+        # --- Shadow Suppression ---
+        shadow_v_thresh=0,         # pixel-level V+S mask; 0 = disabled (blob-level census handles it)
+        shadow_s_thresh=30,
         # --- Occupancy Map ---
         occupancy_confirm_frames=10,   # fg frames before a pixel enters the map (blocks transients)
         occupancy_evict_sec=5.0,       # seconds physically dark before a pixel is evicted
         occupancy_dark_v_thresh=40,    # V < this = "physically dark" (empty road surface)
         # --- Warmup ---
         warmup_frames=1500,            # frames to suppress count while MOG2 stabilises
+        # --- YOLO Census (appearance-based fallback for absorbed stationary people) ---
+        yolo_model_path="yolov8n.pt",  # set to None to disable; path relative to cwd
+        yolo_conf=0.40,                # detection confidence threshold
+        yolo_iou=0.35,                 # NMS IoU threshold — lower = fewer double-detections
     ):
         self.stream_id = stream_id
         self.source = source
@@ -657,6 +614,8 @@ class SentinelStream:
         self._area_baseline = area_baseline
         self._headlight_v_thresh = headlight_v_thresh
         self._headlight_dilation_px = headlight_dilation_px
+        self._shadow_v_thresh = shadow_v_thresh
+        self._shadow_s_thresh = shadow_s_thresh
         self._occupancy_confirm_frames = occupancy_confirm_frames
         self._occupancy_evict_sec = occupancy_evict_sec
         self._occupancy_dark_v_thresh = occupancy_dark_v_thresh
@@ -671,6 +630,21 @@ class SentinelStream:
         self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
             history=mog2_history, varThreshold=mog2_threshold, detectShadows=detect_shadows
         )
+
+        # YOLO census — loaded once at startup; None if disabled or model not found
+        self._yolo_model = None
+        self._yolo_conf  = yolo_conf
+        self._yolo_iou   = yolo_iou
+        if yolo_model_path is not None:
+            if os.path.exists(yolo_model_path):
+                try:
+                    from ultralytics import YOLO as _YOLO
+                    self._yolo_model = _YOLO(yolo_model_path)
+                    print(f"[YOLO] Loaded {yolo_model_path}  conf={yolo_conf}  iou={yolo_iou}")
+                except Exception as _e:
+                    print(f"[YOLO] Could not load {yolo_model_path}: {_e} — census disabled.")
+            else:
+                print(f"[YOLO] {yolo_model_path} not found — census disabled.")
 
         # Per-video warmup / source-switch state
         self._warmup_frames        = warmup_frames
@@ -703,11 +677,16 @@ class SentinelStream:
         self.clip_recording = False
         self.clip_start_time = None
         self.clip_filename = None
-        self.clip_max_duration = 15       # max seconds per event clip
+        self.clip_min_duration = 5        # minimum seconds recorded before a clip can close
+        self.clip_max_duration = 15       # hard cap: stop clip after this many seconds
         self.temp_clips_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Temp_Clips")
         self.temp_clips = []              # in-memory metadata list
-        self._prev_clip_level = "LOW"
-        self._clip_cooldown = 0           # frames to skip after video restart
+        self._cooldown_until = 0.0        # epoch when inter-clip cooldown expires
+        self._last_clip_density = None    # density level at the start of the last clip
+        self._high_since = 0.0            # epoch when current HIGH streak began (0 = not HIGH)
+        self.manual_clip_active = False        # True while a user-triggered clip is recording
+        self._manual_clip_requested = False    # one-shot flag set by API
+        self._manual_clip_stop_requested = False  # one-shot flag set by API
         os.makedirs(self.temp_clips_dir, exist_ok=True)
         
         # Load persisted temp clips
@@ -718,13 +697,19 @@ class SentinelStream:
                 if len(parts) >= 4:
                     timestamp = parts[1] + " " + parts[2].replace('-', ':')
                     density_tag = parts[3]
+                    _clip_path = os.path.join(self.temp_clips_dir, f)
+                    _cap = cv2.VideoCapture(_clip_path)
+                    _frames = _cap.get(cv2.CAP_PROP_FRAME_COUNT)
+                    _fps = _cap.get(cv2.CAP_PROP_FPS) or 30.0
+                    _cap.release()
+                    _duration = round(_frames / _fps, 1) if _frames > 0 else 0
                     self.temp_clips.append({
                         "filename": f,
                         "thumbnail": thumb,
                         "timestamp": timestamp,
                         "density": density_tag,
                         "camera_id": self.stream_id,
-                        "duration": 0
+                        "duration": _duration
                     })
         self.temp_clips.sort(key=lambda x: x['timestamp'], reverse=True)
         self.temp_clips = self.temp_clips[:20]
@@ -881,9 +866,13 @@ class SentinelStream:
             # briefly inflates fused_px, which inflates the area estimate).
             # alpha=0.4 means each new reading contributes 40%; prior history 60%.
             # This gives ~3-frame settling time while staying responsive to real changes.
-            count_ema     = 0.0
-            COUNT_ALPHA   = 0.4
-            loop_frame_idx = 0
+            count_ema        = 0.0
+            COUNT_ALPHA      = 0.4
+            loop_frame_idx   = 0
+            mog2_lr          = -1     # -1 = auto learning; frozen to 0 after warmup
+            bg_reference     = None   # set at warmup end; used for static diff detection
+            recount_floor    = 0.0    # sticky lower-bound; updated every 2 s by census
+            RECOUNT_INTERVAL = 60     # frames between census runs (~2 s at 30 fps)
 
             while self.running:
                 # Break immediately when a source switch is requested so the
@@ -909,7 +898,7 @@ class SentinelStream:
                 hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
                 # ── PHASE 1: MOG2 Background Subtraction ──
-                fg_mask = self.bg_subtractor.apply(frame)
+                fg_mask = self.bg_subtractor.apply(frame, learningRate=mog2_lr)
                 # Scrub MOG2 shadows (gray=127 when detectShadows=True)
                 _, fg_mask = cv2.threshold(fg_mask, 200, 255, cv2.THRESH_BINARY)
                 # Apply ROI mask
@@ -927,6 +916,41 @@ class SentinelStream:
                         dilation_px=self._headlight_dilation_px,
                     )
 
+                # ── SHADOW SUPPRESSION ────────────────────────────────
+                # MOG2's detectShadows=True already labels moving shadow
+                # pixels as 127, stripped by the >200 threshold above.
+                # This V+S combined mask catches static and slow-moving
+                # shadows that MOG2 misses.
+                # Cast shadows: dark (V<35) AND grey (S<30, little colour).
+                # Real people: dark clothing has colour (S≥20+); skin V≥60.
+                if self._shadow_v_thresh > 0:
+                    _sv = hsv_frame[:, :, 2]
+                    _ss = hsv_frame[:, :, 1]
+                    _shadow_zone = (
+                        (_sv < self._shadow_v_thresh) & (_ss < self._shadow_s_thresh)
+                    ).astype(np.uint8) * 255
+                    thresh = cv2.bitwise_and(thresh, cv2.bitwise_not(_shadow_zone))
+
+                # ── STATIC BACKGROUND REFERENCE DIFF ────────────────
+                # Secondary detector: compares current frame directly against
+                # the empty-scene reference captured at warmup end.
+                # Catches people who are seated and static long enough that
+                # MOG2 absorption / high variance makes them invisible to
+                # motion detection.  Fused with MOG2 output so both moving
+                # and stationary people reach the morphological pipeline.
+                if bg_reference is not None:
+                    _diff      = cv2.absdiff(frame, bg_reference)
+                    _diff_gray = cv2.cvtColor(_diff, cv2.COLOR_BGR2GRAY)
+                    _, _diff_mask = cv2.threshold(_diff_gray, 30, 255, cv2.THRESH_BINARY)
+                    _diff_mask = cv2.bitwise_and(_diff_mask, roi_mask)
+                    if self._headlight_v_thresh < 255:
+                        _diff_mask = suppress_headlights(
+                            _diff_mask, hsv_frame,
+                            v_threshold=self._headlight_v_thresh,
+                            dilation_px=self._headlight_dilation_px,
+                        )
+                    thresh = cv2.bitwise_or(thresh, _diff_mask)
+
                 # ── PHASE 2: Fusion & Opening (Shape Cleanup) ──────
                 # Rub out tiny artifacts before merging
                 cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, open_k)
@@ -935,11 +959,18 @@ class SentinelStream:
                 fused = cv2.dilate(fused, d_kernel, iterations=1)
 
                 # ── WARMUP GATE ───────────────────────────────────────
-                # At the exact frame MOG2 stabilises, wipe the occupancy map.
-                # Any chairs/walls that filled it during startup are erased.
-                # After this point only real post-warmup detections accumulate.
+                # At the exact frame MOG2 stabilises:
+                #   1. Occupancy map is wiped — erases chairs/walls from startup.
+                #   2. MOG2 learning rate frozen to 0 — background locked on the
+                #      empty-scene state.
+                #   3. Background reference frame captured from MOG2's learned
+                #      background model.  Used by the static-diff detector to find
+                #      seated people who fall within MOG2's variance envelope and
+                #      are therefore missed by motion detection alone.
                 if loop_frame_idx == warmup_frames:
                     occupancy.reset()
+                    mog2_lr      = 0
+                    bg_reference = self.bg_subtractor.getBackgroundImage()
                 loop_frame_idx += 1
 
                 # ── OCCUPANCY MAP UPDATE ──────────────────────────────
@@ -962,57 +993,140 @@ class SentinelStream:
 
                 tracks = tracker.update(detections)
 
-                # ── PHASE 4: Triple Hybrid Counting ──────────────────
+                # ── PHASE 4: Collaborative Incremental Fusion ────────────
                 #
-                # Three independent estimators — take the maximum so no method
-                # silently under-reports:
-                #  1. ws_fused : Watershed on MOG2 fused_mask  → moving people
-                #  2. ws_occ   : Watershed on occupancy map    → stationary/absorbed people
-                #  3. ar_count : Area ÷ px/person calibration  → dense merged blobs
+                # Three algorithms, three roles — each stage builds on the
+                # previous rather than competing for the highest value.
+                #
+                #  Stage 1 │ ws_fused  │ Motion anchor.  Who MOG2 currently sees.
+                #           │           │ The most trustworthy real-time snapshot.
+                #           │           │
+                #  Stage 2 │ ws_occ    │ Absorption corrector.  Adds confirmed-
+                #           │           │ stationary people that MOG2 absorbed.
+                #           │           │ Capped at the motion baseline so stale
+                #           │           │ OccupancyMap pixels cannot inflate alone.
+                #           │           │
+                #  Stage 3 │ ar_count  │ Dense-crowd corrector.  Recovers the
+                #           │           │ shortfall when tightly packed blobs merge
+                #           │           │ and watershed undercounts peaks.  Bounded
+                #           │           │ by occ confirmation — stale pixels that
+                #           │           │ are not supported by occ are ignored.
+                #
+                # No single stale estimator can dominate the output because
+                # each stage can only raise the count within defined limits.
+
+                # Run all three estimators
+                ws_fused_count, ws_fused_centroids = count_people_watershed_scene(
+                    fused,
+                    min_blob_area=self.min_blob_area,
+                    dt_thresh=0.30,
+                )
+                ws_occ_count, ws_occ_centroids = count_people_watershed_scene(
+                    persistent_fg,
+                    min_blob_area=self.min_blob_area,
+                    dt_thresh=0.30,
+                )
+                ws_count     = ws_fused_count
+                ws_centroids = ws_fused_centroids
+
                 if self._area_px_per_person is not None:
-                    ws_fused_count, _ = count_people_watershed_scene(
-                        fused, min_blob_area=self.min_blob_area, dt_thresh=0.30,
-                    )
-                    ws_occ_count, _ = count_people_watershed_scene(
-                        persistent_fg, min_blob_area=self.min_blob_area, dt_thresh=0.30,
-                    )
                     ar_count = count_people_by_area(
-                        persistent_fg, self._area_px_per_person, self._area_baseline,
+                        persistent_fg,
+                        self._area_px_per_person,
+                        self._area_baseline,
                     )
-                    total_count = max(ws_fused_count, ws_occ_count, ar_count)
-                    ws_count    = ws_fused_count
                 else:
-                    ws_fused_count, _ = count_people_watershed_scene(
-                        fused, min_blob_area=self.min_blob_area, dt_thresh=0.30
-                    )
-                    ws_occ_count, _ = count_people_watershed_scene(
-                        persistent_fg, min_blob_area=self.min_blob_area, dt_thresh=0.30
-                    )
-                    ws_count    = ws_fused_count
-                    ar_count    = 0
-                    total_count = max(ws_fused_count, ws_occ_count)
+                    ar_count = 0
 
-                # ── PHASE 4.5: Kalman-smoothed tracker dots ───────────
-                # Dots are rendered from each confirmed track's Kalman-corrected
-                # smooth_center — NOT from raw watershed centroids.  This
-                # eliminates 10–30 px per-frame jitter for all motion states
-                # (walking, swaying, seated, stationary).  Ghost tracks keep
-                # their Kalman prediction so dots drift naturally during brief
-                # occlusions instead of snapping or blinking.
-                if loop_frame_idx > warmup_frames:
-                    for tid, track in tracks.items():
-                        if track['lifetime'] >= tracker.min_lifetime and track['ghost'] == 0:
-                            cx_t, cy_t = track['smooth_center']
-                            if 0 <= cx_t < frame_width and 0 <= cy_t < frame_height:
-                                draw_person_marker(frame, cx_t, cy_t, 1, in_zone7=False)
+                # Stage 1 — motion anchor
+                total_count = ws_fused_count
 
-                # ── HUD Overlay Removed (UI renders stats) ──────────
+                # Stage 2 — absorption correction
+                # OccupancyMap can add confirmed-stationary people that motion
+                # missed, but only up to the motion count itself.  If motion
+                # sees 3 people, occ cannot claim 8 absorbed — that would mean
+                # 8 invisible people appeared, which is physically implausible.
+                occ_surplus = max(0, ws_occ_count - total_count)
+                absorption_cap = max(total_count, 2)   # floor: allow at least 2 absorbed
+                total_count = total_count + min(occ_surplus, absorption_cap)
+
+                # Stage 3 — dense-crowd area correction
+                # When blobs merge in a dense crowd, watershed undercounts because
+                # distance-transform peaks collapse.  ar_count (pixel-mass formula)
+                # recovers that shortfall.  Only applied when:
+                #   a) area says MORE than the current estimate (genuine shortfall)
+                #   b) occ ALSO confirms the density (not just stale pixel noise)
+                # Bounded by occ_count to prevent area from overshooting reality.
+                if ar_count > total_count and ws_occ_count >= total_count:
+                    total_count = min(ar_count, ws_occ_count)
+
+                # ── 2-SECOND CENSUS WITH SHADOW VALIDATION ────────────
+                # Every 60 frames rescan the OccupancyMap to recount all
+                # confirmed people, including those absorbed by MOG2.
+                if (loop_frame_idx > warmup_frames and
+                        loop_frame_idx % RECOUNT_INTERVAL == 0):
+                    _pf_conts, _ = cv2.findContours(
+                        persistent_fg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+                    )
+                    _validated = np.zeros_like(persistent_fg)
+                    for _bc in _pf_conts:
+                        if cv2.contourArea(_bc) < self.min_blob_area:
+                            continue
+                        _bx, _by, _bw, _bh = cv2.boundingRect(_bc)
+                        if max(_bw, _bh) / max(1, min(_bw, _bh)) > 4.5:
+                            continue
+                        _bm = np.zeros(persistent_fg.shape, dtype=np.uint8)
+                        cv2.drawContours(_bm, [_bc], -1, 255, -1)
+                        _v_mean = cv2.mean(hsv_frame[:, :, 2], mask=_bm)[0]
+                        _s_mean = cv2.mean(hsv_frame[:, :, 1], mask=_bm)[0]
+                        if _v_mean < 45 and _s_mean < 32:
+                            continue
+                        cv2.drawContours(_validated, [_bc], -1, 255, -1)
+
+                    _cws, _ = count_people_watershed_scene(
+                        _validated,
+                        min_blob_area=self.min_blob_area,
+                        dt_thresh=0.30,
+                    )
+                    _car = (count_people_by_area(
+                                _validated,
+                                self._area_px_per_person,
+                                self._area_baseline)
+                            if self._area_px_per_person is not None else 0)
+                    # YOLO census — appearance-based, catches people MOG2 absorbed
+                    _yolo_n = 0
+                    if self._yolo_model is not None:
+                        _yolo_res = self._yolo_model(
+                            frame, device="cpu", imgsz=640,
+                            conf=self._yolo_conf, iou=self._yolo_iou,
+                            classes=[0], verbose=False
+                        )[0]
+                        for _b in _yolo_res.boxes:
+                            _bx1, _by1, _bx2, _by2 = _b.xyxy[0].tolist()
+                            _bcx = int((_bx1 + _bx2) / 2)
+                            _bcy = int((_by1 + _by2) / 2)
+                            _bcy = max(0, min(_bcy, roi_mask.shape[0] - 1))
+                            _bcx = max(0, min(_bcx, roi_mask.shape[1] - 1))
+                            if roi_mask[_bcy, _bcx] > 127:
+                                _yolo_n += 1
+
+                    recount_floor = float(max(_cws, _car, _yolo_n))
+
+                # Floor decay — only when occupancy map has no confirmed blobs,
+                # meaning the scene is genuinely empty (not just absorbed by MOG2).
+                _occ_area = cv2.countNonZero(persistent_fg)
+                if total_count < recount_floor and _occ_area < self.min_blob_area:
+                    recount_floor = max(float(total_count), recount_floor * 0.80)
+
+                # Apply census floor — raises count when MOG2 misses stationary people.
+                total_count = max(total_count, int(round(recount_floor)))
 
                 # Suppress the count during MOG2 warmup so startup
                 # chair/background noise never triggers alerts.
                 if loop_frame_idx <= warmup_frames:
-                    total_count = 0
-                    count_ema   = 0.0
+                    total_count    = 0
+                    count_ema      = 0.0
+                    recount_floor  = 0.0
                     self.is_warming_up = True
                 else:
                     self.is_warming_up = False
@@ -1023,11 +1137,14 @@ class SentinelStream:
                 total_count = round(count_ema)
 
                 # Phase 2.1 & 2.2: Density and Status
+                # density% is kept for the timeline chart (capacity gauge).
+                # status and clip_level use raw count tiers so the thresholds
+                # are independent of max_capacity (which is venue-specific).
                 density = int(min(100, (total_count / self.max_capacity) * 100))
 
-                if density < 50:
+                if total_count <= 3:
                     status = "SAFE"
-                elif density < 80:
+                elif total_count <= 6:
                     status = "WARNING"
                 else:
                     status = "CRITICAL"
@@ -1049,36 +1166,92 @@ class SentinelStream:
                     "latency_ms": int(ema_frame_time * 1000),
                     "cpu_percent": cpu_pct,
                     "ram_mb": ram_mb,
+                    "manual_clip_active": self.manual_clip_active,
                     # Hybrid pipeline breakdown (exposed for UI / thesis demo)
                     "watershed_count": int(ws_count) if self._area_px_per_person is not None else int(total_count),
                     "area_count":      int(ar_count) if self._area_px_per_person is not None else 0,
                 }
 
-                # Phase 2.3: EVENT CLIP RECORDING (Grounded thresholds)
-                if density < 50:
+                # Phase 2.3: EVENT CLIP RECORDING
+                # Use raw count tiers (≤3=LOW, ≤6=MEDIUM, >6=HIGH) so that
+                # 4–6 people triggers clips regardless of max_capacity setting.
+                if total_count <= 3:
                     clip_level = "LOW"
-                elif density < 80:
+                elif total_count <= 6:
                     clip_level = "MEDIUM"
                 else:
-                    clip_level = "HIGH" 
+                    clip_level = "HIGH"
 
-                # Store frame in ring buffer
+                # Always buffer frames for pre-event pre-roll
                 self.frame_buffer.append(frame.copy())
 
-                # Cooldown after video restart (skip first 90 frames)
-                if self._clip_cooldown > 0:
-                    self._clip_cooldown -= 1
-                else:
-                    # Start a new clip when density rises
-                    if not self.pause_saving and clip_level in ("MEDIUM", "HIGH") and not self.clip_recording:
-                        self._start_event_clip(frame, clip_level, frame_width, frame_height)
-                    elif self.clip_recording:
-                        self.clip_writer.write(frame)
-                        elapsed = time.time() - self.clip_start_time
-                        if clip_level == "LOW" or elapsed > self.clip_max_duration:
-                            self._stop_event_clip()
+                now_t = time.time()
 
-                self._prev_clip_level = clip_level
+                # Track continuous HIGH streak
+                if clip_level == "HIGH":
+                    if self._high_since == 0.0:
+                        self._high_since = now_t
+                else:
+                    self._high_since = 0.0
+
+                in_cooldown = now_t < self._cooldown_until
+
+                # Phase 2.4: MANUAL CLIP — user-triggered recording (ignores cooldown)
+                if self._manual_clip_requested and not self.clip_recording:
+                    self._start_event_clip(frame, "MANUAL", frame_width, frame_height, total_count)
+                    self._manual_clip_requested = False
+                    self.manual_clip_active = True
+
+                if not self.clip_recording and not self.pause_saving:
+                    # Trigger 1 — normal: MEDIUM or HIGH after cooldown has expired
+                    trigger_normal = clip_level in ("MEDIUM", "HIGH") and not in_cooldown
+
+                    # Trigger 2 — HIGH override: HIGH detected during a MEDIUM cooldown.
+                    # Only fires if the last clip was not HIGH, preventing back-to-back
+                    # HIGH clips without any gap.
+                    trigger_override = (
+                        clip_level == "HIGH" and
+                        in_cooldown and
+                        self._last_clip_density != "HIGH"
+                    )
+
+                    # Trigger 3 — sustained HIGH: HIGH has been continuously detected for
+                    # ≥2 minutes since the current HIGH streak started.  Ensures very long
+                    # HIGH-density events produce periodic recap clips.
+                    trigger_sustained = (
+                        clip_level == "HIGH" and
+                        self._high_since > 0.0 and
+                        now_t - self._high_since >= 120.0
+                    )
+
+                    if trigger_normal or trigger_override or trigger_sustained:
+                        self._start_event_clip(frame, clip_level, frame_width, frame_height, total_count)
+                        self._last_clip_density = clip_level
+                        if trigger_override:
+                            self._cooldown_until = 0.0   # cancel remaining cooldown
+                        if trigger_sustained:
+                            self._high_since = now_t     # reset so next fire is 2 min later
+
+                elif self.clip_recording:
+                    self.clip_writer.write(frame)
+                    elapsed = now_t - self.clip_start_time
+
+                    if self.manual_clip_active:
+                        # Manual clip: stop when user requests it (after min) or at hard cap
+                        stop_manual = elapsed >= self.clip_max_duration or (
+                            self._manual_clip_stop_requested and elapsed >= self.clip_min_duration
+                        )
+                        if stop_manual:
+                            self._stop_event_clip()
+                            self._manual_clip_stop_requested = False
+                            self.manual_clip_active = False
+                            # Manual clips do NOT reset the auto-clip cooldown
+                    else:
+                        # Automatic clip: stop when density drops to LOW after min, or at hard cap
+                        if (clip_level == "LOW" and elapsed >= self.clip_min_duration) \
+                                or elapsed >= self.clip_max_duration:
+                            self._stop_event_clip()
+                            self._cooldown_until = now_t + 120.0  # 2-minute inter-clip cooldown
 
                 ok, buf = cv2.imencode(".jpg", frame)
                 if ok:
@@ -1099,12 +1272,15 @@ class SentinelStream:
             # Stop any in-progress clip on video restart
             if self.clip_recording:
                 self._stop_event_clip()
-            self._clip_cooldown = 90   # suppress false positives during MOG2 re-learning
+            # Brief suppression while MOG2 re-learns the background after a restart
+            self._cooldown_until = time.time() + 3.0
+            self._high_since = 0.0
+            self._last_clip_density = None
             print(f"[SentinelStream {self.stream_id}] Stream ended. Restarting...")
             time.sleep(2.0)
 
     # ------------------------------------------------------------------
-    def _start_event_clip(self, current_frame, level, width, height):
+    def _start_event_clip(self, current_frame, level, width, height, people_count=0):
         """Begin recording an event clip, dumping the ring buffer as pre-event footage."""
         now = datetime.now()
         tag = now.strftime("%Y-%m-%d_%H-%M-%S")
@@ -1126,6 +1302,7 @@ class SentinelStream:
         self.clip_recording = True
         self.clip_start_time = time.time()
         self.clip_filename = filename
+        self.clip_people_count = people_count   # count at trigger time
         print(f"[{self.stream_id}] Event clip started: {filename}")
 
     def _stop_event_clip(self):
@@ -1144,7 +1321,8 @@ class SentinelStream:
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "density": density_tag,
                 "camera_id": self.stream_id,
-                "duration": duration
+                "duration": duration,
+                "people_count": getattr(self, 'clip_people_count', 0),
             })
 
             # Keep only the last 20 clips in metadata
