@@ -8,6 +8,9 @@ venv/
 env/
 .env
 
+#Temporary video clips
+Temp_Clips/*
+
 # Database
 *.db
 sentinel_users.db

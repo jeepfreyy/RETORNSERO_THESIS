@@ -1017,6 +1017,63 @@
           </div>
         </div>
 
+        <!-- ── HIGH Density Alert Overlay ──────────────────────────────── -->
+        <div id="high-alert-overlay"
+          class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center z-[150] p-4">
+          <div class="relative w-full max-w-md bg-slate-900 rounded-2xl border border-red-500/60 shadow-2xl shadow-red-900/40 overflow-hidden">
+            <!-- Animated top bar -->
+            <div class="h-1 bg-gradient-to-r from-red-600 via-orange-500 to-red-600 animate-pulse"></div>
+            <!-- Header -->
+            <div class="flex items-center gap-4 px-6 py-5 border-b border-red-500/20">
+              <div class="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/50 flex items-center justify-center flex-shrink-0 animate-pulse">
+                <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+              </div>
+              <div>
+                <p class="text-[11px] font-bold text-red-400 tracking-widest uppercase">⚠ Critical Alert</p>
+                <h3 class="text-lg font-bold text-white tracking-wide">High Density Detected</h3>
+              </div>
+            </div>
+            <!-- Details -->
+            <div class="px-6 py-5 space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-slate-800/60 rounded-lg px-4 py-3 border border-slate-700/50">
+                  <p class="text-[10px] text-slate-500 tracking-wider mb-1">PEOPLE COUNT</p>
+                  <p id="high-alert-count" class="text-3xl font-bold text-red-400 font-mono">—</p>
+                </div>
+                <div class="bg-slate-800/60 rounded-lg px-4 py-3 border border-slate-700/50">
+                  <p class="text-[10px] text-slate-500 tracking-wider mb-1">CAMERA</p>
+                  <p id="high-alert-cam" class="text-sm font-bold text-slate-200 mt-1">—</p>
+                </div>
+              </div>
+              <div class="bg-slate-800/60 rounded-lg px-4 py-3 border border-slate-700/50">
+                <p class="text-[10px] text-slate-500 tracking-wider mb-1">VIDEO SOURCE</p>
+                <p id="high-alert-video" class="text-sm text-slate-300 truncate">—</p>
+              </div>
+              <div class="bg-slate-800/60 rounded-lg px-4 py-3 border border-slate-700/50">
+                <p class="text-[10px] text-slate-500 tracking-wider mb-1">TIME DETECTED</p>
+                <p id="high-alert-time" class="text-sm font-mono text-slate-300">—</p>
+              </div>
+              <p class="text-xs text-slate-500 text-center pt-1">
+                A clip is being recorded automatically and will appear in the anomaly tray.
+              </p>
+            </div>
+            <!-- Actions -->
+            <div class="flex gap-3 px-6 pb-6">
+              <button onclick="dismissHighAlert()"
+                class="flex-1 py-2.5 rounded-lg bg-slate-700/50 text-slate-400 border border-slate-600 hover:bg-slate-600/50 transition-all text-sm font-semibold tracking-wider">
+                ACKNOWLEDGE
+              </button>
+              <button onclick="reviewHighClip()"
+                class="flex-1 py-2.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 transition-all text-sm font-bold tracking-wider">
+                REVIEW CLIP →
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Response Center View -->
         <div id="response-view" class="hidden">
           <!-- Header -->
@@ -1601,10 +1658,12 @@
       }
 
       function classifyDensityByPeople(count) {
-        if (count >= 1 && count <= 5) return 'LOW';
-        if (count >= 6 && count <= 9) return 'MEDIUM';
-        if (count >= 10) return 'HIGH';
-        return 'LOW'; // 0 people — no crowd
+        // Thresholds must match vision_engine.py clip/status tiers exactly:
+        // ≤3 = LOW, ≤6 = MEDIUM, >6 = HIGH
+        if (count <= 0) return 'LOW';
+        if (count <= 3) return 'LOW';
+        if (count <= 6) return 'MEDIUM';
+        return 'HIGH';
       }
 
       function densityColorClass(level) {
@@ -1646,7 +1705,7 @@
         statusWrap.className = `bg-slate-900/80 px-2 py-1 rounded ${densityColorClass(level)}`;
       }
 
-      function updateRealtimeDetections(camId, stats, now) {
+      function updateRealtimeDetections(camId, stats, now, videoLabel) {
         const state = cameraRuntimeState[camId] || {
           previousCount: null,
           previousLevel: null,
@@ -1655,6 +1714,7 @@
         };
         const level = classifyDensityByPeople(stats.count);
         const RENOTIFY_INTERVAL_MS = 120000; // 2 minutes
+        const src = videoLabel ? ` [${videoLabel}]` : '';
 
         const camHistory = cameraHistory[camId];
         camHistory.push({
@@ -1673,19 +1733,30 @@
           : Infinity;
         const shouldRenotify = !levelChanged && timeSinceLastNotify >= RENOTIFY_INTERVAL_MS;
 
+        // Fire HIGH alert overlay on first transition into HIGH,
+        // subject to a 5-minute cooldown so it doesn't spam the operator.
+        // The cooldown resets when the level drops back below HIGH AND the
+        // 5-minute window has elapsed — so a sustained crowd keeps it quiet
+        // but a fresh spike after the crowd clears will re-trigger.
+        if (level !== 'HIGH') {
+          _highAlertActive = false;
+        } else if (levelChanged && !_highAlertActive && now.getTime() >= _highAlertCooldown) {
+          showHighAlert(stats.count, camId, videoLabel, now);
+        }
+
         if (levelChanged || shouldRenotify) {
           let logType, description, severity;
           if (level === 'HIGH') {
             logType = 'CROWDING';
-            description = `High density detected — ${stats.count} people present`;
+            description = `High density detected — ${stats.count} people present${src}`;
             severity = 'warning';
           } else if (level === 'MEDIUM') {
             logType = 'CROWDING';
-            description = `Medium density detected — ${stats.count} people present`;
+            description = `Medium density detected — ${stats.count} people present${src}`;
             severity = 'warning';
           } else {
             logType = 'NORMAL';
-            description = `Low density — ${stats.count} ${stats.count === 1 ? 'person' : 'people'} present`;
+            description = `Low density — ${stats.count} ${stats.count === 1 ? 'person' : 'people'} present${src}`;
             severity = 'normal';
           }
           pushActivityLog(buildRealtimeLog(camId, logType, description, severity, now));
@@ -1712,7 +1783,7 @@
           const now = new Date();
 
           updateCameraOverlay('CAM-01', stats);
-          updateRealtimeDetections('CAM-01', stats, now);
+          updateRealtimeDetections('CAM-01', stats, now, data.video_label || 'Main Video');
           syncManualClipState(!!data.manual_clip_active);
 
           // Show / hide warmup overlay on CAM-01
@@ -2455,6 +2526,7 @@
       }
 
       function renderTempClips(clips) {
+        window._cachedTempClips = clips; // used by reviewHighClip() to find latest HIGH clip
         const container = document.getElementById('temp-clips-container');
         const emptyEl = document.getElementById('temp-clips-empty');
         const countEl = document.getElementById('temp-clip-count');
@@ -2509,6 +2581,7 @@
             </div>
             <div class="p-3">
               <p class="text-xs font-semibold ${tc}">${clip.camera_id}</p>
+              <p class="text-[10px] text-slate-400 mt-0.5 truncate" title="${clip.video_label || ''}">${clip.video_label || ''}</p>
               <p class="text-[10px] text-slate-500 mt-1 font-mono">${clip.timestamp}</p>
               <div class="flex gap-2 mt-2">
                 <button onclick="openReportModal('${safeFilename}','${safeCam}','${safeTs}','${safeDensity}',${clip.duration},${clip.people_count || 0})"
@@ -2573,6 +2646,70 @@
         vid.src = '';
         vid.load();  // Fully release file handle so Windows can move it
         document.getElementById('report-modal').classList.add('hidden');
+      }
+
+      // ── HIGH Density Alert Overlay ────────────────────────────────────────
+      // Fires once when the pipeline first crosses into HIGH (>6 people).
+      // Will not re-trigger for 5 minutes after being shown, even if the count
+      // stays HIGH the whole time. Resets when level drops below HIGH AND the
+      // cooldown has elapsed, so the next genuine spike re-triggers it.
+      let _highAlertActive    = false;  // overlay currently visible
+      let _highAlertCooldown  = 0;      // epoch ms; alert suppressed until this time
+      const HIGH_ALERT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
+      // Looping alert sound — created once, reused across triggers
+      const _alertSound = new Audio('/static/sounds/alert.mp3');
+      _alertSound.loop   = true;
+      _alertSound.volume = 0.70;
+
+      function _stopAlertSound() {
+        _alertSound.pause();
+        _alertSound.currentTime = 0;
+      }
+
+      function showHighAlert(count, camId, videoLabel, now) {
+        document.getElementById('high-alert-count').textContent = count;
+        document.getElementById('high-alert-cam').textContent = camId;
+        document.getElementById('high-alert-video').textContent = videoLabel || '—';
+        document.getElementById('high-alert-time').textContent =
+          now.toLocaleTimeString('en-US', { hour12: false });
+        const overlay = document.getElementById('high-alert-overlay');
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+        _highAlertActive   = true;
+        _highAlertCooldown = now.getTime() + HIGH_ALERT_COOLDOWN_MS;
+        // Play looping alert sound (browsers require a user gesture first;
+        // catch the autoplay rejection silently — it will work after first interaction)
+        _alertSound.play().catch(() => {});
+      }
+
+      function dismissHighAlert() {
+        const overlay = document.getElementById('high-alert-overlay');
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+        _highAlertActive = false;
+        _stopAlertSound();
+      }
+
+      function reviewHighClip() {
+        dismissHighAlert(); // also stops the sound
+        // Scroll the anomaly tray into view
+        const tray = document.getElementById('temp-clip-tray');
+        if (tray) tray.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Open the most recent HIGH clip in the report modal (short delay lets
+        // the scroll settle and gives the tray one extra poll to pick up a
+        // clip that may have just been finalized)
+        setTimeout(() => {
+          const clips = window._cachedTempClips || [];
+          const highClip = clips.find(c => c.density === 'HIGH');
+          if (highClip) {
+            openReportModal(
+              highClip.filename, highClip.camera_id,
+              highClip.timestamp, highClip.density,
+              highClip.duration, highClip.people_count || 0
+            );
+          }
+        }, 700);
       }
 
       async function submitIncidentReport() {

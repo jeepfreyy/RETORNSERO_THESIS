@@ -73,7 +73,7 @@ class OccupancyMap:
     is applied upstream, headlight pixels never enter the map at all.
     """
 
-    def __init__(self, shape, confirm_frames=10, evict_frames=150, dark_v_thresh=40):
+    def __init__(self, shape, confirm_frames=10, evict_frames=150):
         h, w = shape[:2]
         self._map         = np.zeros((h, w), dtype=np.uint8)
         self._fg_count    = np.zeros((h, w), dtype=np.int32)
@@ -90,8 +90,6 @@ class OccupancyMap:
         # Also catches light-clothed (V≈120) person leaving concrete (V≈80): Δ=40 > 25.
         # Medium clothing on similar-brightness concrete may be missed — acceptable.
         self._v_change    = 25
-        # dark_v_thresh kept for API compatibility but no longer drives eviction
-        self._dv          = dark_v_thresh
 
     def update(self, fg_additions, hsv_frame):
         v       = hsv_frame[:, :, 2]           # HSV value channel
@@ -299,71 +297,6 @@ def is_human_blob(roi_thresh, x, y, w, h, frame_height, min_blob_area=800, max_a
 
 
 # ---------------------------------------------------------------------------
-# Sub-Counting inside a Validated Blob (Watershed-based)
-# ---------------------------------------------------------------------------
-def count_people_in_box(roi, box_width, box_y, frame_height, solidity_threshold=0.75, base_width=32, dt_thresh=0.40):
-    """
-    Estimates how many people are clustered inside a validated blob.
-
-    solidity_threshold: blobs more compact than this return count=1.
-      Lower values (0.5-0.6) unlock sub-counting within dense seated groups.
-      Higher values (0.75) are conservative.
-
-    dt_thresh: fraction of DT max used as watershed valley floor.
-      Lower (0.3) separates closely-seated person peaks better.
-
-    base_width: expected pixel width of one person at perspective weight 1.0.
-      Default 32 for eye-level cameras; use 60-100 for overhead cameras.
-
-    Solidity gate: if the blob is one compact mass (solidity > solidity_threshold),
-    it is a single person — possibly seated with a chair — and the sub-counter
-    is skipped entirely. Only blobs with genuine concavities between bodies
-    (lower solidity) proceed to distance-transform sub-counting.
-    """
-    pw = get_perspective_weight(box_y, frame_height)
-
-    avg_person_width = int(base_width * pw)
-    max_possible_people = max(1, int(box_width / max(1, avg_person_width)))
-
-    if roi is None or roi.size == 0:
-        return 1
-
-    # ── Solidity Gate ─────────────────────────────────────────────────
-    # Compute solidity on the raw ROI before any erosion or distance transform.
-    # A seated person + chair is one compact mass → high solidity → return 1.
-    # A genuine cluster of multiple people has gaps between bodies → low solidity
-    # → proceed to sub-counting below.
-    roi_contours, _ = cv2.findContours(roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if roi_contours:
-        largest = max(roi_contours, key=cv2.contourArea)
-        contour_area = cv2.contourArea(largest)
-        hull = cv2.convexHull(largest)
-        hull_area = cv2.contourArea(hull)
-        if hull_area > 0:
-            solidity = contour_area / hull_area
-            if solidity > solidity_threshold:
-                return 1
-
-    # ── Distance-Transform Sub-Counter (clusters only) ────────────────
-    kernel = np.ones((3, 3), np.uint8)
-    eroded = cv2.erode(roi, kernel, iterations=1)
-
-    dist = cv2.distanceTransform(eroded, cv2.DIST_L2, 5)
-    if dist.max() == 0:
-        return 1
-
-    # SHANGHAITECH OPTIMIZATION: Mathematical separation valley floor derived at 8.0px
-    _, sure_fg = cv2.threshold(dist, max(8.0, dt_thresh * dist.max()), 255, 0)
-    sure_fg = np.uint8(sure_fg)
-
-    contours, _ = cv2.findContours(sure_fg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    valid_blobs = sum(1 for c in contours if cv2.contourArea(c) > 50)
-
-    final_count = min(valid_blobs, max_possible_people)
-    return max(1, final_count)
-
-
-# ---------------------------------------------------------------------------
 # Area-Based Crowd Counter
 # ---------------------------------------------------------------------------
 def count_people_by_area(fused_mask, avg_pixels_per_person, area_at_zero):
@@ -472,76 +405,7 @@ def count_people_watershed_scene(fused_mask, min_blob_area=350, dt_thresh=0.30,
     return total_count, centroids
 
 
-def count_people_hybrid(fused_mask, persistent_fg,
-                        avg_pixels_per_person, area_at_zero,
-                        min_blob_area=350, dt_thresh=0.30):
-    """
-    Hybrid Watershed + Area-Based Crowd Density Estimation.
 
-    Architecture:
-      1. Watershed segmentation (distance-transform peaks on fused_mask):
-         Directly counts separated individuals.  Accurate for sparse–medium
-         density where people are visually distinct blobs.
-
-      2. Area estimation (occupancy map area ÷ px/person from calibration):
-         Robust when dense crowds or morphological fusion collapses many
-         people into a single large blob that watershed cannot sub-divide.
-
-      3. Decision rule — take the maximum:
-         • Sparse crowd: watershed correctly identifies each person;
-           area estimate may undercount (low area if occupancy map is new).
-         • Dense crowd: area estimate captures absorbed/fused people;
-           watershed undercounts (insufficient peak separation).
-         Taking max ensures neither method silently under-reports.
-
-    Returns:
-        (final_count, watershed_count, area_count, centroids)
-    """
-    watershed_count, centroids = count_people_watershed_scene(
-        fused_mask, min_blob_area=min_blob_area, dt_thresh=dt_thresh
-    )
-    area_count = count_people_by_area(
-        persistent_fg, avg_pixels_per_person, area_at_zero
-    )
-    final_count = max(watershed_count, area_count)
-    return final_count, watershed_count, area_count, centroids
-
-
-# ---------------------------------------------------------------------------
-# Sleek Dot Overlay Rendering
-# ---------------------------------------------------------------------------
-def draw_person_marker(frame, cx, cy, count, in_zone7=False):
-    """
-    Draws a clean, glowing dot at the person's foot-center position.
-    If count > 1 it draws a small numeric badge above the dot.
-    
-    Colors:
-        Zone 7 (z7):  Cyan   (#00FFFF)
-        Zone 6 (z6):  Green  (#00FF88)
-        Outside zones: Amber (#FFD700)
-    """
-    if in_zone7:
-        color_inner = (255, 255, 0)   # Cyan  (BGR)
-        color_outer = (200, 200, 0)
-    else:
-        color_inner = (136, 255, 0)   # Green (BGR)
-        color_outer = (100, 200, 0)
-
-    # Outer glow ring
-    cv2.circle(frame, (cx, cy), 14, color_outer, 2, cv2.LINE_AA)
-    # Solid inner dot
-    cv2.circle(frame, (cx, cy), 7, color_inner, -1, cv2.LINE_AA)
-
-    # Badge for clusters
-    if count > 1:
-        badge_text = str(count)
-        (tw, th), _ = cv2.getTextSize(badge_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
-        bx = cx - tw // 2
-        by = cy - 22
-        # Dark background pill
-        cv2.rectangle(frame, (bx - 4, by - th - 4), (bx + tw + 4, by + 4), (0, 0, 0), -1)
-        cv2.rectangle(frame, (bx - 4, by - th - 4), (bx + tw + 4, by + 4), color_inner, 1)
-        cv2.putText(frame, badge_text, (bx, by), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
 
 
 # ---------------------------------------------------------------------------
@@ -549,10 +413,9 @@ def draw_person_marker(frame, cx, cy, count, in_zone7=False):
 # ---------------------------------------------------------------------------
 class SentinelStream:
     """
-    Thread-safe class that reads an RTSP stream (or video file),
-    applies MOG2 background subtraction, validates blobs structurally,
-    counts people via distance-transform watershed logic, and renders
-    sleek dot overlays.
+    Thread-safe class that reads an RTSP stream (or video file), applies
+    MOG2 background subtraction, validates blobs structurally, and counts
+    people via a 3-stage fusion pipeline (watershed + area + YOLO census).
     """
 
     def __init__(
@@ -576,25 +439,24 @@ class SentinelStream:
         enable_gamma=False,
         process_scale=1.0,    # Downscale factor for processing
         max_aspect=1.8,       # Max blob w/h ratio for is_human_blob (use 2.5-3.5 for overhead cameras)
-        base_width=32,        # Expected pixel width per person for count_people_in_box
         area_px_per_person=None,   # If set, use area-based counting instead of watershed
         area_baseline=0.0,         # Intercept from area_calibration.json
         # --- Headlight Suppression ---
         headlight_v_thresh=200,    # HSV V-channel cutoff; pixels above this are headlights
         headlight_dilation_px=60,  # px radius to expand bright core (kills the halo)
-        # --- Shadow Suppression ---
-        shadow_v_thresh=0,         # pixel-level V+S mask; 0 = disabled (blob-level census handles it)
-        shadow_s_thresh=30,
         # --- Occupancy Map ---
         occupancy_confirm_frames=10,   # fg frames before a pixel enters the map (blocks transients)
-        occupancy_evict_sec=5.0,       # seconds physically dark before a pixel is evicted
-        occupancy_dark_v_thresh=40,    # V < this = "physically dark" (empty road surface)
+        occupancy_evict_sec=5.0,       # seconds a pixel must be absent + changed before eviction
         # --- Warmup ---
         warmup_frames=1500,            # frames to suppress count while MOG2 stabilises
         # --- YOLO Census (appearance-based fallback for absorbed stationary people) ---
         yolo_model_path="yolov8n.pt",  # set to None to disable; path relative to cwd
         yolo_conf=0.40,                # detection confidence threshold
         yolo_iou=0.35,                 # NMS IoU threshold — lower = fewer double-detections
+        # --- MOG2 Persistence ---
+        bg_model_path="mog2_bg.yml",   # save/load pre-warmed MOG2 state; None to disable
+        # --- Video Identity ---
+        video_label="Main Video",      # human-readable label shown in notifications and clips
     ):
         self.stream_id = stream_id
         self.source = source
@@ -609,16 +471,12 @@ class SentinelStream:
         self._enable_gamma = enable_gamma
         self._process_scale = process_scale
         self._max_aspect = max_aspect
-        self._base_width = base_width
         self._area_px_per_person = area_px_per_person
         self._area_baseline = area_baseline
         self._headlight_v_thresh = headlight_v_thresh
         self._headlight_dilation_px = headlight_dilation_px
-        self._shadow_v_thresh = shadow_v_thresh
-        self._shadow_s_thresh = shadow_s_thresh
         self._occupancy_confirm_frames = occupancy_confirm_frames
         self._occupancy_evict_sec = occupancy_evict_sec
-        self._occupancy_dark_v_thresh = occupancy_dark_v_thresh
 
         # Store MOG2 construction params so we can recreate the subtractor on
         # video switch (MOG2 has no reset() method — must be re-instantiated).
@@ -646,12 +504,19 @@ class SentinelStream:
             else:
                 print(f"[YOLO] {yolo_model_path} not found — census disabled.")
 
+        # MOG2 persistence — path for save/load of pre-warmed background model
+        self._bg_model_path = bg_model_path
+
+        # Video identity — shown in notifications and clip metadata
+        self._video_label = video_label
+
         # Per-video warmup / source-switch state
         self._warmup_frames        = warmup_frames
         self._switch_source        = None   # set by switch_source(); outer loop picks it up
         self._switch_warmup        = None
         self._switch_recreate_mog2 = False  # whether to throw away the MOG2 model on next switch
         self._switch_mask_path     = None   # None = keep current mask_path on next switch
+        self._switch_video_label   = None   # None = keep current label on next switch
         self.is_warming_up         = True   # True until the first warmup window expires
 
         self.latest_jpeg = None
@@ -715,7 +580,7 @@ class SentinelStream:
 
     # ------------------------------------------------------------------
     def switch_source(self, new_source, new_warmup_frames=None,
-                      recreate_mog2=False, new_mask_path=None):
+                      recreate_mog2=False, new_mask_path=None, new_video_label=None):
         """
         Hot-swap to a different video file without stopping the thread.
 
@@ -745,7 +610,8 @@ class SentinelStream:
         self._switch_warmup        = new_warmup_frames if new_warmup_frames is not None \
                                      else self._warmup_frames
         self._switch_recreate_mog2 = recreate_mog2
-        self._switch_mask_path     = new_mask_path   # None = keep current mask
+        self._switch_mask_path     = new_mask_path    # None = keep current mask
+        self._switch_video_label   = new_video_label  # None = keep current label
         self.is_warming_up         = True
 
     # ------------------------------------------------------------------
@@ -774,10 +640,13 @@ class SentinelStream:
                 do_recreate          = self._switch_recreate_mog2
                 if self._switch_mask_path is not None:
                     self.mask_path   = self._switch_mask_path
+                if self._switch_video_label is not None:
+                    self._video_label = self._switch_video_label
                 self._switch_source        = None
                 self._switch_warmup        = None
                 self._switch_recreate_mog2 = False
                 self._switch_mask_path     = None
+                self._switch_video_label   = None
 
                 if do_recreate:
                     # Recreate MOG2 so it re-learns the new video's background.
@@ -842,7 +711,6 @@ class SentinelStream:
                 (frame_height, frame_width),
                 confirm_frames=self._occupancy_confirm_frames,
                 evict_frames=int(self._occupancy_evict_sec * 30),
-                dark_v_thresh=self._occupancy_dark_v_thresh,
             )
 
             # How many frames MOG2 needs before its background model is stable.
@@ -868,6 +736,28 @@ class SentinelStream:
             bg_reference     = None   # set at warmup end; used for static diff detection
             recount_floor    = 0.0    # sticky lower-bound; updated every 2 s by census
             RECOUNT_INTERVAL = 60     # frames between census runs (~2 s at 30 fps)
+
+            # ── MOG2 PERSISTENCE: load pre-warmed model to skip warmup ────────
+            # On first run the file won't exist; MOG2 learns from scratch and the
+            # model is saved at frame==warmup_frames.  On all subsequent runs the
+            # model is loaded here, warmup is skipped (loop_frame_idx jumps past
+            # the gate), and the background reference is restored from the
+            # companion PNG so the static-diff detector is immediately accurate.
+            if self._bg_model_path and os.path.exists(self._bg_model_path):
+                try:
+                    fs = cv2.FileStorage(self._bg_model_path, cv2.FILE_STORAGE_READ)
+                    self.bg_subtractor.read(fs.getNode("bg_model"))
+                    fs.release()
+                    companion_png = self._bg_model_path.replace(".yml", "_ref.png")
+                    if os.path.exists(companion_png):
+                        bg_reference = cv2.imread(companion_png)
+                    loop_frame_idx = self._warmup_frames + 1  # skip warmup gate
+                    mog2_lr        = 0                         # freeze learning
+                    print(f"[MOG2] Loaded pre-warmed model from {self._bg_model_path} — warmup skipped.")
+                except Exception as _e:
+                    print(f"[MOG2] Failed to load {self._bg_model_path}: {_e} — running warmup normally.")
+                    loop_frame_idx = 0
+            # ─────────────────────────────────────────────────────────────────
 
             while self.running:
                 # Break immediately when a source switch is requested so the
@@ -911,20 +801,6 @@ class SentinelStream:
                         dilation_px=self._headlight_dilation_px,
                     )
 
-                # ── SHADOW SUPPRESSION ────────────────────────────────
-                # MOG2's detectShadows=True already labels moving shadow
-                # pixels as 127, stripped by the >200 threshold above.
-                # This V+S combined mask catches static and slow-moving
-                # shadows that MOG2 misses.
-                # Cast shadows: dark (V<35) AND grey (S<30, little colour).
-                # Real people: dark clothing has colour (S≥20+); skin V≥60.
-                if self._shadow_v_thresh > 0:
-                    _sv = hsv_frame[:, :, 2]
-                    _ss = hsv_frame[:, :, 1]
-                    _shadow_zone = (
-                        (_sv < self._shadow_v_thresh) & (_ss < self._shadow_s_thresh)
-                    ).astype(np.uint8) * 255
-                    thresh = cv2.bitwise_and(thresh, cv2.bitwise_not(_shadow_zone))
 
                 # ── STATIC BACKGROUND REFERENCE DIFF ────────────────
                 # Secondary detector: compares current frame directly against
@@ -966,6 +842,19 @@ class SentinelStream:
                     occupancy.reset()
                     mog2_lr      = 0
                     bg_reference = self.bg_subtractor.getBackgroundImage()
+                    # ── MOG2 PERSISTENCE: save after warmup ───────────────────
+                    if self._bg_model_path:
+                        try:
+                            fs = cv2.FileStorage(self._bg_model_path, cv2.FILE_STORAGE_WRITE)
+                            self.bg_subtractor.write(fs, "bg_model")
+                            fs.release()
+                            if bg_reference is not None:
+                                companion_png = self._bg_model_path.replace(".yml", "_ref.png")
+                                cv2.imwrite(companion_png, bg_reference)
+                            print(f"[MOG2] Saved warmed model to {self._bg_model_path}.")
+                        except Exception as _e:
+                            print(f"[MOG2] Could not save model: {_e}")
+                    # ─────────────────────────────────────────────────────────
                 loop_frame_idx += 1
 
                 # ── OCCUPANCY MAP UPDATE ──────────────────────────────
@@ -1165,6 +1054,7 @@ class SentinelStream:
                     "watershed_count": int(ws_count) if self._area_px_per_person is not None else int(total_count),
                     "area_count":      int(ar_count) if self._area_px_per_person is not None else 0,
                     "manual_clip_active": self.manual_clip_active,
+                    "video_label": self._video_label,
                 }
 
                 # Phase 2.3: EVENT CLIP RECORDING
@@ -1282,6 +1172,7 @@ class SentinelStream:
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "density": density_tag,
                 "camera_id": self.stream_id,
+                "video_label": self._video_label,
                 "duration": duration
             })
 

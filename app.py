@@ -46,18 +46,39 @@ else:
     print("[Area Cal] area_calibration.json not found — using watershed fallback.")
 
 # ---------------------------------------------------------------------------
-# VIDEO CATALOG — kept for warmup_frames reference only.
-# Switching is currently disabled (see /api/videos and /api/switch_video below).
-# Only "main_video" is active. Re-enable the switch routes to use the others.
+# VIDEO CATALOG — one entry per switchable video source.
+#
+# recreate_mog2=False  : keep the main video's learned empty-scene background
+#                        model on switch.  Correct for videos that start with
+#                        people already present — they immediately appear as
+#                        foreground against the carried-over empty background.
+# warmup_frames=30     : 1-second suppression window only (not re-learning).
+#                        YOLO census at frame 60 sets the correct floor.
 # ---------------------------------------------------------------------------
 VIDEO_CATALOG = {
     "main_video": {
-        "label":          "Main Demo",
+        "label":          "Calibration — Full Assembly",
         "source":         "videos/calibration.MOV",
         "mask_path":      "mask_layer_calibration.png",
         "warmup_frames":  1000,
         "recreate_mog2":  False,
-        "description":    "Main demonstration video.",
+        "description":    "Main calibration recording. Full crowd entry → peak → departure.",
+    },
+    "video1": {
+        "label":          "Scenario 1",
+        "source":         "videos/VIDEO1.MOV",
+        "mask_path":      "mask_layer_calibration.png",
+        "warmup_frames":  30,
+        "recreate_mog2":  False,
+        "description":    "People present from frame 0. Carries over calibration background model.",
+    },
+    "video2": {
+        "label":          "Scenario 2",
+        "source":         "videos/VIDEO2.MOV",
+        "mask_path":      "mask_layer_calibration.png",
+        "warmup_frames":  30,
+        "recreate_mog2":  False,
+        "description":    "People present from frame 0. Carries over calibration background model.",
     },
 }
 
@@ -105,11 +126,12 @@ cam1_stream = SentinelStream(
     # dark_v_thresh: kept for API compat, eviction no longer uses raw darkness.
     occupancy_confirm_frames=3,
     occupancy_evict_sec=10.0,
-    occupancy_dark_v_thresh=40,
     yolo_model_path="yolov8n.pt",
     yolo_conf=0.40,
     yolo_iou=0.35,
+    bg_model_path="mog2_bg_cam1.yml",  # saved after first warmup; skipped on restart
     warmup_frames=VIDEO_CATALOG["main_video"]["warmup_frames"],
+    video_label=VIDEO_CATALOG["main_video"]["label"],
 )
 
 # CAM-02 is temporarily disabled while CAM-01 tuning targets MAE < 1.
@@ -472,31 +494,63 @@ def api_stats():
     return jsonify(stats)
 
 
-# ---------------------------------------------------------------------------
-# VIDEO SWITCHING — disabled while focused on main demo video.
-# Re-enable by uncommenting these two routes and the VIDEO_CATALOG block above.
-# ---------------------------------------------------------------------------
-
-# @app.route('/api/videos')
-# @login_required
-# def api_videos():
-#     """Return the video catalog for the dropdown selector."""
-#     videos = []
-#     for key, v in VIDEO_CATALOG.items():
-#         videos.append({
-#             'key':         key,
-#             'label':       v['label'],
-#             'description': v['description'],
-#             'active':      cam1_stream.source == v['source'],
-#         })
-#     return jsonify(videos)
+@app.route('/api/videos')
+@login_required
+def api_videos():
+    """Return the video catalog for the frontend dropdown selector."""
+    videos = []
+    for key, v in VIDEO_CATALOG.items():
+        abs_source = os.path.join(os.path.dirname(os.path.abspath(__file__)), v['source'])
+        videos.append({
+            'key':         key,
+            'label':       v['label'],
+            'description': v['description'],
+            'active':      cam1_stream.source == v['source'],
+            'available':   os.path.exists(abs_source),
+        })
+    return jsonify(videos)
 
 
-# @app.route('/api/switch_video', methods=['POST'])
-# @login_required
-# def api_switch_video():
-#     """Switch CAM-01 to a different video from the catalog."""
-#     return jsonify({'success': False, 'message': 'Video switching is currently disabled.'}), 503
+@app.route('/api/switch_video', methods=['POST'])
+@login_required
+def api_switch_video():
+    """Switch CAM-01 to a different video from the catalog."""
+    data      = request.json or {}
+    video_key = data.get('video_key', '').strip()
+
+    if video_key not in VIDEO_CATALOG:
+        return jsonify({'success': False, 'message': f'Unknown video: {video_key}'}), 400
+
+    v             = VIDEO_CATALOG[video_key]
+    source        = v['source']
+    mask_path     = v.get('mask_path')
+    warmup        = v['warmup_frames']
+    recreate_mog2 = v.get('recreate_mog2', False)
+
+    abs_source = os.path.join(os.path.dirname(os.path.abspath(__file__)), source)
+    if not os.path.exists(abs_source):
+        return jsonify({'success': False, 'message': f'Video file not found: {source}'}), 404
+
+    if mask_path:
+        abs_mask = os.path.join(os.path.dirname(os.path.abspath(__file__)), mask_path)
+        if not os.path.exists(abs_mask):
+            return jsonify({'success': False, 'message': f'Mask file not found: {mask_path}'}), 404
+
+    cam1_stream.switch_source(
+        source, warmup,
+        recreate_mog2=recreate_mog2,
+        new_mask_path=mask_path,
+        new_video_label=v['label'],
+    )
+
+    return jsonify({
+        'success':        True,
+        'message':        f'Switching to {v["label"]}',
+        'warmup_frames':  warmup,
+        'warmup_seconds': round(warmup / 30, 1),
+        'label':          v['label'],
+        'recreate_mog2':  recreate_mog2,
+    })
 
 # CAM-02 routes are disabled while the camera is offline for calibration.
 
