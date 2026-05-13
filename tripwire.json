@@ -1,7 +1,0 @@
-{
-  "x1": 1158,
-  "y1": 457,
-  "x2": 1437,
-  "y2": 1056,
-  "note": "Full-resolution pixel coordinates. SentinelStream scales these by process_scale automatically. Do NOT edit manually."
-}

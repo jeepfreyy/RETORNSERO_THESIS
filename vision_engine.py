@@ -136,103 +136,6 @@ class OccupancyMap:
         self._absent_count[:] = 0
 
 
-# ---------------------------------------------------------------------------
-# Tripwire Line Counter
-# ---------------------------------------------------------------------------
-class TripwireCounter:
-    """
-    Virtual entry/exit line counter immune to MOG2 absorption.
-
-    Direction is determined by which SIDE of the tripwire line a track was on
-    BEFORE crossing — not by dx sign.  This is correct for diagonal lines.
-
-    Side convention (matches setup_tripwire.py):
-      cross(P2-P1, P-P1) > 0  →  IN  side (inside the monitored ROI)
-      cross(P2-P1, P-P1) < 0  →  OUT side (outside / approach zone)
-
-    Track on OUT side crosses to IN  → ENTRY (+n)
-    Track on IN  side crosses to OUT → EXIT  (-n)
-
-    Group counting: if a crossing blob is wide enough for more than one
-    person, n > 1 is credited so a group of 4 walking through together is
-    not collapsed to 1 event.
-    """
-
-    MIN_MOVE        = 12   # px — centroid must travel this far to register a crossing
-    COOLDOWN_FRAMES = 60   # frames locked after crossing (~2 s at 30 fps)
-    PERSON_WIDTH_PX = 40   # expected blob width per person at process_scale=0.667
-
-    def __init__(self, x1, y1, x2, y2, process_scale=1.0):
-        s = process_scale
-        self.p1 = (int(x1 * s), int(y1 * s))
-        self.p2 = (int(x2 * s), int(y2 * s))
-        self._lx = self.p2[0] - self.p1[0]
-        self._ly = self.p2[1] - self.p1[1]
-        self.entries   = 0
-        self.exits     = 0
-        self._sides    = {}   # tid -> +1 (IN) or -1 (OUT)
-        self._prev     = {}   # tid -> (cx, cy)
-        self._cooldown = {}   # tid -> frames remaining
-
-    def _side(self, cx, cy):
-        val = self._lx * (cy - self.p1[1]) - self._ly * (cx - self.p1[0])
-        if val > 0:  return  1   # IN
-        if val < 0:  return -1   # OUT
-        return 0
-
-    def _group_count(self, box_w):
-        return max(1, round(box_w / self.PERSON_WIDTH_PX))
-
-    def update(self, centroids_by_id, boxes_by_id=None):
-        for tid in list(self._cooldown):
-            self._cooldown[tid] -= 1
-            if self._cooldown[tid] <= 0:
-                del self._cooldown[tid]
-
-        for tid, (cx, cy) in centroids_by_id.items():
-            s_now = self._side(cx, cy)
-
-            if tid not in self._sides:
-                self._sides[tid] = s_now
-                self._prev[tid]  = (cx, cy)
-                continue
-
-            if tid in self._cooldown:
-                self._prev[tid] = (cx, cy)
-                continue
-
-            s_prev = self._sides[tid]
-            px, py = self._prev[tid]
-            moved  = ((cx - px) ** 2 + (cy - py) ** 2) ** 0.5
-
-            if moved >= self.MIN_MOVE and s_prev != 0 and s_now != 0 and s_prev != s_now:
-                n = 1
-                if boxes_by_id and tid in boxes_by_id:
-                    _, _, w_box, _ = boxes_by_id[tid]
-                    n = self._group_count(w_box)
-                if s_prev == -1:
-                    self.entries += n
-                else:
-                    self.exits += n
-                self._cooldown[tid] = self.COOLDOWN_FRAMES
-
-            self._sides[tid] = s_now
-            self._prev[tid]  = (cx, cy)
-
-        active = set(centroids_by_id)
-        for tid in [t for t in list(self._sides) if t not in active]:
-            del self._sides[tid]
-            self._prev.pop(tid, None)
-
-        return self.entries, self.exits, max(0, self.entries - self.exits)
-
-    def reset(self):
-        self.entries = 0
-        self.exits   = 0
-        self._sides.clear()
-        self._prev.clear()
-        self._cooldown.clear()
-
 
 def apply_gamma_correction(frame, target_mean=100):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -688,8 +591,10 @@ class SentinelStream:
         occupancy_dark_v_thresh=40,    # V < this = "physically dark" (empty road surface)
         # --- Warmup ---
         warmup_frames=1500,            # frames to suppress count while MOG2 stabilises
-        # --- Tripwire ---
-        tripwire_path="tripwire.json", # path to tripwire config JSON; None disables
+        # --- YOLO Census (appearance-based fallback for absorbed stationary people) ---
+        yolo_model_path="yolov8n.pt",  # set to None to disable; path relative to cwd
+        yolo_conf=0.40,                # detection confidence threshold
+        yolo_iou=0.35,                 # NMS IoU threshold — lower = fewer double-detections
     ):
         self.stream_id = stream_id
         self.source = source
@@ -726,9 +631,23 @@ class SentinelStream:
             history=mog2_history, varThreshold=mog2_threshold, detectShadows=detect_shadows
         )
 
+        # YOLO census — loaded once at startup; None if disabled or model not found
+        self._yolo_model = None
+        self._yolo_conf  = yolo_conf
+        self._yolo_iou   = yolo_iou
+        if yolo_model_path is not None:
+            if os.path.exists(yolo_model_path):
+                try:
+                    from ultralytics import YOLO as _YOLO
+                    self._yolo_model = _YOLO(yolo_model_path)
+                    print(f"[YOLO] Loaded {yolo_model_path}  conf={yolo_conf}  iou={yolo_iou}")
+                except Exception as _e:
+                    print(f"[YOLO] Could not load {yolo_model_path}: {_e} — census disabled.")
+            else:
+                print(f"[YOLO] {yolo_model_path} not found — census disabled.")
+
         # Per-video warmup / source-switch state
         self._warmup_frames        = warmup_frames
-        self._tripwire_path        = tripwire_path
         self._switch_source        = None   # set by switch_source(); outer loop picks it up
         self._switch_warmup        = None
         self._switch_recreate_mog2 = False  # whether to throw away the MOG2 model on next switch
@@ -911,22 +830,6 @@ class SentinelStream:
 
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
-            # Load tripwire on each restart so a fresh setup_tripwire.py run
-            # takes effect without restarting Flask.
-            tripwire = None
-            if self._tripwire_path and os.path.exists(self._tripwire_path):
-                try:
-                    with open(self._tripwire_path) as _tf:
-                        _tw = json.load(_tf)
-                    tripwire = TripwireCounter(
-                        _tw['x1'], _tw['y1'], _tw['x2'], _tw['y2'],
-                        process_scale=self._process_scale,
-                    )
-                    print(f"[{self.stream_id}] Tripwire loaded: "
-                          f"({_tw['x1']},{_tw['y1']}) → ({_tw['x2']},{_tw['y2']})")
-                except Exception as _e:
-                    print(f"[{self.stream_id}] Tripwire load failed: {_e}")
-
             # Occupancy map is reset on every video restart so stale
             # presence state from a previous loop does not corrupt the new one.
             occupancy = OccupancyMap(
@@ -957,10 +860,8 @@ class SentinelStream:
             loop_frame_idx   = 0
             mog2_lr          = -1     # -1 = auto learning; frozen to 0 after warmup
             bg_reference     = None   # set at warmup end; used for static diff detection
-            recount_floor    = 0      # sticky lower-bound; updated every 2 s by census
+            recount_floor    = 0.0    # sticky lower-bound; updated every 2 s by census
             RECOUNT_INTERVAL = 60     # frames between census runs (~2 s at 30 fps)
-            tripwire_active  = False  # becomes True once first crossing is detected
-            tw_entries = tw_exits = tw_net = 0
 
             while self.running:
                 # Break immediately when a source switch is requested so the
@@ -1148,55 +1049,11 @@ class SentinelStream:
                 if ar_count > total_count and ws_occ_count >= total_count:
                     total_count = min(ar_count, ws_occ_count)
 
-                # ── PHASE 5: Tripwire hybrid count ───────────────────
-                # Feed track centroids to the tripwire counter.
-                # When the tripwire has fired, it becomes the authoritative
-                # source for occupancy — this bypasses the stale OccupancyMap
-                # which can hold departed-person pixels for many seconds after
-                # they leave, causing sustained overcounting.
-                tw_entries = tw_exits = tw_net = 0
-                tripwire_active = False
-                if tripwire is not None and loop_frame_idx > warmup_frames:
-                    track_cents = {}
-                    track_boxes = {}
-                    for tid, data in tracks.items():
-                        if data['ghost'] == 0:
-                            x, y, w_box, h_box = data['box']
-                            track_cents[tid] = (int(x + w_box / 2), int(y + h_box / 2))
-                            track_boxes[tid] = (x, y, w_box, h_box)
-                    tw_entries, tw_exits, tw_net = tripwire.update(
-                        track_cents, boxes_by_id=track_boxes
-                    )
-                    if tw_entries + tw_exits > 0:
-                        tripwire_active = True
-                    if tripwire_active:
-                        # Trust tripwire net count; use ws_fused_count (live motion)
-                        # as a floor for currently visible moving people.
-                        # Do NOT use ws_occ / ar_count here — they read from the
-                        # OccupancyMap which still holds pixels of departed people.
-                        total_count = max(tw_net, ws_fused_count)
-                    else:
-                        total_count = max(tw_net, total_count)
-
-                # Draw tripwire line overlay
-                if tripwire is not None:
-                    line_color = (0, 255, 255) if tripwire_active else (180, 180, 180)
-                    cv2.line(frame, tripwire.p1, tripwire.p2, line_color, 2, cv2.LINE_AA)
-                    mid = ((tripwire.p1[0] + tripwire.p2[0]) // 2,
-                           (tripwire.p1[1] + tripwire.p2[1]) // 2)
-                    cv2.putText(frame, f"IN:{tw_entries} OUT:{tw_exits}",
-                                (mid[0] - 50, mid[1] - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.55, line_color, 2, cv2.LINE_AA)
-
                 # ── 2-SECOND CENSUS WITH SHADOW VALIDATION ────────────
                 # Every 60 frames rescan the OccupancyMap to recount all
                 # confirmed people, including those absorbed by MOG2.
-                # Gated to NOT run when the tripwire is active — at that point
-                # the OccupancyMap may still hold pixels of departed people and
-                # the census floor would override the correct tripwire net count.
                 if (loop_frame_idx > warmup_frames and
-                        loop_frame_idx % RECOUNT_INTERVAL == 0 and
-                        not tripwire_active):
+                        loop_frame_idx % RECOUNT_INTERVAL == 0):
                     _pf_conts, _ = cv2.findContours(
                         persistent_fg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
                     )
@@ -1225,21 +1082,40 @@ class SentinelStream:
                                 self._area_px_per_person,
                                 self._area_baseline)
                             if self._area_px_per_person is not None else 0)
-                    recount_floor = max(_cws, _car)
+                    # YOLO census — appearance-based, catches people MOG2 absorbed
+                    _yolo_n = 0
+                    if self._yolo_model is not None:
+                        _yolo_res = self._yolo_model(
+                            frame, device="cpu", imgsz=640,
+                            conf=self._yolo_conf, iou=self._yolo_iou,
+                            classes=[0], verbose=False
+                        )[0]
+                        for _b in _yolo_res.boxes:
+                            _bx1, _by1, _bx2, _by2 = _b.xyxy[0].tolist()
+                            _bcx = int((_bx1 + _bx2) / 2)
+                            _bcy = int((_by1 + _by2) / 2)
+                            _bcy = max(0, min(_bcy, roi_mask.shape[0] - 1))
+                            _bcx = max(0, min(_bcx, roi_mask.shape[1] - 1))
+                            if roi_mask[_bcy, _bcx] > 127:
+                                _yolo_n += 1
 
-                # Apply census floor only when tripwire is not active.
-                # When tripwire is tracking, stale recount_floor would undo
-                # the correct exit count.
-                if not tripwire_active:
-                    total_count = max(total_count, recount_floor)
+                    recount_floor = float(max(_cws, _car, _yolo_n))
+
+                # Floor decay — only when occupancy map has no confirmed blobs,
+                # meaning the scene is genuinely empty (not just absorbed by MOG2).
+                _occ_area = cv2.countNonZero(persistent_fg)
+                if total_count < recount_floor and _occ_area < self.min_blob_area:
+                    recount_floor = max(float(total_count), recount_floor * 0.80)
+
+                # Apply census floor — raises count when MOG2 misses stationary people.
+                total_count = max(total_count, int(round(recount_floor)))
 
                 # Suppress the count during MOG2 warmup so startup
                 # chair/background noise never triggers alerts.
                 if loop_frame_idx <= warmup_frames:
                     total_count    = 0
                     count_ema      = 0.0
-                    recount_floor  = 0
-                    tripwire_active = False
+                    recount_floor  = 0.0
                     self.is_warming_up = True
                 else:
                     self.is_warming_up = False
@@ -1279,11 +1155,6 @@ class SentinelStream:
                     # Hybrid pipeline breakdown (exposed for UI / thesis demo)
                     "watershed_count": int(ws_count) if self._area_px_per_person is not None else int(total_count),
                     "area_count":      int(ar_count) if self._area_px_per_person is not None else 0,
-                    # Tripwire breakdown
-                    "tripwire_active":  tripwire_active,
-                    "tripwire_entries": int(tw_entries),
-                    "tripwire_exits":   int(tw_exits),
-                    "tripwire_net":     int(tw_net),
                 }
 
                 # Phase 2.3: EVENT CLIP RECORDING (Grounded thresholds)
