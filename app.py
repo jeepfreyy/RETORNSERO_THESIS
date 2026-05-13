@@ -655,18 +655,15 @@ def save_incident():
         archive_subdir = os.path.join(ARCHIVE_DIR, f"Archive_{today}")
         os.makedirs(archive_subdir, exist_ok=True)
 
-        # Move clip video from Temp → Archive
+        # Move clip video from Temp → Archive (copy fallback if file is locked on Windows)
         temp_path = os.path.join(TEMP_CLIPS_DIR, clip_filename)
         archive_path = os.path.join(archive_subdir, clip_filename)
         if os.path.exists(temp_path):
-            shutil.move(temp_path, archive_path)
+            _safe_archive_file(temp_path, archive_path)
             thumb_name = clip_filename.replace('.mp4', '.jpg')
             temp_thumb = os.path.join(TEMP_CLIPS_DIR, thumb_name)
             if os.path.exists(temp_thumb):
-                shutil.move(temp_thumb, os.path.join(archive_subdir, thumb_name))
-        else:
-            # Clip already moved or missing — proceed with archiving the report anyway
-            archive_path = os.path.join(archive_subdir, clip_filename)
+                _safe_archive_file(temp_thumb, os.path.join(archive_subdir, thumb_name))
 
         # Remove from in-memory temp clips list
         cam1_stream.temp_clips = [c for c in cam1_stream.temp_clips if c['filename'] != clip_filename]
@@ -758,6 +755,8 @@ def remove_responder(incident_id, responder_id):
 def update_incident_status(incident_id):
     """Update an incident's workflow status and optional resolution note."""
     incident = IncidentArchive.query.get_or_404(incident_id)
+    if incident.incident_status == 'PENDING_DELETE':
+        return jsonify({'error': 'Incident is pending deletion approval and cannot be modified.'}), 403
     data = request.json or {}
     allowed = {'OPEN', 'RESPONDING', 'RESOLVED', 'CLOSED'}
     new_status = data.get('status', '').upper()
@@ -769,6 +768,30 @@ def update_incident_status(incident_id):
         incident.resolution_note = resolution_note
     db.session.commit()
     return jsonify({'success': True, 'incident_status': incident.incident_status})
+
+
+@app.route('/api/incidents/<int:incident_id>/request_delete', methods=['POST'])
+@login_required
+def request_delete_incident(incident_id):
+    """Operator requests deletion of an incident — requires admin approval before actual removal."""
+    incident = IncidentArchive.query.get_or_404(incident_id)
+    if incident.incident_status == 'PENDING_DELETE':
+        return jsonify({'success': False, 'message': 'Deletion already pending approval.'}), 409
+    incident.incident_status = 'PENDING_DELETE'
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Deletion request submitted. Awaiting admin approval.'})
+
+
+@app.route('/api/incidents/<int:incident_id>/cancel_delete', methods=['POST'])
+@login_required
+def cancel_delete_incident(incident_id):
+    """Operator cancels a pending deletion request — restores incident to OPEN."""
+    incident = IncidentArchive.query.get_or_404(incident_id)
+    if incident.incident_status != 'PENDING_DELETE':
+        return jsonify({'success': False, 'message': 'Incident is not pending deletion.'}), 409
+    incident.incident_status = 'OPEN'
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Deletion request cancelled. Incident restored to OPEN.'})
 
 
 @app.route('/archive_media/<path:filepath>')
@@ -787,19 +810,43 @@ def serve_archive_media(filepath):
 def _mjpeg_from_file(video_path):
     """Generator: reads a video file frame-by-frame and yields MJPEG frames."""
     cap = cv2.VideoCapture(video_path)
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            # Loop the clip
-            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    try:
+        while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
-                break
-        ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
-        if ok:
-            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buf.tobytes() + b'\r\n')
-        time.sleep(0.033)
-    cap.release()
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                ret, frame = cap.read()
+                if not ret:
+                    break
+            ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            if ok:
+                yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buf.tobytes() + b'\r\n')
+            time.sleep(0.033)
+    finally:
+        cap.release()
+
+
+def _safe_archive_file(src, dst):
+    """Move src → dst; fall back to copy+delete when src is locked (WinError 32)."""
+    try:
+        shutil.move(src, dst)
+    except (PermissionError, OSError):
+        shutil.copy2(src, dst)
+        try:
+            os.remove(src)
+        except OSError:
+            pass  # Temp file stays until unlocked; archive copy is safe
+
+
+@app.route('/api/temp_clip_file/<filename>')
+@login_required
+def serve_temp_clip_file(filename):
+    """Serve a temp clip as a regular MP4 file (supports browser range requests)."""
+    filename = secure_filename(filename)
+    filepath = os.path.join(TEMP_CLIPS_DIR, filename)
+    if not os.path.exists(filepath):
+        return Response(status=404)
+    return send_file(filepath, mimetype='video/mp4', conditional=True)
 
 
 @app.route('/clip_stream/<filename>')

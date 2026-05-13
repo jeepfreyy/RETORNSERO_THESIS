@@ -166,6 +166,7 @@
       background: rgba(15, 23, 42, 0.6);
       border-radius: 8px 8px 0 0;
     }
+
     .ql-container.ql-snow {
       border-color: rgba(100, 116, 139, 0.4) !important;
       background: rgba(15, 23, 42, 0.3);
@@ -177,37 +178,64 @@
       max-height: 160px;
       overflow-y: auto;
     }
+
     .ql-editor.ql-blank::before {
       color: rgba(100, 116, 139, 0.7) !important;
       font-style: normal !important;
     }
-    .ql-snow .ql-stroke { stroke: #94a3b8 !important; }
-    .ql-snow .ql-fill { fill: #94a3b8 !important; }
-    .ql-snow .ql-picker-label { color: #94a3b8 !important; }
+
+    .ql-snow .ql-stroke {
+      stroke: #94a3b8 !important;
+    }
+
+    .ql-snow .ql-fill {
+      fill: #94a3b8 !important;
+    }
+
+    .ql-snow .ql-picker-label {
+      color: #94a3b8 !important;
+    }
+
     .ql-snow .ql-picker-options {
       background: #1e293b !important;
       border-color: rgba(100, 116, 139, 0.4) !important;
     }
-    .ql-snow .ql-active .ql-stroke { stroke: #34d399 !important; }
-    .ql-snow .ql-active .ql-fill { fill: #34d399 !important; }
-    .ql-snow button:hover .ql-stroke { stroke: #6ee7b7 !important; }
-    .ql-snow button:hover .ql-fill { fill: #6ee7b7 !important; }
+
+    .ql-snow .ql-active .ql-stroke {
+      stroke: #34d399 !important;
+    }
+
+    .ql-snow .ql-active .ql-fill {
+      fill: #34d399 !important;
+    }
+
+    .ql-snow button:hover .ql-stroke {
+      stroke: #6ee7b7 !important;
+    }
+
+    .ql-snow button:hover .ql-fill {
+      fill: #6ee7b7 !important;
+    }
 
     /* ── Temp Clip Tray ───────────────────────────────────── */
     .clip-card {
       transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
+
     .clip-card:hover {
       transform: translateY(-4px) scale(1.02);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
+
     .temp-tray-scroll::-webkit-scrollbar {
       height: 6px;
     }
+
     .temp-tray-scroll::-webkit-scrollbar-track {
       background: rgba(15, 23, 42, 0.5);
       border-radius: 3px;
     }
+
     .temp-tray-scroll::-webkit-scrollbar-thumb {
       background: rgba(0, 255, 136, 0.3);
       border-radius: 3px;
@@ -215,30 +243,44 @@
 
     /* ── Manual Clip Control Bar ─────────────────────────── */
     #manual-rec-btn-idle {
-      background: rgba(100,116,139,0.15);
-      border: 1px solid rgba(100,116,139,0.4);
+      background: rgba(100, 116, 139, 0.15);
+      border: 1px solid rgba(100, 116, 139, 0.4);
       color: #94a3b8;
       transition: all 0.2s ease;
     }
+
     #manual-rec-btn-idle:hover {
-      background: rgba(239,68,68,0.15);
-      border-color: rgba(239,68,68,0.5);
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.5);
       color: #f87171;
     }
+
     #manual-rec-btn-active {
-      background: rgba(239,68,68,0.2);
-      border: 1px solid rgba(239,68,68,0.6);
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.6);
       color: #f87171;
     }
+
     #manual-rec-btn-active:hover {
-      background: rgba(239,68,68,0.35);
+      background: rgba(239, 68, 68, 0.35);
     }
+
     .rec-pulse {
       animation: recPulse 1s ease-in-out infinite;
     }
+
     @keyframes recPulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50%       { opacity: 0.4; transform: scale(0.85); }
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.4;
+        transform: scale(0.85);
+      }
     }
 
     /* ── Report Modal ─────────────────────────────────────── */
@@ -253,6 +295,7 @@
       outline: none;
       cursor: pointer;
     }
+
     .threat-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
@@ -262,10 +305,14 @@
       background: #f8fafc;
       border: 2px solid #64748b;
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
       transition: border-color 0.2s ease, transform 0.1s ease;
     }
-    .threat-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+
+    .threat-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
     .threat-slider::-moz-range-thumb {
       width: 20px;
       height: 20px;
@@ -273,7 +320,7 @@
       background: #f8fafc;
       border: 2px solid #64748b;
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
     }
 
     /* ── Incident Title Input ────────────────────────────── */
@@ -289,11 +336,15 @@
       font-family: 'Rajdhani', sans-serif;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
+
     .report-title-input:focus {
       border-color: rgba(52, 211, 153, 0.6);
       box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.1);
     }
-    .report-title-input::placeholder { color: rgba(100, 116, 139, 0.6); }
+
+    .report-title-input::placeholder {
+      color: rgba(100, 116, 139, 0.6);
+    }
   </style>
   <style>
     @view-transition {
@@ -330,7 +381,7 @@
           <p id="welcome-text" class="text-slate-400 mt-2 text-sm tracking-wide">ADVANCED SURVEILLANCE SYSTEM</p>
         </div><!-- Auth Card -->
         <div class="card-border rounded-2xl p-8 backdrop-blur-xl">
-<!-- Operator Tabs -->
+          <!-- Operator Tabs -->
           <div id="operator-tabs" class="flex mb-6 bg-slate-900/50 rounded-lg p-1">
             <button id="login-tab" onclick="switchTab('login')"
               class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/50">
@@ -371,7 +422,7 @@
                 class="text-emerald-400 hover:text-emerald-300 transition-colors">Forgot access code?</a>
             </div><button type="submit"
               class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg btn-glow mt-6 tracking-wider">
-              AUTHENTICATE </button>
+              LOGIN </button>
           </form><!-- Register Form -->
           <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
             <div>
@@ -615,7 +666,8 @@
               <button id="view-response-btn" onclick="switchView('response')"
                 class="relative px-3 py-1 rounded-md text-xs font-semibold transition-all text-slate-400 hover:text-slate-300">
                 RESPONSE
-                <span id="open-incident-badge" class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">0</span>
+                <span id="open-incident-badge"
+                  class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">0</span>
               </button>
             </div><!-- Live Time -->
             <div id="live-time-container" class="hidden sm:flex items-center gap-2 text-slate-400">
@@ -662,16 +714,20 @@
 
                 <!-- Camera Display -->
                 <div class="card-border rounded-xl overflow-hidden flex-shrink-0">
-                  <div class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative flex items-center justify-center">
+                  <div
+                    class="camera-feed aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative flex items-center justify-center">
                     <div id="max-camera-svg" class="w-full h-full"></div>
                     <div class="absolute top-4 left-4 right-4 flex items-center justify-between">
                       <div class="flex items-center gap-2">
                         <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div>
-                        <span id="max-camera-name" class="text-sm font-mono text-emerald-400 bg-slate-900/70 px-3 py-1 rounded">CAM-01</span>
+                        <span id="max-camera-name"
+                          class="text-sm font-mono text-emerald-400 bg-slate-900/70 px-3 py-1 rounded">CAM-01</span>
                       </div>
                       <div class="flex gap-2">
-                        <span id="max-camera-resolution" class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-1 rounded">1080p</span>
-                        <span id="max-camera-time" class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-1 rounded">--:--:--</span>
+                        <span id="max-camera-resolution"
+                          class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-1 rounded">1080p</span>
+                        <span id="max-camera-time"
+                          class="text-xs font-mono text-slate-400 bg-slate-900/70 px-2 py-1 rounded">--:--:--</span>
                       </div>
                     </div>
                   </div>
@@ -699,18 +755,28 @@
 
                 <!-- Crowd Density Timeline -->
                 <div class="card-border rounded-xl p-4 flex-shrink-0">
-                  <h3 class="font-display text-lg font-bold text-emerald-400 tracking-wider mb-4">CROWD DENSITY TIMELINE</h3>
+                  <h3 class="font-display text-lg font-bold text-emerald-400 tracking-wider mb-4">CROWD DENSITY TIMELINE
+                  </h3>
                   <div class="space-y-3">
                     <div class="flex gap-4 text-xs mb-3">
-                      <div class="flex items-center gap-2"><div class="w-4 h-4 rounded bg-emerald-500"></div><span class="text-slate-400">Low Density</span></div>
-                      <div class="flex items-center gap-2"><div class="w-4 h-4 rounded bg-amber-500"></div><span class="text-slate-400">Medium Density</span></div>
-                      <div class="flex items-center gap-2"><div class="w-4 h-4 rounded bg-red-500"></div><span class="text-slate-400">High Density</span></div>
+                      <div class="flex items-center gap-2">
+                        <div class="w-4 h-4 rounded bg-emerald-500"></div><span class="text-slate-400">Low
+                          Density</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <div class="w-4 h-4 rounded bg-amber-500"></div><span class="text-slate-400">Medium
+                          Density</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <div class="w-4 h-4 rounded bg-red-500"></div><span class="text-slate-400">High Density</span>
+                      </div>
                     </div>
                     <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
                       <div id="density-timeline" class="flex gap-1 h-12 items-end"></div>
                     </div>
                     <div class="flex justify-between text-xs text-slate-500 px-1">
-                      <span id="timeline-start">4 hrs ago</span><span id="timeline-mid">2 hrs ago</span><span id="timeline-end">Now</span>
+                      <span id="timeline-start">4 hrs ago</span><span id="timeline-mid">2 hrs ago</span><span
+                        id="timeline-end">Now</span>
                     </div>
                   </div>
                   <div class="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-700">
@@ -736,8 +802,10 @@
                       <div class="flex items-center gap-3 min-w-0">
                         <div id="manual-rec-dot" class="w-2.5 h-2.5 rounded-full bg-slate-600 flex-shrink-0"></div>
                         <div class="min-w-0">
-                          <p class="font-display text-sm font-bold text-slate-300 tracking-wider leading-none">MANUAL RECORDING</p>
-                          <p id="manual-rec-status" class="text-[11px] text-slate-500 mt-0.5">Capture a specific moment for an incident report</p>
+                          <p class="font-display text-sm font-bold text-slate-300 tracking-wider leading-none">MANUAL
+                            RECORDING</p>
+                          <p id="manual-rec-status" class="text-[11px] text-slate-500 mt-0.5">Capture a specific moment
+                            for an incident report</p>
                         </div>
                       </div>
                       <div class="flex items-center gap-3 flex-shrink-0">
@@ -745,20 +813,25 @@
                         <button id="manual-rec-btn-idle" onclick="startManualClip()"
                           class="flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold tracking-wider transition-all"
                           style="background:rgba(100,116,139,0.15);border:1px solid rgba(100,116,139,0.4);color:#94a3b8">
-                          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>
+                          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="12" r="7" />
+                          </svg>
                           START RECORDING
                         </button>
                         <button id="manual-rec-btn-active" onclick="stopManualClip()"
                           class="hidden flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold tracking-wider transition-all"
                           style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.6);color:#f87171">
-                          <svg class="w-3.5 h-3.5 rec-pulse" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+                          <svg class="w-3.5 h-3.5 rec-pulse" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="5" y="5" width="14" height="14" rx="2" />
+                          </svg>
                           STOP &amp; SAVE
                         </button>
                       </div>
                     </div>
                     <p class="text-[10px] text-slate-700 mt-2 leading-relaxed">
                       Press <strong class="text-slate-500">START RECORDING</strong> to manually capture the live feed.
-                      Press <strong class="text-slate-500">STOP &amp; SAVE</strong> to finalize — the clip will appear below and you can attach an incident report.
+                      Press <strong class="text-slate-500">STOP &amp; SAVE</strong> to finalize — the clip will appear
+                      below and you can attach an incident report.
                       Minimum clip length is 5 seconds.
                     </p>
                   </div>
@@ -770,14 +843,20 @@
                     <div class="flex items-center justify-between mb-3">
                       <div class="flex items-center gap-3">
                         <div class="w-2 h-2 rounded-full bg-amber-400 blink"></div>
-                        <h3 class="font-display text-sm font-bold text-emerald-400 tracking-wider">DETECTED ANOMALIES</h3>
+                        <h3 class="font-display text-sm font-bold text-emerald-400 tracking-wider">DETECTED ANOMALIES
+                        </h3>
                       </div>
                       <span id="temp-clip-count" class="text-xs text-slate-500 font-mono">0 clips</span>
                     </div>
                     <div id="temp-clips-container" class="flex gap-3 overflow-x-auto pb-2 temp-tray-scroll">
                       <div id="temp-clips-empty" class="w-full text-center py-6 text-slate-500 text-sm">
-                        <svg class="w-8 h-8 mx-auto mb-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 002 2z"/></svg>
-                        No clips yet. Clips appear automatically on density spikes, or use <strong>MANUAL RECORDING</strong> above.
+                        <svg class="w-8 h-8 mx-auto mb-2 text-slate-600" fill="none" stroke="currentColor"
+                          viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 002 2z" />
+                        </svg>
+                        No clips yet. Clips appear automatically on density spikes, or use <strong>MANUAL
+                          RECORDING</strong> above.
                       </div>
                     </div>
                   </div>
@@ -788,11 +867,13 @@
               <!-- ── Right column: Activity Logs — fixed, own scroll ── -->
               <div class="w-80 flex-shrink-0 flex flex-col min-h-0">
                 <div class="card-border rounded-xl p-4 flex flex-col flex-1 min-h-0 overflow-hidden">
-                  <h3 class="font-display text-lg font-bold text-emerald-400 tracking-wider mb-4 flex-shrink-0">ACTIVITY LOGS</h3>
+                  <h3 class="font-display text-lg font-bold text-emerald-400 tracking-wider mb-4 flex-shrink-0">ACTIVITY
+                    LOGS</h3>
                   <div id="camera-activity-logs" class="flex-1 overflow-y-auto space-y-2 pr-2 min-h-0">
                     <!-- Activity logs generated here -->
                   </div>
-                  <div id="logs-empty-state" class="flex items-center justify-center h-full text-slate-500 text-center text-sm">
+                  <div id="logs-empty-state"
+                    class="flex items-center justify-center h-full text-slate-500 text-center text-sm">
                     <div>
                       <p class="mb-1">📹 No activities logged yet</p>
                       <p class="text-xs">Activities will appear in real-time</p>
@@ -805,16 +886,22 @@
           </div>
         </div>
         <!-- ── Incident Report Modal ─────────────────────────── -->
-        <div id="report-modal" class="fixed inset-0 bg-black/95 backdrop-blur-xl hidden flex items-center justify-center z-[60] p-4">
-          <div class="w-full max-w-5xl bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl flex flex-col" style="max-height:92vh">
+        <div id="report-modal"
+          class="fixed inset-0 bg-black/95 backdrop-blur-xl hidden flex items-center justify-center z-[60] p-4">
+          <div class="w-full max-w-5xl bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl flex flex-col"
+            style="max-height:92vh">
             <!-- Header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-900/90 flex-shrink-0">
+            <div
+              class="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-900/90 flex-shrink-0">
               <div class="flex items-center gap-3">
                 <div class="w-3 h-3 rounded-full bg-red-500 blink"></div>
                 <h2 class="font-display text-lg font-bold text-emerald-400 tracking-wider">INCIDENT REPORT</h2>
               </div>
-              <button onclick="closeReportModal()" class="text-slate-400 hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-slate-800">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              <button onclick="closeReportModal()"
+                class="text-slate-400 hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-slate-800">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
             <!-- Body -->
@@ -822,8 +909,8 @@
               <!-- Left: Clip Preview -->
               <div class="p-6 border-b lg:border-b-0 lg:border-r border-slate-700 overflow-y-auto">
                 <p class="text-xs font-semibold text-slate-500 tracking-wider mb-3">CLIP PREVIEW</p>
-                <img id="report-video" class="w-full rounded-lg border border-slate-700 bg-slate-900"
-                     alt="Clip playback" style="min-height:180px;max-height:260px;object-fit:cover" />
+                <video id="report-video" class="w-full rounded-lg border border-slate-700 bg-slate-900" controls
+                  autoplay loop muted playsinline style="min-height:180px;max-height:260px;object-fit:cover"></video>
                 <div class="mt-4 grid grid-cols-2 gap-2">
                   <div class="bg-slate-800/50 rounded-lg p-3 text-center">
                     <p class="text-xs text-slate-500 mb-1">CAMERA</p>
@@ -854,18 +941,18 @@
                 <div>
                   <p class="text-xs font-semibold text-slate-500 tracking-wider mb-2">INCIDENT TITLE</p>
                   <input id="report-title" type="text" maxlength="100"
-                    placeholder="e.g., Unauthorized gathering near gate"
-                    class="report-title-input" />
+                    placeholder="e.g., Unauthorized gathering near gate" class="report-title-input" />
                 </div>
 
                 <!-- THREAT LEVEL SLIDER -->
                 <div>
                   <div class="flex items-center justify-between mb-2">
                     <p class="text-xs font-semibold text-slate-500 tracking-wider">THREAT LEVEL</p>
-                    <span id="threat-level-badge" class="text-xs font-bold px-2.5 py-0.5 rounded-full border font-mono"></span>
+                    <span id="threat-level-badge"
+                      class="text-xs font-bold px-2.5 py-0.5 rounded-full border font-mono"></span>
                   </div>
-                  <input type="range" id="threat-level-slider" min="1" max="10" value="5"
-                    class="threat-slider w-full" oninput="updateThreatLevel(this.value)" />
+                  <input type="range" id="threat-level-slider" min="1" max="10" value="5" class="threat-slider w-full"
+                    oninput="updateThreatLevel(this.value)" />
                   <div class="flex justify-between mt-1.5 font-mono" style="font-size:10px;color:rgba(100,116,139,0.7)">
                     <span>1 — MINIMAL</span>
                     <span>5 — MODERATE</span>
@@ -891,12 +978,52 @@
             </div>
           </div>
         </div>
+        <!-- Deletion Confirmation Modal -->
+        <div id="delete-confirm-modal"
+          class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-[70] p-4">
+          <div class="w-full max-w-md bg-slate-900 rounded-2xl border border-red-500/40 shadow-2xl">
+            <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-700">
+              <div class="w-9 h-9 rounded-full bg-red-500/15 border border-red-500/40 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-red-400 tracking-wider">REQUEST DELETION</h3>
+                <p class="text-xs text-slate-500">This action requires admin approval</p>
+              </div>
+            </div>
+            <div class="px-6 py-5">
+              <p class="text-sm text-slate-300 mb-2">You are requesting permanent deletion of:</p>
+              <p id="delete-confirm-title" class="text-sm font-bold text-slate-100 bg-slate-800/60 rounded-lg px-3 py-2 border border-slate-700 mb-4 truncate"></p>
+              <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg px-4 py-3 mb-5">
+                <p class="text-xs text-orange-300 leading-relaxed">
+                  This will mark the incident as <span class="font-bold">PENDING DELETION</span> and notify the admin for review.
+                  The report and clip will <span class="font-bold">not be deleted</span> until the admin approves.
+                  You can cancel this request at any time before approval.
+                </p>
+              </div>
+              <div class="flex gap-3">
+                <button onclick="closeDeleteConfirm()"
+                  class="flex-1 py-2.5 rounded-lg text-xs font-bold tracking-wider bg-slate-700/50 text-slate-300 border border-slate-600 hover:bg-slate-600/50 transition-all">
+                  CANCEL
+                </button>
+                <button id="delete-confirm-btn" onclick="confirmDeleteRequest()"
+                  class="flex-1 py-2.5 rounded-lg text-xs font-bold tracking-wider bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 transition-all">
+                  CONFIRM REQUEST
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Response Center View -->
         <div id="response-view" class="hidden">
           <!-- Header -->
           <div class="mb-6 flex items-end justify-between flex-wrap gap-3">
             <div>
-              <h2 class="font-display text-2xl font-bold text-emerald-400 tracking-wider mb-1">INCIDENT RESPONSE CENTER</h2>
+              <h2 class="font-display text-2xl font-bold text-emerald-400 tracking-wider mb-1">INCIDENT RESPONSE CENTER
+              </h2>
               <p class="text-slate-500 text-sm">Assign barangay officials and track incident resolution in real time</p>
             </div>
             <div class="flex items-center gap-3">
@@ -910,8 +1037,14 @@
                   class="px-3 py-1 rounded-md text-xs font-semibold transition-all text-slate-400 hover:text-slate-300">RESPONDING</button>
                 <button onclick="filterResponseView('RESOLVED')" id="rf-resolved"
                   class="px-3 py-1 rounded-md text-xs font-semibold transition-all text-slate-400 hover:text-slate-300">RESOLVED</button>
+                <button onclick="filterResponseView('PENDING_DELETE')" id="rf-pending_delete"
+                  class="relative px-3 py-1 rounded-md text-xs font-semibold transition-all text-slate-400 hover:text-orange-400">
+                  PENDING
+                  <span id="pending-delete-badge" class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">0</span>
+                </button>
               </div>
-              <button onclick="loadResponseCenter()" class="px-5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-sm tracking-wider transition-all">
+              <button onclick="loadResponseCenter()"
+                class="px-5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-sm tracking-wider transition-all">
                 REFRESH
               </button>
             </div>
@@ -920,7 +1053,8 @@
           <div id="response-results" class="space-y-4">
             <div class="text-center py-12 text-slate-500">
               <svg class="w-12 h-12 mx-auto mb-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               <p>Switch to RESPONSE view to load incidents</p>
             </div>
@@ -935,14 +1069,18 @@
               <h2 class="font-display text-2xl font-bold text-emerald-400 tracking-wider mb-1">INCIDENT ARCHIVE</h2>
               <p class="text-slate-500 text-sm">Permanently saved incident reports annotated by operators</p>
             </div>
-            <button onclick="loadArchivedIncidents()" class="px-5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-sm tracking-wider transition-all">
+            <button onclick="loadArchivedIncidents()"
+              class="px-5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-sm tracking-wider transition-all">
               REFRESH
             </button>
           </div>
           <!-- Archive Results -->
           <div id="archive-results" class="space-y-4">
             <div class="text-center py-12 text-slate-500">
-              <svg class="w-12 h-12 mx-auto mb-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+              <svg class="w-12 h-12 mx-auto mb-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
               <p>Switch to ARCHIVE view to load saved incidents</p>
             </div>
           </div>
@@ -1062,10 +1200,13 @@
                 </div>
               </div><!-- Video Selector Panel — switch CAM-01 scenario video -->
               <div class="card-border rounded-xl overflow-hidden" id="cam02-card">
-                <div class="aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative flex flex-col items-center justify-center gap-4 p-6">
+                <div
+                  class="aspect-video bg-gradient-to-br from-slate-800 to-slate-900 relative flex flex-col items-center justify-center gap-4 p-6">
                   <!-- Icon -->
-                  <svg class="w-10 h-10 text-emerald-500/60" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-3.75.125V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-1.5A1.125 1.125 0 0118 18.375M20.625 4.5H3.375m17.25 0c.621 0 1.125.504 1.125 1.125M20.625 4.5h-1.5C18.504 4.5 18 5.004 18 5.625m3.75-.125V5.625m0 0v1.5c0 .621-.504 1.125-1.125 1.125M3.375 4.5c-.621 0-1.125.504-1.125 1.125M3.375 4.5h1.5C5.496 4.5 6 5.004 6 5.625m-3.75 0v1.5c0 .621.504 1.125 1.125 1.125m0 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m1.5-3.75C5.496 8.25 6 7.746 6 7.125v-1.5M4.875 8.25C5.496 8.25 6 8.754 6 9.375v1.5m0-5.25v5.25m0-5.25C6 5.004 6.504 4.5 7.125 4.5h9.75c.621 0 1.125.504 1.125 1.125m1.125 2.625h1.5m-1.5 0A1.125 1.125 0 0118 7.125v-1.5m1.5 2.625c.621 0 1.125.504 1.125 1.125v1.5m-2.625-5.25c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125M18 5.625v5.25M7.125 12h9.75m-9.75 0A1.125 1.125 0 016 10.875M7.125 12C6.504 12 6 12.504 6 13.125v1.5c0 .621.504 1.125 1.125 1.125m0-3.75c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m0 0h9.75m-9.75 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M18 13.125v1.5c0 .621-.504 1.125-1.125 1.125M18 13.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-9.75 0h9.75" />
+                  <svg class="w-10 h-10 text-emerald-500/60" fill="none" stroke="currentColor" stroke-width="1.5"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-3.75.125V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-1.5A1.125 1.125 0 0118 18.375M20.625 4.5H3.375m17.25 0c.621 0 1.125.504 1.125 1.125M20.625 4.5h-1.5C18.504 4.5 18 5.004 18 5.625m3.75-.125V5.625m0 0v1.5c0 .621-.504 1.125-1.125 1.125M3.375 4.5c-.621 0-1.125.504-1.125 1.125M3.375 4.5h1.5C5.496 4.5 6 5.004 6 5.625m-3.75 0v1.5c0 .621.504 1.125 1.125 1.125m0 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m1.5-3.75C5.496 8.25 6 7.746 6 7.125v-1.5M4.875 8.25C5.496 8.25 6 8.754 6 9.375v1.5m0-5.25v5.25m0-5.25C6 5.004 6.504 4.5 7.125 4.5h9.75c.621 0 1.125.504 1.125 1.125m1.125 2.625h1.5m-1.5 0A1.125 1.125 0 0118 7.125v-1.5m1.5 2.625c.621 0 1.125.504 1.125 1.125v1.5m-2.625-5.25c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125M18 5.625v5.25M7.125 12h9.75m-9.75 0A1.125 1.125 0 016 10.875M7.125 12C6.504 12 6 12.504 6 13.125v1.5c0 .621.504 1.125 1.125 1.125m0-3.75c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m0 0h9.75m-9.75 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M18 13.125v1.5c0 .621-.504 1.125-1.125 1.125M18 13.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-9.75 0h9.75" />
                   </svg>
 
                   <div class="text-center">
@@ -1089,7 +1230,8 @@
                   </button>
 
                   <!-- Warmup status badge (hidden until switching) -->
-                  <div id="video-warmup-badge" class="hidden flex items-center gap-2 text-xs font-mono text-amber-300 bg-amber-900/30 border border-amber-500/30 px-3 py-1.5 rounded-full">
+                  <div id="video-warmup-badge"
+                    class="hidden flex items-center gap-2 text-xs font-mono text-amber-300 bg-amber-900/30 border border-amber-500/30 px-3 py-1.5 rounded-full">
                     <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                     <span id="video-warmup-text">WARMING UP…</span>
                   </div>
@@ -1097,7 +1239,8 @@
                 <div class="p-3 flex items-center justify-between">
                   <div>
                     <p class="text-sm font-semibold text-slate-200">Test Scenario Library</p>
-                    <p class="text-xs text-slate-500" id="video-active-label">Select a scenario above to load it on CAM-01</p>
+                    <p class="text-xs text-slate-500" id="video-active-label">Select a scenario above to load it on
+                      CAM-01</p>
                   </div>
                 </div>
               </div>
@@ -1195,16 +1338,16 @@
 
 
       function switchView(view) {
-        const liveView     = document.getElementById('live-view');
-        const archiveView  = document.getElementById('archive-view');
+        const liveView = document.getElementById('live-view');
+        const archiveView = document.getElementById('archive-view');
         const responseView = document.getElementById('response-view');
-        const btnLive      = document.getElementById('view-live-btn');
-        const btnArchive   = document.getElementById('view-archive-btn');
-        const btnResponse  = document.getElementById('view-response-btn');
+        const btnLive = document.getElementById('view-live-btn');
+        const btnArchive = document.getElementById('view-archive-btn');
+        const btnResponse = document.getElementById('view-response-btn');
         const liveTimeContainer = document.getElementById('live-time-container');
-        const statusContainer   = document.getElementById('status-container');
+        const statusContainer = document.getElementById('status-container');
 
-        const activeClass  = ['bg-emerald-500/20','text-emerald-400','border','border-emerald-500/50'];
+        const activeClass = ['bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50'];
         const inactiveClass = ['text-slate-400'];
 
         [btnLive, btnArchive, btnResponse].forEach(b => {
@@ -1436,7 +1579,7 @@
             setTimeout(() => loadFrame(camId, targetId, route), 500);
             return;
           }
-          
+
           const ts = Date.now();
           const img = new Image();
           img.onload = () => {
@@ -2184,16 +2327,16 @@
       let tempClipRefreshInterval = null;
 
       const THREAT_LEVELS = {
-        1:  { label:'MINIMAL',  color:'#22c55e', bg:'rgba(34,197,94,0.15)',   border:'rgba(34,197,94,0.4)'   },
-        2:  { label:'MINIMAL',  color:'#22c55e', bg:'rgba(34,197,94,0.15)',   border:'rgba(34,197,94,0.4)'   },
-        3:  { label:'LOW',      color:'#86efac', bg:'rgba(134,239,172,0.15)', border:'rgba(134,239,172,0.4)' },
-        4:  { label:'MODERATE', color:'#facc15', bg:'rgba(250,204,21,0.15)',  border:'rgba(250,204,21,0.4)'  },
-        5:  { label:'MODERATE', color:'#facc15', bg:'rgba(250,204,21,0.15)',  border:'rgba(250,204,21,0.4)'  },
-        6:  { label:'ELEVATED', color:'#fb923c', bg:'rgba(251,146,60,0.15)',  border:'rgba(251,146,60,0.4)'  },
-        7:  { label:'HIGH',     color:'#f97316', bg:'rgba(249,115,22,0.15)',  border:'rgba(249,115,22,0.4)'  },
-        8:  { label:'HIGH',     color:'#ef4444', bg:'rgba(239,68,68,0.15)',   border:'rgba(239,68,68,0.4)'   },
-        9:  { label:'CRITICAL', color:'#dc2626', bg:'rgba(220,38,38,0.15)',   border:'rgba(220,38,38,0.4)'   },
-        10: { label:'CRITICAL', color:'#b91c1c', bg:'rgba(185,28,28,0.15)',   border:'rgba(185,28,28,0.4)'   },
+        1: { label: 'MINIMAL', color: '#22c55e', bg: 'rgba(34,197,94,0.15)', border: 'rgba(34,197,94,0.4)' },
+        2: { label: 'MINIMAL', color: '#22c55e', bg: 'rgba(34,197,94,0.15)', border: 'rgba(34,197,94,0.4)' },
+        3: { label: 'LOW', color: '#86efac', bg: 'rgba(134,239,172,0.15)', border: 'rgba(134,239,172,0.4)' },
+        4: { label: 'MODERATE', color: '#facc15', bg: 'rgba(250,204,21,0.15)', border: 'rgba(250,204,21,0.4)' },
+        5: { label: 'MODERATE', color: '#facc15', bg: 'rgba(250,204,21,0.15)', border: 'rgba(250,204,21,0.4)' },
+        6: { label: 'ELEVATED', color: '#fb923c', bg: 'rgba(251,146,60,0.15)', border: 'rgba(251,146,60,0.4)' },
+        7: { label: 'HIGH', color: '#f97316', bg: 'rgba(249,115,22,0.15)', border: 'rgba(249,115,22,0.4)' },
+        8: { label: 'HIGH', color: '#ef4444', bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.4)' },
+        9: { label: 'CRITICAL', color: '#dc2626', bg: 'rgba(220,38,38,0.15)', border: 'rgba(220,38,38,0.4)' },
+        10: { label: 'CRITICAL', color: '#b91c1c', bg: 'rgba(185,28,28,0.15)', border: 'rgba(185,28,28,0.4)' },
       };
 
       function updateThreatLevel(val) {
@@ -2205,11 +2348,11 @@
         badge.style.background = info.bg;
         badge.style.borderColor = info.border;
         const pct = (v - 1) / 9;
-        const r = Math.round(34  + (239 - 34)  * pct);
-        const g = Math.round(197 + (68  - 197) * pct);
-        const b = Math.round(94  + (68  - 94)  * pct);
+        const r = Math.round(34 + (239 - 34) * pct);
+        const g = Math.round(197 + (68 - 197) * pct);
+        const b = Math.round(94 + (68 - 94) * pct);
         const slider = document.getElementById('threat-level-slider');
-        slider.style.background = `linear-gradient(to right, rgb(${r},${g},${b}) 0%, rgb(${r},${g},${b}) ${pct*100}%, rgba(51,65,85,0.8) ${pct*100}%, rgba(51,65,85,0.8) 100%)`;
+        slider.style.background = `linear-gradient(to right, rgb(${r},${g},${b}) 0%, rgb(${r},${g},${b}) ${pct * 100}%, rgba(51,65,85,0.8) ${pct * 100}%, rgba(51,65,85,0.8) 100%)`;
       }
 
       // ── Manual Clip Recording ─────────────────────────────────────────────
@@ -2219,10 +2362,10 @@
 
       function _setManualUI(recording) {
         _manualActive = recording;
-        const dot    = document.getElementById('manual-rec-dot');
+        const dot = document.getElementById('manual-rec-dot');
         const status = document.getElementById('manual-rec-status');
-        const timer  = document.getElementById('manual-rec-timer');
-        const btnIdle   = document.getElementById('manual-rec-btn-idle');
+        const timer = document.getElementById('manual-rec-timer');
+        const btnIdle = document.getElementById('manual-rec-btn-idle');
         const btnActive = document.getElementById('manual-rec-btn-active');
         if (!dot) return;
         if (recording) {
@@ -2259,14 +2402,14 @@
             const el = document.getElementById('manual-rec-timer');
             if (el) el.textContent = `${m}:${s}`;
           }, 1000);
-        } catch(e) { console.error(e); }
+        } catch (e) { console.error(e); }
       }
 
       async function stopManualClip() {
         if (!_manualActive) return;
         try {
           await fetch('/api/manual_clip/stop', { method: 'POST' });
-        } catch(e) {}
+        } catch (e) { }
         clearInterval(_manualTimer);
         _manualTimer = null;
         _manualSecs = 0;
@@ -2308,7 +2451,7 @@
         fetch('/api/temp_clips')
           .then(r => r.json())
           .then(clips => renderTempClips(clips))
-          .catch(() => {});
+          .catch(() => { });
       }
 
       function renderTempClips(clips) {
@@ -2368,7 +2511,7 @@
               <p class="text-xs font-semibold ${tc}">${clip.camera_id}</p>
               <p class="text-[10px] text-slate-500 mt-1 font-mono">${clip.timestamp}</p>
               <div class="flex gap-2 mt-2">
-                <button onclick="openReportModal('${safeFilename}','${safeCam}','${safeTs}','${safeDensity}',${clip.duration},${clip.people_count||0})"
+                <button onclick="openReportModal('${safeFilename}','${safeCam}','${safeTs}','${safeDensity}',${clip.duration},${clip.people_count || 0})"
                         class="flex-1 text-xs py-1.5 px-2 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30 transition-all font-semibold tracking-wider">
                   SAVE
                 </button>
@@ -2393,7 +2536,7 @@
         currentReportClip = { filename, cameraId, timestamp, density, duration, peopleCount: peopleCount || 0 };
 
         const modal = document.getElementById('report-modal');
-        document.getElementById('report-video').src = `/clip_stream/${filename}`;
+        document.getElementById('report-video').src = `/api/temp_clip_file/${filename}`;
         document.getElementById('report-camera').textContent = cameraId;
         document.getElementById('report-timestamp').textContent = timestamp;
         document.getElementById('report-title').value = '';
@@ -2425,8 +2568,11 @@
       }
 
       function closeReportModal() {
+        const vid = document.getElementById('report-video');
+        vid.pause();
+        vid.src = '';
+        vid.load();  // Fully release file handle so Windows can move it
         document.getElementById('report-modal').classList.add('hidden');
-        document.getElementById('report-video').src = '';
       }
 
       async function submitIncidentReport() {
@@ -2435,8 +2581,8 @@
         btn.textContent = 'SUBMITTING...';
         btn.disabled = true;
 
-        const reportHtml  = reportQuill ? reportQuill.root.innerHTML : '';
-        const title       = (document.getElementById('report-title').value || '').trim();
+        const reportHtml = reportQuill ? reportQuill.root.innerHTML : '';
+        const title = (document.getElementById('report-title').value || '').trim();
         const threatLevel = parseInt(document.getElementById('threat-level-slider').value, 10);
 
         try {
@@ -2445,15 +2591,15 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               clip_filename: currentReportClip.filename,
-              title:         title,
-              report_html:   reportHtml,
-              status:        'VALID_THREAT',
-              density_tag:   currentReportClip.density,
-              camera_id:     currentReportClip.cameraId,
-              duration:      currentReportClip.duration,
-              threat_level:  threatLevel,
-              people_count:  currentReportClip.peopleCount || 0,
-              location:      CAMERA_LOCATIONS[currentReportClip.cameraId] || currentReportClip.cameraId,
+              title: title,
+              report_html: reportHtml,
+              status: 'VALID_THREAT',
+              density_tag: currentReportClip.density,
+              camera_id: currentReportClip.cameraId,
+              duration: currentReportClip.duration,
+              threat_level: threatLevel,
+              people_count: currentReportClip.peopleCount || 0,
+              location: CAMERA_LOCATIONS[currentReportClip.cameraId] || currentReportClip.cameraId,
             })
           });
           const result = await response.json();
@@ -2487,7 +2633,7 @@
 
         const colors = type === 'success'
           ? { border: 'border-emerald-500/60', icon: 'text-emerald-400', bg: 'bg-emerald-500/15', title: 'text-emerald-400' }
-          : { border: 'border-red-500/60',     icon: 'text-red-400',     bg: 'bg-red-500/15',     title: 'text-red-400'     };
+          : { border: 'border-red-500/60', icon: 'text-red-400', bg: 'bg-red-500/15', title: 'text-red-400' };
 
         const iconPath = type === 'success'
           ? 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
@@ -2542,10 +2688,11 @@
       let _currentUsername = '';    // filled on login
 
       const RC_STATUS = {
-        OPEN:       { label: 'OPEN',       color: 'text-red-400',     bg: 'bg-red-500/15',     border: 'border-red-500/40',     dot: 'bg-red-500'     },
-        RESPONDING: { label: 'RESPONDING', color: 'text-amber-400',   bg: 'bg-amber-500/15',   border: 'border-amber-500/40',   dot: 'bg-amber-500'   },
-        RESOLVED:   { label: 'RESOLVED',   color: 'text-emerald-400', bg: 'bg-emerald-500/15', border: 'border-emerald-500/40', dot: 'bg-emerald-500' },
-        CLOSED:     { label: 'CLOSED',     color: 'text-slate-400',   bg: 'bg-slate-700/30',   border: 'border-slate-600/40',   dot: 'bg-slate-500'   },
+        OPEN:           { label: 'OPEN',             color: 'text-red-400',    bg: 'bg-red-500/15',    border: 'border-red-500/40',    dot: 'bg-red-500' },
+        RESPONDING:     { label: 'RESPONDING',        color: 'text-amber-400',  bg: 'bg-amber-500/15',  border: 'border-amber-500/40',  dot: 'bg-amber-500' },
+        RESOLVED:       { label: 'RESOLVED',          color: 'text-emerald-400',bg: 'bg-emerald-500/15',border: 'border-emerald-500/40',dot: 'bg-emerald-500' },
+        CLOSED:         { label: 'CLOSED',            color: 'text-slate-400',  bg: 'bg-slate-700/30',  border: 'border-slate-600/40',  dot: 'bg-slate-500' },
+        PENDING_DELETE: { label: 'PENDING DELETION',  color: 'text-orange-400', bg: 'bg-orange-500/15', border: 'border-orange-500/50',  dot: 'bg-orange-500' },
       };
       const TL_COLOR = v => v >= 8 ? 'text-red-400' : v >= 5 ? 'text-amber-400' : 'text-emerald-400';
 
@@ -2566,26 +2713,35 @@
 
       function _updateOpenBadge(incidents) {
         const badge = document.getElementById('open-incident-badge');
-        if (!badge) return;
-        const open = incidents.filter(i => i.incident_status === 'OPEN' || i.incident_status === 'RESPONDING').length;
-        if (open > 0) {
-          badge.textContent = open > 9 ? '9+' : open;
-          badge.classList.remove('hidden');
-        } else {
-          badge.classList.add('hidden');
+        if (badge) {
+          const open = incidents.filter(i => i.incident_status === 'OPEN' || i.incident_status === 'RESPONDING').length;
+          if (open > 0) { badge.textContent = open > 9 ? '9+' : open; badge.classList.remove('hidden'); }
+          else badge.classList.add('hidden');
+        }
+        const pbadge = document.getElementById('pending-delete-badge');
+        if (pbadge) {
+          const pend = incidents.filter(i => i.incident_status === 'PENDING_DELETE').length;
+          if (pend > 0) { pbadge.textContent = pend > 9 ? '9+' : pend; pbadge.classList.remove('hidden'); }
+          else pbadge.classList.add('hidden');
         }
       }
 
       function filterResponseView(f) {
         _rcFilter = f;
-        ['ALL','OPEN','RESPONDING','RESOLVED'].forEach(k => {
+        ['ALL', 'OPEN', 'RESPONDING', 'RESOLVED', 'PENDING_DELETE'].forEach(k => {
           const btn = document.getElementById('rf-' + k.toLowerCase());
           if (!btn) return;
+          const isPending = k === 'PENDING_DELETE';
           if (k === f) {
-            btn.classList.add('bg-emerald-500/20','text-emerald-400','border','border-emerald-500/50');
-            btn.classList.remove('text-slate-400');
+            btn.classList.add(isPending ? 'bg-orange-500/20' : 'bg-emerald-500/20',
+                              isPending ? 'text-orange-400' : 'text-emerald-400',
+                              'border',
+                              isPending ? 'border-orange-500/50' : 'border-emerald-500/50');
+            btn.classList.remove('text-slate-400', 'hover:text-orange-400');
           } else {
-            btn.classList.remove('bg-emerald-500/20','text-emerald-400','border','border-emerald-500/50');
+            btn.classList.remove('bg-orange-500/20', 'bg-emerald-500/20',
+                                 'text-orange-400', 'text-emerald-400',
+                                 'border', 'border-orange-500/50', 'border-emerald-500/50');
             btn.classList.add('text-slate-400');
           }
         });
@@ -2611,17 +2767,17 @@
       function _timeAgo(iso) {
         const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
         if (diff < 60) return `${diff}s ago`;
-        if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
-        if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
-        return `${Math.floor(diff/86400)}d ago`;
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+        return `${Math.floor(diff / 86400)}d ago`;
       }
 
       function _rcCard(inc) {
-        const st  = RC_STATUS[inc.incident_status] || RC_STATUS.OPEN;
-        const tl  = inc.threat_level || 5;
+        const st = RC_STATUS[inc.incident_status] || RC_STATUS.OPEN;
+        const tl = inc.threat_level || 5;
         const loc = inc.location || CAMERA_LOCATIONS[inc.camera_id] || inc.camera_id;
-        const pc  = inc.people_count || 0;
-        const ts  = new Date(inc.timestamp).toLocaleString('en-PH', { dateStyle:'medium', timeStyle:'short' });
+        const pc = inc.people_count || 0;
+        const ts = new Date(inc.timestamp).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
 
         // ── Responder list HTML ──────────────────────────────
         const respHtml = inc.responders.length === 0
@@ -2650,8 +2806,8 @@
                 </button>
               </div>`).join('');
 
-        const statusOptions = ['OPEN','RESPONDING','RESOLVED','CLOSED'].map(s =>
-          `<option value="${s}" ${inc.incident_status===s?'selected':''}>${s}</option>`).join('');
+        const statusOptions = ['OPEN', 'RESPONDING', 'RESOLVED', 'CLOSED'].map(s =>
+          `<option value="${s}" ${inc.incident_status === s ? 'selected' : ''}>${s}</option>`).join('');
 
         const thumbHtml = inc.thumbnail_url
           ? `<img src="${inc.thumbnail_url}" alt="Incident clip thumbnail"
@@ -2668,8 +2824,8 @@
                </svg>
              </div>`;
 
-        const dColorMap = { HIGH:'text-red-400', MEDIUM:'text-amber-400', LOW:'text-emerald-400', MANUAL:'text-purple-400' };
-        const tlColor   = TL_COLOR(tl);
+        const dColorMap = { HIGH: 'text-red-400', MEDIUM: 'text-amber-400', LOW: 'text-emerald-400', MANUAL: 'text-purple-400' };
+        const tlColor = TL_COLOR(tl);
 
         const resNoteHtml = (inc.incident_status === 'RESOLVED' || inc.incident_status === 'CLOSED') && inc.resolution_note
           ? `<div class="mx-4 mb-3 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300">
@@ -2688,7 +2844,7 @@
           <div class="p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-800/30 transition-colors"
                onclick="_rcToggle(${inc.id})">
             <div class="flex items-center gap-3 min-w-0">
-              <div class="w-2.5 h-2.5 rounded-full ${st.dot} flex-shrink-0 ${inc.incident_status==='OPEN'?'blink':''}"></div>
+              <div class="w-2.5 h-2.5 rounded-full ${st.dot} flex-shrink-0 ${inc.incident_status === 'OPEN' ? 'blink' : ''}"></div>
               <div class="min-w-0">
                 <div class="flex items-center gap-2 flex-wrap mb-0.5">
                   <span class="text-[10px] font-bold px-2 py-0.5 rounded ${st.bg} ${st.color} border ${st.border} tracking-wider">${st.label}</span>
@@ -2697,7 +2853,7 @@
                 </div>
                 <p class="text-sm font-bold text-slate-100 truncate">${inc.title ? _esc(inc.title) : 'Untitled Incident'}</p>
                 <p class="text-[11px] text-slate-500 mt-0.5">
-                  ${pc > 0 ? `<span class="text-slate-300 font-semibold">${pc} ${pc===1?'person':'people'} detected</span> · ` : ''}${inc.responders.length} responder${inc.responders.length!==1?'s':''} · ${_timeAgo(inc.timestamp)}
+                  ${pc > 0 ? `<span class="text-slate-300 font-semibold">${pc} ${pc === 1 ? 'person' : 'people'} detected</span> · ` : ''}${inc.responders.length} responder${inc.responders.length !== 1 ? 's' : ''} · ${_timeAgo(inc.timestamp)}
                 </p>
               </div>
             </div>
@@ -2726,7 +2882,7 @@
                   </div>
                   <div class="bg-slate-800/60 rounded-lg p-2.5 text-center">
                     <p class="text-[9px] text-slate-500 tracking-wider mb-1">DENSITY</p>
-                    <p class="text-xs font-bold ${dColorMap[inc.density_tag]||'text-slate-300'}">${_esc(inc.density_tag)}</p>
+                    <p class="text-xs font-bold ${dColorMap[inc.density_tag] || 'text-slate-300'}">${_esc(inc.density_tag)}</p>
                   </div>
                   <div class="bg-slate-800/60 rounded-lg p-2.5 text-center">
                     <p class="text-[9px] text-slate-500 tracking-wider mb-1">PEOPLE DETECTED</p>
@@ -2804,19 +2960,42 @@
                 <!-- Status update -->
                 <div class="p-4">
                   <p class="text-[10px] font-bold text-slate-500 tracking-widest mb-2">UPDATE INCIDENT STATUS</p>
-                  <div class="flex gap-2 mb-2">
-                    <select id="rc-status-${inc.id}"
-                      class="flex-1 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500/60">
-                      ${statusOptions}
-                    </select>
-                    <button onclick="updateIncidentStatus(${inc.id})"
-                      class="px-5 py-2 rounded-lg text-xs font-bold tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/50 hover:bg-amber-500/30 transition-all">
-                      APPLY
-                    </button>
-                  </div>
-                  <textarea id="rc-resnote-${inc.id}" rows="2" maxlength="1000"
-                    placeholder="Resolution note — describe what action was taken (shown on resolved incidents)"
-                    class="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/60 resize-none"></textarea>
+                  ${inc.incident_status === 'PENDING_DELETE'
+                    ? `<div class="rounded-lg border border-orange-500/40 bg-orange-500/10 p-4 text-center space-y-2">
+                         <div class="flex items-center justify-center gap-2 mb-1">
+                           <svg class="w-5 h-5 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                           </svg>
+                           <p class="text-sm font-bold text-orange-400 tracking-wider">PENDING ADMIN APPROVAL</p>
+                         </div>
+                         <p class="text-xs text-slate-400">A deletion request has been submitted for this incident.<br>Awaiting admin review before permanent removal.</p>
+                         <button onclick="cancelDeleteRequest(${inc.id})"
+                           class="mt-2 px-4 py-1.5 rounded-lg text-xs font-bold tracking-wider bg-slate-700/50 text-slate-300 border border-slate-600 hover:bg-slate-600/50 transition-all">
+                           CANCEL REQUEST
+                         </button>
+                       </div>`
+                    : `<div class="flex gap-2 mb-2">
+                         <select id="rc-status-${inc.id}"
+                           class="flex-1 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500/60">
+                           ${statusOptions}
+                         </select>
+                         <button onclick="updateIncidentStatus(${inc.id})"
+                           class="px-5 py-2 rounded-lg text-xs font-bold tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/50 hover:bg-amber-500/30 transition-all">
+                           APPLY
+                         </button>
+                       </div>
+                       <textarea id="rc-resnote-${inc.id}" rows="2" maxlength="1000"
+                         placeholder="Resolution note — describe what action was taken (shown on resolved incidents)"
+                         class="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/60 resize-none mb-3"></textarea>
+                       <div class="border-t border-slate-700/50 pt-3">
+                         <p class="text-[10px] font-bold text-slate-600 tracking-widest mb-2">DANGER ZONE</p>
+                         <button onclick="openDeleteConfirm(${inc.id}, '${_esc(inc.title || 'Untitled Incident')}')"
+                           class="w-full py-2 rounded-lg text-xs font-bold tracking-wider bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 hover:border-red-500/60 transition-all">
+                           REQUEST DELETION
+                         </button>
+                         <p class="text-[10px] text-slate-600 mt-1.5 text-center">Submits a deletion request for admin approval</p>
+                       </div>`
+                  }
                 </div>
 
               </div>
@@ -2826,7 +3005,7 @@
       }
 
       function _rcToggle(id) {
-        const panel   = document.getElementById(`rc-panel-${id}`);
+        const panel = document.getElementById(`rc-panel-${id}`);
         const chevron = document.getElementById(`rc-chevron-${id}`);
         if (!panel) return;
         const open = panel.classList.toggle('hidden');
@@ -2834,7 +3013,7 @@
       }
 
       function _esc(str) {
-        return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       }
 
       async function takeIncident(incId) {
@@ -2850,7 +3029,7 @@
         if (!name) { alert('Please enter a responder name.'); return; }
         try {
           const r = await fetch(`/api/incidents/${incId}/respond`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, role, note })
           });
           if (!r.ok) throw new Error();
@@ -2871,21 +3050,73 @@
 
       async function updateIncidentStatus(incId) {
         const status = document.getElementById(`rc-status-${incId}`)?.value;
-        const note   = (document.getElementById(`rc-resnote-${incId}`)?.value || '').trim();
+        const note = (document.getElementById(`rc-resnote-${incId}`)?.value || '').trim();
         if (!status) return;
         try {
           const r = await fetch(`/api/incidents/${incId}/status`, {
-            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status, resolution_note: note })
           });
-          if (!r.ok) throw new Error();
+          const data = await r.json();
+          if (!r.ok) { _showToast('Update failed', data.error || 'Could not update status.', 'error'); return; }
           loadResponseCenter();
-        } catch { alert('Failed to update status.'); }
+        } catch { _showToast('Update failed', 'Could not reach the server.', 'error'); }
+      }
+
+      // ── Deletion request flow ─────────────────────────────────────────────
+      let _deleteTargetId = null;
+
+      function openDeleteConfirm(incId, title) {
+        _deleteTargetId = incId;
+        const el = document.getElementById('delete-confirm-title');
+        if (el) el.textContent = title;
+        document.getElementById('delete-confirm-modal').classList.remove('hidden');
+      }
+
+      function closeDeleteConfirm() {
+        _deleteTargetId = null;
+        document.getElementById('delete-confirm-modal').classList.add('hidden');
+      }
+
+      async function confirmDeleteRequest() {
+        if (!_deleteTargetId) return;
+        const btn = document.getElementById('delete-confirm-btn');
+        btn.textContent = 'SUBMITTING...';
+        btn.disabled = true;
+        try {
+          const r = await fetch(`/api/incidents/${_deleteTargetId}/request_delete`, { method: 'POST' });
+          const data = await r.json();
+          closeDeleteConfirm();
+          if (data.success) {
+            _showToast('Deletion requested', 'The incident is now pending admin approval for removal.', 'success');
+            loadResponseCenter();
+          } else {
+            _showToast('Request failed', data.message || 'Could not submit deletion request.', 'error');
+          }
+        } catch {
+          _showToast('Request failed', 'Could not reach the server.', 'error');
+        } finally {
+          btn.textContent = 'CONFIRM REQUEST';
+          btn.disabled = false;
+        }
+      }
+
+      async function cancelDeleteRequest(incId) {
+        try {
+          const r = await fetch(`/api/incidents/${incId}/cancel_delete`, { method: 'POST' });
+          const data = await r.json();
+          if (data.success) {
+            _showToast('Request cancelled', 'Incident restored to OPEN status.', 'success');
+            loadResponseCenter();
+          } else {
+            _showToast('Cancel failed', data.message || 'Could not cancel the deletion request.', 'error');
+          }
+        } catch { _showToast('Cancel failed', 'Could not reach the server.', 'error'); }
       }
 
       // Refresh badge count every 30 s even when on live/archive view
       setInterval(() => {
-        fetch('/api/incidents').then(r => r.json()).then(d => _updateOpenBadge(d)).catch(()=>{});
+        fetch('/api/incidents').then(r => r.json()).then(d => _updateOpenBadge(d)).catch(() => { });
       }, 30000);
       // ─────────────────────────────────────────────────────────────────────
 
@@ -2925,11 +3156,11 @@
           const archivePath = `Archive_${dateStr}/${inc.clip_filename}`;
 
           const tl = inc.threat_level || 5;
-          const tlInfo = tl <= 2 ? { label:'MINIMAL',  color:'#22c55e', bg:'rgba(34,197,94,0.12)',   border:'rgba(34,197,94,0.35)'   }
-                       : tl <= 3 ? { label:'LOW',      color:'#86efac', bg:'rgba(134,239,172,0.12)', border:'rgba(134,239,172,0.35)' }
-                       : tl <= 5 ? { label:'MODERATE', color:'#facc15', bg:'rgba(250,204,21,0.12)',  border:'rgba(250,204,21,0.35)'  }
-                       : tl <= 7 ? { label:'HIGH',     color:'#f97316', bg:'rgba(249,115,22,0.12)',  border:'rgba(249,115,22,0.35)'  }
-                       :           { label:'CRITICAL',  color:'#ef4444', bg:'rgba(239,68,68,0.12)',   border:'rgba(239,68,68,0.35)'   };
+          const tlInfo = tl <= 2 ? { label: 'MINIMAL', color: '#22c55e', bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.35)' }
+            : tl <= 3 ? { label: 'LOW', color: '#86efac', bg: 'rgba(134,239,172,0.12)', border: 'rgba(134,239,172,0.35)' }
+              : tl <= 5 ? { label: 'MODERATE', color: '#facc15', bg: 'rgba(250,204,21,0.12)', border: 'rgba(250,204,21,0.35)' }
+                : tl <= 7 ? { label: 'HIGH', color: '#f97316', bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.35)' }
+                  : { label: 'CRITICAL', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.35)' };
           const tlBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold font-mono border" style="color:${tlInfo.color};background:${tlInfo.bg};border-color:${tlInfo.border}">TL-${tl} ${tlInfo.label}</span>`;
 
           const titleHtml = inc.title
