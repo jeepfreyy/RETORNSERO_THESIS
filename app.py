@@ -57,12 +57,12 @@ else:
 # ---------------------------------------------------------------------------
 VIDEO_CATALOG = {
     "main_video": {
-        "label":          "Calibration — Full Assembly",
+        "label":          "Main Demonstration",
         "source":         "videos/calibration.MOV",
         "mask_path":      "mask_layer_calibration.png",
         "warmup_frames":  1000,
         "recreate_mog2":  False,
-        "description":    "Main calibration recording. Full crowd entry → peak → departure.",
+        "description":    "Full crowd entry → peak → departure",
     },
     "video1": {
         "label":          "Scenario 1",
@@ -131,7 +131,6 @@ cam1_stream = SentinelStream(
     yolo_iou=0.35,
     bg_model_path="mog2_bg_cam1.yml",  # saved after first warmup; skipped on restart
     warmup_frames=VIDEO_CATALOG["main_video"]["warmup_frames"],
-    video_label=VIDEO_CATALOG["main_video"]["label"],
 )
 
 # CAM-02 is temporarily disabled while CAM-01 tuning targets MAE < 1.
@@ -540,7 +539,6 @@ def api_switch_video():
         source, warmup,
         recreate_mog2=recreate_mog2,
         new_mask_path=mask_path,
-        new_video_label=v['label'],
     )
 
     return jsonify({
