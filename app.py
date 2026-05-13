@@ -146,12 +146,33 @@ class IncidentArchive(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     camera_id = db.Column(db.String(20), nullable=False)
+    title = db.Column(db.String(200), nullable=True)
     report_html = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), nullable=False)      # VALID_THREAT or FALSE_ALARM
-    density_tag = db.Column(db.String(10), nullable=False)  # LOW, MEDIUM, HIGH
+    density_tag = db.Column(db.String(10), nullable=False)  # LOW, MEDIUM, HIGH, MANUAL
+    threat_level = db.Column(db.Integer, nullable=True, default=5)  # 1–10 scale
     clip_filename = db.Column(db.String(200), nullable=False)
     clip_path = db.Column(db.String(500), nullable=False)
     duration = db.Column(db.Float, nullable=True)
+    # Response-center fields
+    incident_status = db.Column(db.String(20), default='OPEN')  # OPEN/RESPONDING/RESOLVED/CLOSED
+    reporter_name = db.Column(db.String(100), nullable=True)
+    resolution_note = db.Column(db.Text, nullable=True)
+    people_count = db.Column(db.Integer, nullable=True, default=0)
+    location = db.Column(db.String(200), nullable=True)
+    responders = db.relationship('IncidentResponder', backref='incident',
+                                 lazy=True, cascade='all, delete-orphan')
+
+
+class IncidentResponder(db.Model):
+    """Tracks barangay officials assigned to respond to a specific incident."""
+    __tablename__ = 'incident_responder'
+    id = db.Column(db.Integer, primary_key=True)
+    incident_id = db.Column(db.Integer, db.ForeignKey('incident_archive.id'), nullable=False)
+    responder_name = db.Column(db.String(100), nullable=False)
+    responder_role = db.Column(db.String(50), default='Barangay Tanod')
+    assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
+    note = db.Column(db.String(300), nullable=True)
 
 
 class PasswordResetToken(db.Model):
@@ -508,6 +529,26 @@ TEMP_CLIPS_DIR = os.path.join(BASE_DIR, "Temp_Clips")
 ARCHIVE_DIR = os.path.join(BASE_DIR, "Archive")
 os.makedirs(TEMP_CLIPS_DIR, exist_ok=True)
 os.makedirs(ARCHIVE_DIR, exist_ok=True)
+
+
+@app.route('/api/manual_clip/start', methods=['POST'])
+@login_required
+def start_manual_clip():
+    """Signal the CV thread to begin a user-triggered manual clip immediately."""
+    if cam1_stream.manual_clip_active or cam1_stream.clip_recording:
+        return jsonify({'ok': False, 'reason': 'already_recording'}), 409
+    cam1_stream._manual_clip_requested = True
+    return jsonify({'ok': True})
+
+
+@app.route('/api/manual_clip/stop', methods=['POST'])
+@login_required
+def stop_manual_clip():
+    """Signal the CV thread to finalize the current manual clip."""
+    if not cam1_stream.manual_clip_active:
+        return jsonify({'ok': False, 'reason': 'not_recording'}), 409
+    cam1_stream._manual_clip_stop_requested = True
+    return jsonify({'ok': True})
 
 
 @app.route('/api/temp_clips')

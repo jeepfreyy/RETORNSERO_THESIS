@@ -677,11 +677,17 @@ class SentinelStream:
         self.clip_recording = False
         self.clip_start_time = None
         self.clip_filename = None
-        self.clip_max_duration = 15       # max seconds per event clip
+        self.clip_min_duration = 5        # minimum seconds recorded before a clip can close
+        self.clip_max_duration = 15       # hard cap: stop clip after this many seconds
         self.temp_clips_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Temp_Clips")
         self.temp_clips = []              # in-memory metadata list
         self._prev_clip_level = "LOW"
-        self._clip_cooldown = 0           # frames to skip after video restart
+        self._cooldown_until = 0.0        # epoch when inter-clip cooldown expires
+        self._last_clip_density = None    # density level at the start of the last clip
+        self._high_since = 0.0            # epoch when current HIGH streak began (0 = not HIGH)
+        self.manual_clip_active = False        # True while a user-triggered clip is recording
+        self._manual_clip_requested = False    # one-shot flag set by API
+        self._manual_clip_stop_requested = False  # one-shot flag set by API
         os.makedirs(self.temp_clips_dir, exist_ok=True)
         
         # Load persisted temp clips
@@ -1128,9 +1134,12 @@ class SentinelStream:
                 # Phase 2.1 & 2.2: Density and Status
                 density = int(min(100, (total_count / self.max_capacity) * 100))
 
-                if density < 50:
+                # density% is kept for the timeline chart (capacity gauge).
+                # status uses raw count tiers so thresholds are independent
+                # of max_capacity (which is venue-specific).
+                if total_count <= 3:
                     status = "SAFE"
-                elif density < 80:
+                elif total_count <= 6:
                     status = "WARNING"
                 else:
                     status = "CRITICAL"
@@ -1155,31 +1164,57 @@ class SentinelStream:
                     # Hybrid pipeline breakdown (exposed for UI / thesis demo)
                     "watershed_count": int(ws_count) if self._area_px_per_person is not None else int(total_count),
                     "area_count":      int(ar_count) if self._area_px_per_person is not None else 0,
+                    "manual_clip_active": self.manual_clip_active,
                 }
 
-                # Phase 2.3: EVENT CLIP RECORDING (Grounded thresholds)
-                if density < 50:
+                # Phase 2.3: EVENT CLIP RECORDING
+                # Use raw count tiers (≤3=LOW, ≤6=MEDIUM, >6=HIGH) so that
+                # 4–6 people triggers clips regardless of max_capacity setting.
+                if total_count <= 3:
                     clip_level = "LOW"
-                elif density < 80:
+                elif total_count <= 6:
                     clip_level = "MEDIUM"
                 else:
-                    clip_level = "HIGH" 
+                    clip_level = "HIGH"
 
-                # Store frame in ring buffer
+                # Always buffer frames for pre-event pre-roll
                 self.frame_buffer.append(frame.copy())
 
-                # Cooldown after video restart (skip first 90 frames)
-                if self._clip_cooldown > 0:
-                    self._clip_cooldown -= 1
+                now_t = time.time()
+
+                # Track continuous HIGH streak
+                if clip_level == "HIGH":
+                    if self._high_since == 0.0:
+                        self._high_since = now_t
                 else:
-                    # Start a new clip when density rises
-                    if not self.pause_saving and clip_level in ("MEDIUM", "HIGH") and not self.clip_recording:
+                    self._high_since = 0.0
+
+                in_cooldown = now_t < self._cooldown_until
+
+                # Manual clip triggered by operator
+                if self._manual_clip_requested and not self.clip_recording:
+                    self._start_event_clip(frame, clip_level, frame_width, frame_height)
+                    self._manual_clip_requested = False
+                    self.manual_clip_active = True
+
+                if not self.pause_saving and not in_cooldown:
+                    trigger_normal = clip_level in ("MEDIUM", "HIGH") and not self.clip_recording
+                    if trigger_normal:
                         self._start_event_clip(frame, clip_level, frame_width, frame_height)
-                    elif self.clip_recording:
-                        self.clip_writer.write(frame)
-                        elapsed = time.time() - self.clip_start_time
-                        if clip_level == "LOW" or elapsed > self.clip_max_duration:
-                            self._stop_event_clip()
+                        self._last_clip_density = clip_level
+
+                if self.clip_recording:
+                    self.clip_writer.write(frame)
+                    elapsed = now_t - self.clip_start_time
+                    stop_manual = self.manual_clip_active and self._manual_clip_stop_requested
+                    stop_auto   = (not self.manual_clip_active and
+                                   clip_level == "LOW" and elapsed >= self.clip_min_duration)
+                    stop_cap    = elapsed > self.clip_max_duration
+                    if stop_manual or stop_auto or stop_cap:
+                        self._stop_event_clip()
+                        self.manual_clip_active = False
+                        self._manual_clip_stop_requested = False
+                        self._cooldown_until = now_t + 5.0  # 5 s inter-clip cooldown
 
                 self._prev_clip_level = clip_level
 
@@ -1202,7 +1237,7 @@ class SentinelStream:
             # Stop any in-progress clip on video restart
             if self.clip_recording:
                 self._stop_event_clip()
-            self._clip_cooldown = 90   # suppress false positives during MOG2 re-learning
+            self._cooldown_until = time.time() + 3.0  # suppress clips during MOG2 re-learning
             print(f"[SentinelStream {self.stream_id}] Stream ended. Restarting...")
             time.sleep(2.0)
 
