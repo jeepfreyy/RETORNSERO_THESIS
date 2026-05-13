@@ -1,0 +1,42 @@
+============================================================
+ BARANGAY SENTINEL: AUTOMATED GRID SEARCH OPTIMIZATION 
+============================================================
+Loaded 15 mathematical ground truth frames.
+Max required frame processing depth: 840
+
+Beggining rigorous testing of 24 algorithmic mutations...
+------------------------------------------------------------
+[1/24] Testing -> Var:16 Hist:300 Morph:(7, 50) Dilate:3... MAE Error = 5.73 people
+[2/24] Testing -> Var:16 Hist:300 Morph:(7, 50) Dilate:5... MAE Error = 5.80 people
+[3/24] Testing -> Var:16 Hist:300 Morph:(10, 85) Dilate:3... MAE Error = 6.13 people
+[4/24] Testing -> Var:16 Hist:300 Morph:(10, 85) Dilate:5... MAE Error = 6.33 people
+[5/24] Testing -> Var:16 Hist:500 Morph:(7, 50) Dilate:3... MAE Error = 5.53 people
+[6/24] Testing -> Var:16 Hist:500 Morph:(7, 50) Dilate:5... MAE Error = 5.67 people
+[7/24] Testing -> Var:16 Hist:500 Morph:(10, 85) Dilate:3... MAE Error = 6.07 people
+[8/24] Testing -> Var:16 Hist:500 Morph:(10, 85) Dilate:5... MAE Error = 6.13 people
+[9/24] Testing -> Var:50 Hist:300 Morph:(7, 50) Dilate:3... MAE Error = 5.73 people
+[10/24] Testing -> Var:50 Hist:300 Morph:(7, 50) Dilate:5... MAE Error = 5.73 people
+[11/24] Testing -> Var:50 Hist:300 Morph:(10, 85) Dilate:3... MAE Error = 5.93 people
+[12/24] Testing -> Var:50 Hist:300 Morph:(10, 85) Dilate:5... MAE Error = 5.93 people
+[13/24] Testing -> Var:50 Hist:500 Morph:(7, 50) Dilate:3... MAE Error = 5.67 people
+[14/24] Testing -> Var:50 Hist:500 Morph:(7, 50) Dilate:5... MAE Error = 5.87 people
+[15/24] Testing -> Var:50 Hist:500 Morph:(10, 85) Dilate:3... MAE Error = 5.80 people
+[16/24] Testing -> Var:50 Hist:500 Morph:(10, 85) Dilate:5... MAE Error = 5.93 people
+[17/24] Testing -> Var:75 Hist:300 Morph:(7, 50) Dilate:3... MAE Error = 6.13 people
+[18/24] Testing -> Var:75 Hist:300 Morph:(7, 50) Dilate:5... MAE Error = 6.07 people
+[19/24] Testing -> Var:75 Hist:300 Morph:(10, 85) Dilate:3... MAE Error = 6.27 people
+[20/24] Testing -> Var:75 Hist:300 Morph:(10, 85) Dilate:5... MAE Error = 6.20 people
+[21/24] Testing -> Var:75 Hist:500 Morph:(7, 50) Dilate:3... MAE Error = 6.13 people
+[22/24] Testing -> Var:75 Hist:500 Morph:(7, 50) Dilate:5... MAE Error = 6.07 people
+[23/24] Testing -> Var:75 Hist:500 Morph:(10, 85) Dilate:3... MAE Error = 6.27 people
+[24/24] Testing -> Var:75 Hist:500 Morph:(10, 85) Dilate:5... MAE Error = 6.20 people
+
+============================================================
+ GRID SEARCH COMPLETED - OPTIMAL PARAMETERS FOUND 
+============================================================
+Lowest Mean Absolute Error: 5.53 people discrepancy
+You should update vision_engine.py with these values:
+ -> varThreshold: 16
+ -> history: 500
+ -> morph_kernel: (7, 50)
+ -> dilate_kernel: 3
