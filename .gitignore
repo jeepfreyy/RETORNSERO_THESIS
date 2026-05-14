@@ -8,8 +8,10 @@ venv/
 env/
 .env
 
+#Temporary video clips
+Temp_Clips/*
+
 # Database
-instance/
 *.db
 sentinel_users.db
 
@@ -18,16 +20,24 @@ DATASETS/
 *.mp4
 *.avi
 *.mkv
-
-# Temp & Archive clips (runtime artifacts)
-Temp_Clips/
-Archive/
+*.MOV
+*.mov
 
 # OS generated files
 .DS_Store
 Thumbs.db
 
-# Allow docs baseline artifacts (override *.mp4 exclusion for docs/)
-!docs/baseline/*.json
-!docs/baseline/*.txt
-!docs/baseline/*.png
+# Large video files (too large for GitHub — keep locally)
+videos/
+
+# Runtime-generated model & background files (regenerated on first run)
+mog2_bg_cam1.yml
+mog2_bg_cam1_ref.png
+
+# Archived incident clips (runtime-generated, contains mp4/jpg)
+Archive/
+
+# Claude Code session data
+.claude/
+
+

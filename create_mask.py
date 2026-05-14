@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # CONFIGURATION
-VIDEO_SOURCE = "video1.mp4"
+VIDEO_SOURCE = "videos/calibration.MOV"
 
 # GLOBAL VARIABLES
 points = []
@@ -27,9 +27,10 @@ cv2.imshow('Draw Polygon (Press s to save, r to reset, q to quit)', img)
 cv2.setMouseCallback('Draw Polygon (Press s to save, r to reset, q to quit)', click_event)
 
 print("INSTRUCTIONS:")
-print("1. Click points to outline the ROAD/CARS (the area to IGNORE).")
-print("2. Press 's' to save the mask.")
-print("3. Press 'r' to reset.")
+print("1. Click points to outline the MONITORING ZONE (the alley/gathering area to INCLUDE).")
+print("   White = monitored, Black = ignored. Draw around the area you want the engine to watch.")
+print("2. Press 's' to save the mask as mask_layer1.png.")
+print("3. Press 'r' to reset and redraw.")
 print("4. Press 'q' to quit without saving.")
 
 while True:
@@ -46,8 +47,8 @@ while True:
       # Invert mask: Black = Ignore, White = Keep
       # Actually, let's save the "Road Mask" directly. 
       # Any pixel that is WHITE in 'mask.png' will be ignored by the main engine.
-      cv2.imwrite("mask_layer.png", mask)
-      print("Success! 'mask_layer.png' saved.")
+      cv2.imwrite("mask_layer_calibration.png", mask)
+      print("Success! 'mask_layer_calibration.png' saved.")
       break
    elif key == ord('r'):
       img = frame.copy()

@@ -1,13 +1,3 @@
-"""
-LEGACY FILE — Pre-Refactor Single-File Prototype
-=================================================
-This is the original monolithic prototype of Barangay Sentinel.
-It has been superseded by the modular architecture (app.py + vision_engine.py).
-
-Retained for thesis reference only. Not part of the production code path.
-DO NOT IMPORT FROM THIS FILE.
-"""
-
 import cv2
 import numpy as np
 from scipy.optimize import linear_sum_assignment
