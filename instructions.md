@@ -159,6 +159,19 @@ Logs are listed newest-first. The list is live and updates automatically as new 
 
 The **INCIDENT TRAY** tab holds short video clips that were automatically captured when the system detected a crowd event, as well as any manual clips you recorded. These clips are **temporary** — they must either be filed as an incident report or dismissed.
 
+### Automatic Clip Cooldown
+
+To prevent the tray from being flooded with duplicate clips during a prolonged event, the system enforces a **2-minute per-density cooldown**:
+
+| Density | Cooldown after a clip is generated |
+|---|---|
+| **MEDIUM** | 2 minutes before the next MEDIUM clip can be created |
+| **HIGH** | 2 minutes before the next HIGH clip can be created |
+
+The two cooldowns are **independent** — a HIGH clip can fire even if a MEDIUM cooldown is active, and vice versa. LOW density never generates automatic clips.
+
+**Manual clips** (triggered by the operator via the MANUAL CLIP button) always bypass the cooldown and record immediately regardless of timing.
+
 ### Tray Card Layout
 
 Each clip card shows:
@@ -409,7 +422,12 @@ A: All logged-in users can see all incidents. There is no per-user access restri
 
 > This section is updated automatically whenever the system receives changes.
 
-### May 14, 2026
+### May 14, 2026 (update 2)
+
+- **Detected Anomalies — 2-minute per-density clip cooldown**
+  After the system generates a MEDIUM clip, it waits 2 minutes before creating another MEDIUM clip. The same independent 2-minute cooldown applies to HIGH clips. The two timers are separate — a HIGH clip can still fire while the MEDIUM cooldown is active, and vice versa. Manual clips triggered by the operator bypass the cooldown entirely. Cooldowns reset when the video source is switched or the stream restarts.
+
+### May 14, 2026 (initial)
 
 - **Incident Response Center — Assign Responder redesigned**  
   Free-text name input replaced with a dropdown listing all registered system users. Each entry shows the user's name, role, and live availability (🟢 Available / 🟡 Responding). Availability is determined by whether the user is already assigned to an active incident.

@@ -547,8 +547,14 @@ class SentinelStream:
         self.temp_clips_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Temp_Clips")
         self.temp_clips = []              # in-memory metadata list
         self._prev_clip_level = "LOW"
-        self._cooldown_until = 0.0        # epoch when inter-clip cooldown expires
-        self._last_clip_density = None    # density level at the start of the last clip
+        self._cooldown_until = 0.0        # epoch when short inter-clip gap expires (5 s)
+        self._last_clip_density = None    # density level that triggered the last auto clip
+        self._last_clip_was_manual = False  # True when the last clip was operator-triggered
+        # Per-density cooldown: MEDIUM and HIGH each get their own 2-minute timer.
+        # After a MEDIUM clip ends, no new MEDIUM clip fires for 2 minutes — but
+        # a HIGH clip can still fire immediately, and vice versa.
+        self._density_cooldown_until = {"MEDIUM": 0.0, "HIGH": 0.0}
+        self.DENSITY_COOLDOWN_SECS = 120.0   # 2-minute per-density cooldown
         self._high_since = 0.0            # epoch when current HIGH streak began (0 = not HIGH)
         self.manual_clip_active = False        # True while a user-triggered clip is recording
         self._manual_clip_requested = False    # one-shot flag set by API
@@ -647,6 +653,10 @@ class SentinelStream:
                 self._switch_recreate_mog2 = False
                 self._switch_mask_path     = None
                 self._switch_video_label   = None
+                # Reset per-density cooldowns on source switch so the new
+                # video scenario is not blocked by timers from the old one.
+                self._density_cooldown_until = {"MEDIUM": 0.0, "HIGH": 0.0}
+                self._cooldown_until = 0.0
 
                 if do_recreate:
                     # Recreate MOG2 so it re-learns the new video's background.
@@ -1079,19 +1089,26 @@ class SentinelStream:
                 else:
                     self._high_since = 0.0
 
-                in_cooldown = now_t < self._cooldown_until
+                in_global_cooldown = now_t < self._cooldown_until
 
-                # Manual clip triggered by operator
+                # Manual clip triggered by operator — bypasses all cooldowns
                 if self._manual_clip_requested and not self.clip_recording:
                     self._start_event_clip(frame, clip_level, frame_width, frame_height)
                     self._manual_clip_requested = False
                     self.manual_clip_active = True
+                    self._last_clip_was_manual = True
+                    self._last_clip_density = None   # manual clips don't consume a density slot
 
-                if not self.pause_saving and not in_cooldown:
-                    trigger_normal = clip_level in ("MEDIUM", "HIGH") and not self.clip_recording
+                if not self.pause_saving and not in_global_cooldown:
+                    # Check per-density 2-minute cooldown independently for MEDIUM and HIGH
+                    in_density_cooldown = now_t < self._density_cooldown_until.get(clip_level, 0.0)
+                    trigger_normal = (clip_level in ("MEDIUM", "HIGH")
+                                      and not self.clip_recording
+                                      and not in_density_cooldown)
                     if trigger_normal:
                         self._start_event_clip(frame, clip_level, frame_width, frame_height)
                         self._last_clip_density = clip_level
+                        self._last_clip_was_manual = False
 
                 if self.clip_recording:
                     self.clip_writer.write(frame)
@@ -1102,9 +1119,23 @@ class SentinelStream:
                     stop_cap    = elapsed > self.clip_max_duration
                     if stop_manual or stop_auto or stop_cap:
                         self._stop_event_clip()
+                        was_manual = self.manual_clip_active
                         self.manual_clip_active = False
                         self._manual_clip_stop_requested = False
-                        self._cooldown_until = now_t + 5.0  # 5 s inter-clip cooldown
+                        self._cooldown_until = now_t + 5.0   # 5 s short inter-clip gap
+
+                        # Apply per-density 2-minute cooldown for auto-triggered clips only.
+                        # Manual clips do not consume the cooldown so operators can record
+                        # at will without delaying automatic detection.
+                        if not was_manual and self._last_clip_density in self._density_cooldown_until:
+                            self._density_cooldown_until[self._last_clip_density] = (
+                                now_t + self.DENSITY_COOLDOWN_SECS
+                            )
+                            print(
+                                f"[{self.stream_id}] {self._last_clip_density} cooldown started — "
+                                f"next {self._last_clip_density} clip in "
+                                f"{self.DENSITY_COOLDOWN_SECS:.0f}s"
+                            )
 
                 self._prev_clip_level = clip_level
 
@@ -1127,7 +1158,9 @@ class SentinelStream:
             # Stop any in-progress clip on video restart
             if self.clip_recording:
                 self._stop_event_clip()
-            self._cooldown_until = time.time() + 3.0  # suppress clips during MOG2 re-learning
+            self._cooldown_until = time.time() + 3.0   # suppress clips during MOG2 re-learning
+            # Reset per-density cooldowns so a fresh loop isn't blocked by a stale timer
+            self._density_cooldown_until = {"MEDIUM": 0.0, "HIGH": 0.0}
             print(f"[SentinelStream {self.stream_id}] Stream ended. Restarting...")
             time.sleep(2.0)
 
