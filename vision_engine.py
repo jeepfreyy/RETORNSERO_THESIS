@@ -517,6 +517,7 @@ class SentinelStream:
         self._switch_recreate_mog2 = False  # whether to throw away the MOG2 model on next switch
         self._switch_mask_path     = None   # None = keep current mask_path on next switch
         self._switch_video_label   = None   # None = keep current label on next switch
+        self._skip_model_load      = False  # set True when recreate_mog2=True to block load
         self.is_warming_up         = True   # True until the first warmup window expires
 
         self.latest_jpeg = None
@@ -672,6 +673,10 @@ class SentinelStream:
                         varThreshold=self._mog2_threshold,
                         detectShadows=self._detect_shadows,
                     )
+                    # Block the model-load step below — loading the saved model
+                    # here would immediately undo the recreate, putting the old
+                    # background back into the fresh subtractor.
+                    self._skip_model_load = True
                 # else: keep the existing background model.
                 #   Correct for VIDEO2 (people present from frame 0 with no
                 #   empty-background phase to re-learn from).  The main video's
@@ -753,7 +758,18 @@ class SentinelStream:
             # model is loaded here, warmup is skipped (loop_frame_idx jumps past
             # the gate), and the background reference is restored from the
             # companion PNG so the static-diff detector is immediately accurate.
-            if self._bg_model_path and os.path.exists(self._bg_model_path):
+            #
+            # _skip_model_load is set when recreate_mog2=True was requested on a
+            # source switch — loading the saved model there would silently undo
+            # the recreate by putting the old background back into the fresh subtractor.
+            _do_load = (
+                self._bg_model_path
+                and os.path.exists(self._bg_model_path)
+                and not self._skip_model_load
+            )
+            self._skip_model_load = False  # consume the flag regardless
+
+            if _do_load:
                 try:
                     fs = cv2.FileStorage(self._bg_model_path, cv2.FILE_STORAGE_READ)
                     self.bg_subtractor.read(fs.getNode("bg_model"))
@@ -822,7 +838,7 @@ class SentinelStream:
                 if bg_reference is not None:
                     _diff      = cv2.absdiff(frame, bg_reference)
                     _diff_gray = cv2.cvtColor(_diff, cv2.COLOR_BGR2GRAY)
-                    _, _diff_mask = cv2.threshold(_diff_gray, 30, 255, cv2.THRESH_BINARY)
+                    _, _diff_mask = cv2.threshold(_diff_gray, 40, 255, cv2.THRESH_BINARY)
                     _diff_mask = cv2.bitwise_and(_diff_mask, roi_mask)
                     if self._headlight_v_thresh < 255:
                         _diff_mask = suppress_headlights(
@@ -853,6 +869,10 @@ class SentinelStream:
                     mog2_lr      = 0
                     bg_reference = self.bg_subtractor.getBackgroundImage()
                     # ── MOG2 PERSISTENCE: save after warmup ───────────────────
+                    # This block only runs on a fresh warmup (no YAML existed, or
+                    # recreate_mog2=True was used).  When a YAML is loaded above,
+                    # loop_frame_idx is set to warmup_frames+1, so this gate is
+                    # never reached — the existing file is never overwritten.
                     if self._bg_model_path:
                         try:
                             fs = cv2.FileStorage(self._bg_model_path, cv2.FILE_STORAGE_WRITE)
@@ -1004,7 +1024,18 @@ class SentinelStream:
                             if roi_mask[_bcy, _bcx] > 127:
                                 _yolo_n += 1
 
-                    recount_floor = float(max(_cws, _car, _yolo_n))
+                    # YOLO is the primary floor anchor when it detects anyone.
+                    # It is stateless (appearance-based, no history) so it
+                    # reflects the actual current headcount, not stale occupancy
+                    # ghosts left by people who have already left the scene.
+                    # Fallback to occupancy watershed only when YOLO detects 0 —
+                    # that covers the rare case where YOLO fails on an extremely
+                    # dark or occluded frame while watershed still has a confirmed
+                    # blob from the person being tracked by occupancy.
+                    if _yolo_n > 0:
+                        recount_floor = float(_yolo_n)
+                    else:
+                        recount_floor = float(max(_cws, _car))
 
                 # Floor decay — only when occupancy map has no confirmed blobs,
                 # meaning the scene is genuinely empty (not just absorbed by MOG2).
