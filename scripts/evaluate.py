@@ -18,12 +18,12 @@ NOTE ON VIDEO / GT PATHS
 Set VIDEO_PATH and GT_PATH to match whichever pair you are evaluating.
 
 Main demo video  -> VIDEO_PATH = "videos/main_video.mp4"
-                   GT_PATH    = "barangay_ground_truth.json"
+                   GT_PATH    = "ground truths/barangay_ground_truth.json"
                    WARMUP     = 1500
 
 Calibration video (recommended -- same scene as calibration) ->
                    VIDEO_PATH = "videos/calibration.MOV"
-                   GT_PATH    = "barangay_ground_truth_calibration.json"
+                   GT_PATH    = "ground truths/barangay_ground_truth_calibration.json"
                    WARMUP     = 1000  (adjust to match empty frames at start)
 
 KNOWN LIMITATION: calibration and evaluation run on the same video.
@@ -48,9 +48,9 @@ from vision_engine import (
 
 # -- Configuration — edit here, nowhere else ----------------------------------
 VIDEO_PATH    = "videos/calibration.MOV"
-MASK_PATH     = "mask_layer_calibration.png"
-GT_PATH       = "barangay_ground_truth_calibration.json"
-CAL_PATH      = "area_calibration.json"
+MASK_PATH     = "masks/mask_layer_calibration.png"
+GT_PATH       = "ground truths/barangay_ground_truth_calibration.json"
+CAL_PATH      = "ground truths/area_calibration.json"
 
 # -- Pipeline params — must match app.py / vision_engine.py exactly -----------
 MOG2_HISTORY    = 30000

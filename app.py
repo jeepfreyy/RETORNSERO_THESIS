@@ -29,7 +29,7 @@ from vision_engine import SentinelStream
 import json as _json_cal
 
 # Load area-based counting calibration if available
-_AREA_CAL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'area_calibration.json')
+_AREA_CAL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ground truths', 'area_calibration.json')
 _area_px_per_person = None
 _area_baseline = 0.0
 if os.path.exists(_AREA_CAL_PATH):
@@ -59,15 +59,15 @@ VIDEO_CATALOG = {
     "main_video": {
         "label":          "Main Demonstration",
         "source":         "videos/calibration.MOV",
-        "mask_path":      "mask_layer_calibration.png",
-        "warmup_frames":  1000,
+        "mask_path":      "masks/mask_layer_calibration.png",
+        "warmup_frames":  800,
         "recreate_mog2":  False,
         "description":    "Full crowd entry → peak → departure",
     },
     "video1": {
         "label":          "Scenario 1",
         "source":         "videos/VIDEO1.MOV",
-        "mask_path":      "mask_layer_calibration.png",
+        "mask_path":      "masks/mask_layer_calibration.png",
         "warmup_frames":  30,
         "recreate_mog2":  False,
         "description":    "People present from frame 0. Carries over calibration background model.",
@@ -75,7 +75,7 @@ VIDEO_CATALOG = {
     "video2": {
         "label":          "Scenario 2",
         "source":         "videos/VIDEO2.MOV",
-        "mask_path":      "mask_layer_calibration.png",
+        "mask_path":      "masks/mask_layer_calibration.png",
         "warmup_frames":  30,
         "recreate_mog2":  False,
         "description":    "People present from frame 0. Carries over calibration background model.",
@@ -94,7 +94,7 @@ VIDEO_CATALOG = {
 cam1_stream = SentinelStream(
     stream_id="CAM-01",
     source="videos/calibration.MOV",
-    mask_path="mask_layer_calibration.png",
+    mask_path="masks/mask_layer_calibration.png",
     mog2_history=30000,       # must match calibration (was 2000 — wrong)
     mog2_threshold=40,        # must match calibration (was 4 — wrong)
     min_blob_area=350,
@@ -129,7 +129,7 @@ cam1_stream = SentinelStream(
     yolo_model_path="yolov8n.pt",
     yolo_conf=0.40,
     yolo_iou=0.35,
-    bg_model_path="mog2_bg_cam1.yml",  # saved after first warmup; skipped on restart
+    bg_model_path="mog2/mog2_bg_cam1.yml",  # saved after first warmup; skipped on restart
     warmup_frames=VIDEO_CATALOG["main_video"]["warmup_frames"],
 )
 

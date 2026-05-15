@@ -19,9 +19,9 @@ OCCUPANCY_EVICT_SEC  = 10.0  # must match app.py occupancy_evict_sec
 OCCUPANCY_DARK_THRESH= 40
 PROCESS_SCALE = 0.667
 VIDEO_PATH    = 'videos/calibration.MOV'
-MASK_PATH     = 'mask_layer_calibration.png'
-GT_JSON       = 'barangay_ground_truth_calibration.json'
-OUTPUT_JSON   = 'area_calibration.json'
+MASK_PATH     = 'masks/mask_layer_calibration.png'
+GT_JSON       = 'ground truths/barangay_ground_truth_calibration.json'
+OUTPUT_JSON   = 'ground truths/area_calibration.json'
 WARMUP_FRAMES = 1000
 
 

@@ -348,93 +348,202 @@
 
     /* ── Global font-size readability fixes ──────────────────────────────── */
     /* Bump Tailwind's 10 px arbitrary class to 12 px everywhere */
-    .text-\[10px\] { font-size: 0.75rem !important; line-height: 1rem !important; }
+    .text-\[10px\] {
+      font-size: 0.75rem !important;
+      line-height: 1rem !important;
+    }
+
     /* Bump 9 px badge text to 11 px */
-    .text-\[9px\]  { font-size: 0.688rem !important; line-height: 0.9rem !important; }
+    .text-\[9px\] {
+      font-size: 0.688rem !important;
+      line-height: 0.9rem !important;
+    }
+
     /* Give tracking-widest section labels (CAMERA / DENSITY / etc.) a tiny extra nudge */
-    .tracking-widest { letter-spacing: 0.12em; }
+    .tracking-widest {
+      letter-spacing: 0.12em;
+    }
 
     /* ── Light mode ────────────────────────────────────────────────────────── */
     body.light-mode {
       background-color: #f1f5f9 !important;
       color: #1e293b !important;
     }
+
     body.light-mode .grid-bg {
       background-color: #f1f5f9;
       background-image:
-        linear-gradient(rgba(16,185,129,0.06) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(16,185,129,0.06) 1px, transparent 1px);
+        linear-gradient(rgba(16, 185, 129, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16, 185, 129, 0.06) 1px, transparent 1px);
     }
+
     /* Cards */
     body.light-mode .card-border {
-      background: rgba(255,255,255,0.98) !important;
+      background: rgba(255, 255, 255, 0.98) !important;
       border-color: #94a3b8 !important;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     }
+
     /* Header */
     body.light-mode header {
-      background: rgba(248,250,252,0.97) !important;
+      background: rgba(248, 250, 252, 0.97) !important;
       border-bottom-color: #94a3b8 !important;
     }
 
     /* ── Background overrides ─────────────────────────────────────────────── */
-    body.light-mode [class*="bg-slate-950"] { background-color: #f8fafc !important; }
-    body.light-mode [class*="bg-slate-900"] { background-color: #f1f5f9 !important; }
-    body.light-mode [class*="bg-slate-800"] { background-color: #e2e8f0 !important; }
-    body.light-mode [class*="bg-slate-700"] { background-color: #cbd5e1 !important; }
-    body.light-mode [class*="bg-black"]     { background-color: rgba(0,0,0,0.45) !important; }
+    body.light-mode [class*="bg-slate-950"] {
+      background-color: #f8fafc !important;
+    }
+
+    body.light-mode [class*="bg-slate-900"] {
+      background-color: #f1f5f9 !important;
+    }
+
+    body.light-mode [class*="bg-slate-800"] {
+      background-color: #e2e8f0 !important;
+    }
+
+    body.light-mode [class*="bg-slate-700"] {
+      background-color: #cbd5e1 !important;
+    }
+
+    body.light-mode [class*="bg-black"] {
+      background-color: rgba(0, 0, 0, 0.45) !important;
+    }
 
     /* Activity log & RC card tinted backgrounds — stronger border + darker bg */
     body.light-mode [class*="bg-amber-500"] {
-      background-color: rgba(245,158,11,0.12) !important;
+      background-color: rgba(245, 158, 11, 0.12) !important;
     }
-    body.light-mode [class*="bg-red-500"]   {
-      background-color: rgba(239,68,68,0.10) !important;
+
+    body.light-mode [class*="bg-red-500"] {
+      background-color: rgba(239, 68, 68, 0.10) !important;
     }
+
     body.light-mode [class*="bg-emerald-500"] {
-      background-color: rgba(16,185,129,0.10) !important;
+      background-color: rgba(16, 185, 129, 0.10) !important;
     }
-    body.light-mode [class*="bg-blue-500"]  {
-      background-color: rgba(59,130,246,0.10) !important;
+
+    body.light-mode [class*="bg-blue-500"] {
+      background-color: rgba(59, 130, 246, 0.10) !important;
     }
 
     /* ── Text overrides ───────────────────────────────────────────────────── */
-    body.light-mode [class*="text-slate-100"] { color: #0f172a !important; }
-    body.light-mode [class*="text-slate-200"] { color: #1e293b !important; }
-    body.light-mode [class*="text-slate-300"] { color: #334155 !important; }
-    body.light-mode [class*="text-slate-400"] { color: #475569 !important; }
-    body.light-mode [class*="text-slate-500"] { color: #64748b !important; }
-    body.light-mode [class*="text-slate-600"] { color: #94a3b8 !important; }
+    body.light-mode [class*="text-slate-100"] {
+      color: #0f172a !important;
+    }
+
+    body.light-mode [class*="text-slate-200"] {
+      color: #1e293b !important;
+    }
+
+    body.light-mode [class*="text-slate-300"] {
+      color: #334155 !important;
+    }
+
+    body.light-mode [class*="text-slate-400"] {
+      color: #475569 !important;
+    }
+
+    body.light-mode [class*="text-slate-500"] {
+      color: #64748b !important;
+    }
+
+    body.light-mode [class*="text-slate-600"] {
+      color: #94a3b8 !important;
+    }
 
     /* Accent colors — shift to darker shades for AA contrast on white */
-    body.light-mode [class*="text-emerald-400"] { color: #047857 !important; } /* emerald-700 — 7:1 */
-    body.light-mode [class*="text-emerald-300"] { color: #059669 !important; } /* emerald-600 — 5:1 */
-    body.light-mode [class*="text-amber-400"]   { color: #b45309 !important; } /* amber-700  — 5:1 */
-    body.light-mode [class*="text-amber-300"]   { color: #d97706 !important; } /* amber-600  — 3.7:1 */
-    body.light-mode [class*="text-red-400"]     { color: #b91c1c !important; } /* red-700    — 7:1 */
-    body.light-mode [class*="text-red-300"]     { color: #dc2626 !important; } /* red-600    — 5.9:1 */
-    body.light-mode [class*="text-blue-400"]    { color: #1d4ed8 !important; } /* blue-700   — 7:1 */
-    body.light-mode [class*="text-purple-400"]  { color: #6d28d9 !important; } /* violet-700 — 7:1 */
-    body.light-mode [class*="text-orange-400"]  { color: #c2410c !important; } /* orange-700 — 6:1 */
+    body.light-mode [class*="text-emerald-400"] {
+      color: #047857 !important;
+    }
+
+    /* emerald-700 — 7:1 */
+    body.light-mode [class*="text-emerald-300"] {
+      color: #059669 !important;
+    }
+
+    /* emerald-600 — 5:1 */
+    body.light-mode [class*="text-amber-400"] {
+      color: #b45309 !important;
+    }
+
+    /* amber-700  — 5:1 */
+    body.light-mode [class*="text-amber-300"] {
+      color: #d97706 !important;
+    }
+
+    /* amber-600  — 3.7:1 */
+    body.light-mode [class*="text-red-400"] {
+      color: #b91c1c !important;
+    }
+
+    /* red-700    — 7:1 */
+    body.light-mode [class*="text-red-300"] {
+      color: #dc2626 !important;
+    }
+
+    /* red-600    — 5.9:1 */
+    body.light-mode [class*="text-blue-400"] {
+      color: #1d4ed8 !important;
+    }
+
+    /* blue-700   — 7:1 */
+    body.light-mode [class*="text-purple-400"] {
+      color: #6d28d9 !important;
+    }
+
+    /* violet-700 — 7:1 */
+    body.light-mode [class*="text-orange-400"] {
+      color: #c2410c !important;
+    }
+
+    /* orange-700 — 6:1 */
 
     /* ── Border overrides ─────────────────────────────────────────────────── */
-    body.light-mode [class*="border-slate-700"] { border-color: #94a3b8 !important; }
-    body.light-mode [class*="border-slate-800"] { border-color: #cbd5e1 !important; }
-    body.light-mode [class*="border-emerald-500"] { border-color: #059669 !important; }
-    body.light-mode [class*="border-amber-500"]   { border-color: #d97706 !important; }
-    body.light-mode [class*="border-red-500"]     { border-color: #dc2626 !important; }
+    body.light-mode [class*="border-slate-700"] {
+      border-color: #94a3b8 !important;
+    }
+
+    body.light-mode [class*="border-slate-800"] {
+      border-color: #cbd5e1 !important;
+    }
+
+    body.light-mode [class*="border-emerald-500"] {
+      border-color: #059669 !important;
+    }
+
+    body.light-mode [class*="border-amber-500"] {
+      border-color: #d97706 !important;
+    }
+
+    body.light-mode [class*="border-red-500"] {
+      border-color: #dc2626 !important;
+    }
 
     /* ── Activity log cards ───────────────────────────────────────────────── */
-    body.light-mode #all-activity-logs > div,
-    body.light-mode #camera-activity-logs > div {
+    body.light-mode #all-activity-logs>div,
+    body.light-mode #camera-activity-logs>div {
       border-width: 1.5px !important;
       border-color: #94a3b8 !important;
     }
+
     /* Specific tinted log cards — ensure they remain distinguishable */
-    body.light-mode [class*="bg-amber-500"][class*="border"] { border-color: #b45309 !important; }
-    body.light-mode [class*="bg-red-500"][class*="border"]   { border-color: #b91c1c !important; }
-    body.light-mode [class*="bg-emerald-500"][class*="border"] { border-color: #047857 !important; }
-    body.light-mode [class*="bg-blue-500"][class*="border"]  { border-color: #1d4ed8 !important; }
+    body.light-mode [class*="bg-amber-500"][class*="border"] {
+      border-color: #b45309 !important;
+    }
+
+    body.light-mode [class*="bg-red-500"][class*="border"] {
+      border-color: #b91c1c !important;
+    }
+
+    body.light-mode [class*="bg-emerald-500"][class*="border"] {
+      border-color: #047857 !important;
+    }
+
+    body.light-mode [class*="bg-blue-500"][class*="border"] {
+      border-color: #1d4ed8 !important;
+    }
 
     /* ── Form controls ────────────────────────────────────────────────────── */
     body.light-mode input:not([type="checkbox"]):not([type="range"]),
@@ -444,42 +553,80 @@
       border-color: #94a3b8 !important;
       color: #1e293b !important;
     }
+
     body.light-mode input::placeholder,
-    body.light-mode textarea::placeholder { color: #94a3b8 !important; }
+    body.light-mode textarea::placeholder {
+      color: #94a3b8 !important;
+    }
+
     /* Dropdown option text (browser-native) */
-    body.light-mode option { background: #f1f5f9; color: #1e293b; }
+    body.light-mode option {
+      background: #f1f5f9;
+      color: #1e293b;
+    }
 
     /* ── Scrollbars in light mode ─────────────────────────────────────────── */
-    body.light-mode ::-webkit-scrollbar-track { background: #e2e8f0; }
-    body.light-mode ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
-    body.light-mode ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    body.light-mode ::-webkit-scrollbar-track {
+      background: #e2e8f0;
+    }
+
+    body.light-mode ::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 4px;
+    }
+
+    body.light-mode ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
 
     /* Camera feed scan line — soften in light mode */
     body.light-mode .camera-feed::after {
       background: repeating-linear-gradient(0deg, transparent, transparent 2px,
-        rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+          rgba(0, 0, 0, 0.04) 2px, rgba(0, 0, 0, 0.04) 4px);
     }
 
     /* ── Dark mode — ensure dark scrollbars ──────────────────────────────── */
-    body:not(.light-mode) ::-webkit-scrollbar { width: 6px; }
-    body:not(.light-mode) ::-webkit-scrollbar-track { background: #0f172a; }
-    body:not(.light-mode) ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    body:not(.light-mode) ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    body:not(.light-mode) ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    body:not(.light-mode) ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+
+    body:not(.light-mode) ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+
+    body:not(.light-mode) ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
 
     /* Theme toggle button */
-    #theme-toggle { transition: transform 0.3s ease; }
-    #theme-toggle:hover { transform: rotate(20deg); }
-    /* Lang toggle */
-    .lang-btn { transition: all 0.2s ease; }
-    .lang-btn.active {
-      background: rgba(52,211,153,0.2);
-      color: #34d399;
-      border-color: rgba(52,211,153,0.5);
+    #theme-toggle {
+      transition: transform 0.3s ease;
     }
+
+    #theme-toggle:hover {
+      transform: rotate(20deg);
+    }
+
+    /* Lang toggle */
+    .lang-btn {
+      transition: all 0.2s ease;
+    }
+
+    .lang-btn.active {
+      background: rgba(52, 211, 153, 0.2);
+      color: #34d399;
+      border-color: rgba(52, 211, 153, 0.5);
+    }
+
     body.light-mode .lang-btn.active {
-      background: rgba(4,120,87,0.12);
+      background: rgba(4, 120, 87, 0.12);
       color: #047857;
-      border-color: rgba(4,120,87,0.5);
+      border-color: rgba(4, 120, 87, 0.5);
     }
   </style>
   <style>
@@ -525,7 +672,8 @@
           </div>
           <h1 id="system-title" class="font-display text-2xl font-bold text-emerald-400 tracking-wider">BARANGAY
             SENTINEL</h1>
-          <p id="welcome-text" data-i18n="system.subtitle" class="text-slate-400 mt-2 text-sm tracking-wide">ADVANCED SURVEILLANCE SYSTEM</p>
+          <p id="welcome-text" data-i18n="system.subtitle" class="text-slate-400 mt-2 text-sm tracking-wide">ADVANCED
+            SURVEILLANCE SYSTEM</p>
         </div><!-- Auth Card -->
         <div class="card-border rounded-2xl p-8 backdrop-blur-xl">
           <!-- Operator Tabs -->
@@ -551,8 +699,8 @@
               </div>
             </div>
             <div>
-              <label for="login-password"
-                class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider"><span data-i18n="auth.password">PASSWORD</span></label>
+              <label for="login-password" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider"><span
+                  data-i18n="auth.password">PASSWORD</span></label>
               <div class="relative">
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
                   stroke="currentColor" viewbox="0 0 24 24">
@@ -601,7 +749,8 @@
             </div>
             <div>
               <label for="register-password"
-                class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider"><span data-i18n="auth.create_password">CREATE PASSWORD</span></label>
+                class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider"><span
+                  data-i18n="auth.create_password">CREATE PASSWORD</span></label>
               <div class="relative">
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
                   stroke="currentColor" viewbox="0 0 24 24">
@@ -612,8 +761,8 @@
               </div>
             </div>
             <div>
-              <label for="register-confirm"
-                class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider"><span data-i18n="auth.confirm_password">CONFIRM PASSWORD</span></label>
+              <label for="register-confirm" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider"><span
+                  data-i18n="auth.confirm_password">CONFIRM PASSWORD</span></label>
               <div class="relative">
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
                   stroke="currentColor" viewbox="0 0 24 24">
@@ -807,11 +956,11 @@
               class="w-8 h-8 rounded-lg bg-slate-800/60 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-emerald-400 hover:border-emerald-500/50 transition-all">
               <svg id="theme-icon-moon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
               </svg>
               <svg id="theme-icon-sun" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
               </svg>
             </button>
           </div>
@@ -840,7 +989,8 @@
             <div id="status-container"
               class="hidden md:flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
               <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span
-                class="text-emerald-400 text-xs font-semibold tracking-wider" data-i18n="status.online">ALL SYSTEMS ONLINE</span>
+                class="text-emerald-400 text-xs font-semibold tracking-wider" data-i18n="status.online">ALL SYSTEMS
+                ONLINE</span>
             </div><!-- User Menu -->
             <div class="flex items-center gap-3">
               <div class="text-right hidden sm:block">
@@ -1385,7 +1535,7 @@
                   </div>
                   <div id="cam01-stats-overlay"
                     class="absolute top-12 left-3 right-3 flex items-center gap-2 flex-wrap text-xs font-mono">
-                    <span class="bg-slate-900/80 px-2 py-1 rounded text-amber-300">People: <strong
+                    <span class="bg-slate-900/80 px-2 py-1 rounded text-amber-300">People: ~ <strong
                         id="cam01-count">0</strong></span>
                     <span class="bg-slate-900/80 px-2 py-1 rounded text-slate-300">Density: <strong
                         id="cam01-density">0</strong>%</span>
@@ -3519,10 +3669,10 @@
 
       function _applyThemeIcons(isLight) {
         const moon = document.getElementById('theme-icon-moon');
-        const sun  = document.getElementById('theme-icon-sun');
+        const sun = document.getElementById('theme-icon-sun');
         if (!moon || !sun) return;
         if (isLight) { moon.classList.add('hidden'); sun.classList.remove('hidden'); }
-        else         { sun.classList.add('hidden');  moon.classList.remove('hidden'); }
+        else { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
       }
 
       // Restore saved theme on load
@@ -3539,44 +3689,44 @@
       // ══════════════════════════════════════════════════════════════════════
       const TRANSLATIONS = {
         en: {
-          'system.subtitle':      'ADVANCED SURVEILLANCE SYSTEM',
-          'auth.login':           'LOGIN',
-          'auth.register':        'REGISTER',
-          'auth.email':           'EMAIL ADDRESS',
-          'auth.password':        'PASSWORD',
-          'auth.remember':        'Remember device',
-          'auth.forgot':          'Forgot password?',
-          'auth.operator_name':   'OPERATOR NAME',
+          'system.subtitle': 'ADVANCED SURVEILLANCE SYSTEM',
+          'auth.login': 'LOGIN',
+          'auth.register': 'REGISTER',
+          'auth.email': 'EMAIL ADDRESS',
+          'auth.password': 'PASSWORD',
+          'auth.remember': 'Remember device',
+          'auth.forgot': 'Forgot password?',
+          'auth.operator_name': 'OPERATOR NAME',
           'auth.create_password': 'CREATE PASSWORD',
-          'auth.confirm_password':'CONFIRM PASSWORD',
-          'auth.create_account':  'CREATE ACCOUNT',
-          'auth.admin_email':     'ADMIN EMAIL',
-          'auth.admin_code':      'ADMIN CODE',
-          'status.online':        'ALL SYSTEMS ONLINE',
-          'stats.cameras':        'CAMERAS ONLINE',
-          'stats.alerts':         'ALERTS TODAY',
-          'stats.storage':        'STORAGE USED',
-          'stats.uptime':         'UPTIME',
+          'auth.confirm_password': 'CONFIRM PASSWORD',
+          'auth.create_account': 'CREATE ACCOUNT',
+          'auth.admin_email': 'ADMIN EMAIL',
+          'auth.admin_code': 'ADMIN CODE',
+          'status.online': 'ALL SYSTEMS ONLINE',
+          'stats.cameras': 'CAMERAS ONLINE',
+          'stats.alerts': 'ALERTS TODAY',
+          'stats.storage': 'STORAGE USED',
+          'stats.uptime': 'UPTIME',
         },
         tl: {
-          'system.subtitle':      'ADVANCED NA SISTEMA NG PAGMAMATYAG',
-          'auth.login':           'MAG-LOGIN',
-          'auth.register':        'MAGPAREHISTRO',
-          'auth.email':           'EMAIL ADDRESS',
-          'auth.password':        'PASSWORD',
-          'auth.remember':        'Tandaan ang device',
-          'auth.forgot':          'Nakalimutan ang password?',
-          'auth.operator_name':   'PANGALAN NG OPERATOR',
+          'system.subtitle': 'ADVANCED NA SISTEMA NG PAGMAMATYAG',
+          'auth.login': 'MAG-LOGIN',
+          'auth.register': 'MAGPAREHISTRO',
+          'auth.email': 'EMAIL ADDRESS',
+          'auth.password': 'PASSWORD',
+          'auth.remember': 'Tandaan ang device',
+          'auth.forgot': 'Nakalimutan ang password?',
+          'auth.operator_name': 'PANGALAN NG OPERATOR',
           'auth.create_password': 'LUMIKHA NG PASSWORD',
-          'auth.confirm_password':'KUMPIRMAHIN ANG PASSWORD',
-          'auth.create_account':  'LUMIKHA NG ACCOUNT',
-          'auth.admin_email':     'EMAIL NG ADMIN',
-          'auth.admin_code':      'CODE NG ADMIN',
-          'status.online':        'LAHAT NG SISTEMA AY ONLINE',
-          'stats.cameras':        'CAMERAS NA ONLINE',
-          'stats.alerts':         'ALERTO NGAYON',
-          'stats.storage':        'STORAGE NA GINAMIT',
-          'stats.uptime':         'ORAS NG PAGTAKBO',
+          'auth.confirm_password': 'KUMPIRMAHIN ANG PASSWORD',
+          'auth.create_account': 'LUMIKHA NG ACCOUNT',
+          'auth.admin_email': 'EMAIL NG ADMIN',
+          'auth.admin_code': 'CODE NG ADMIN',
+          'status.online': 'LAHAT NG SISTEMA AY ONLINE',
+          'stats.cameras': 'CAMERAS NA ONLINE',
+          'stats.alerts': 'ALERTO NGAYON',
+          'stats.storage': 'STORAGE NA GINAMIT',
+          'stats.uptime': 'ORAS NG PAGTAKBO',
         },
       };
 
@@ -3599,7 +3749,7 @@
           const btn = document.getElementById('lang-' + l);
           if (!btn) return;
           if (l === lang) btn.classList.add('active');
-          else            btn.classList.remove('active');
+          else btn.classList.remove('active');
         });
       }
 

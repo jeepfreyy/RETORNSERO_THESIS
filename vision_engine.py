@@ -1024,18 +1024,18 @@ class SentinelStream:
                             if roi_mask[_bcy, _bcx] > 127:
                                 _yolo_n += 1
 
-                    # YOLO is the primary floor anchor when it detects anyone.
+                    # YOLO is the unconditional floor anchor.
                     # It is stateless (appearance-based, no history) so it
-                    # reflects the actual current headcount, not stale occupancy
-                    # ghosts left by people who have already left the scene.
-                    # Fallback to occupancy watershed only when YOLO detects 0 —
-                    # that covers the rare case where YOLO fails on an extremely
-                    # dark or occluded frame while watershed still has a confirmed
-                    # blob from the person being tracked by occupancy.
-                    if _yolo_n > 0:
-                        recount_floor = float(_yolo_n)
-                    else:
-                        recount_floor = float(max(_cws, _car))
+                    # reflects the actual current headcount — not stale occupancy
+                    # ghosts left by recently-departed people.  When YOLO returns
+                    # 0 the floor is 0: Stage 2 still provides real-time
+                    # absorption correction via ws_occ_count, and the next census
+                    # will raise the floor again if people reappear.
+                    # The old fallback to _cws when _yolo_n==0 caused departure
+                    # spikes: occupancy retains confirmed positions for evict_sec
+                    # after people leave, and without YOLO to override it the
+                    # stale _cws locked a falsely-high floor until eviction fired.
+                    recount_floor = float(_yolo_n)
 
                 # Floor decay — only when occupancy map has no confirmed blobs,
                 # meaning the scene is genuinely empty (not just absorbed by MOG2).
