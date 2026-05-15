@@ -691,16 +691,64 @@ def dismiss_clip(filename):
     return jsonify({'success': True})
 
 
+def _stream_video_file(path):
+    """
+    Stream a video file with HTTP Range request support.
+
+    Browsers always open <video> with a Range request so they can determine
+    file size and support seeking before buffering the whole file.  Flask's
+    send_file() ignores Range headers, causing browsers to show
+    "No video with supported format and MIME type found."
+    This helper responds with 206 Partial Content when a Range header is
+    present, and a normal 200 with Accept-Ranges advertised otherwise.
+    """
+    file_size = os.path.getsize(path)
+    range_header = request.headers.get('Range')
+
+    if range_header:
+        byte_range = range_header.strip().replace('bytes=', '')
+        parts      = byte_range.split('-')
+        start      = int(parts[0]) if parts[0] else 0
+        end        = int(parts[1]) if len(parts) > 1 and parts[1] else file_size - 1
+        end        = min(end, file_size - 1)
+        length     = end - start + 1
+
+        def _generate():
+            with open(path, 'rb') as f:
+                f.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = f.read(min(65536, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+
+        rv = Response(_generate(), status=206, mimetype='video/mp4')
+        rv.headers['Content-Range']  = f'bytes {start}-{end}/{file_size}'
+        rv.headers['Accept-Ranges']  = 'bytes'
+        rv.headers['Content-Length'] = str(length)
+        rv.headers['Cache-Control']  = 'no-cache'
+        return rv
+
+    # No Range header — serve full file but advertise range support
+    rv = send_file(path, mimetype='video/mp4')
+    rv.headers['Accept-Ranges']  = 'bytes'
+    rv.headers['Content-Length'] = str(file_size)
+    return rv
+
+
 @app.route('/clips/<filename>')
 @login_required
 def serve_clip(filename):
     """Serve a temp clip video or thumbnail from Temp_Clips/."""
-    filename = secure_filename(filename)
+    filename  = secure_filename(filename)
     clip_path = os.path.join(TEMP_CLIPS_DIR, filename)
-    if os.path.exists(clip_path):
-        mimetype = 'video/mp4' if filename.endswith('.mp4') else 'image/jpeg'
-        return send_file(clip_path, mimetype=mimetype)
-    return Response(status=404)
+    if not os.path.exists(clip_path):
+        return Response(status=404)
+    if filename.endswith('.mp4'):
+        return _stream_video_file(clip_path)
+    return send_file(clip_path, mimetype='image/jpeg')
 
 
 def _log_status(incident_id, status, changed_by=None):
@@ -719,13 +767,15 @@ def list_incidents():
     incidents = IncidentArchive.query.order_by(IncidentArchive.timestamp.desc()).all()
     result = []
     for i in incidents:
-        # Build thumbnail URL from clip_path
+        # Build thumbnail and clip URLs from clip_path
         try:
             rel = os.path.relpath(i.clip_path, ARCHIVE_DIR).replace('\\', '/')
             thumb_rel = rel.replace('.mp4', '.jpg')
             thumbnail_url = f'/archive_media/{thumb_rel}'
+            clip_url      = f'/archive_media/{rel}'
         except Exception:
             thumbnail_url = None
+            clip_url      = None
 
         result.append({
             'id': i.id,
@@ -744,6 +794,7 @@ def list_incidents():
             'people_count': i.people_count or 0,
             'location': i.location,
             'thumbnail_url': thumbnail_url,
+            'clip_url':      clip_url,
             'responders': [{
                 'id': r.id,
                 'responder_name': r.responder_name,
@@ -863,10 +914,11 @@ def serve_archive_media(filepath):
     if '..' in filepath or filepath.startswith('/'):
         return Response(status=403)
     full_path = os.path.join(ARCHIVE_DIR, filepath)
-    if os.path.exists(full_path):
-        mimetype = 'video/mp4' if filepath.endswith('.mp4') else 'image/jpeg'
-        return send_file(full_path, mimetype=mimetype)
-    return Response(status=404)
+    if not os.path.exists(full_path):
+        return Response(status=404)
+    if filepath.endswith('.mp4'):
+        return _stream_video_file(full_path)
+    return send_file(full_path, mimetype='image/jpeg')
 
 
 # ── Responder management ─────────────────────────────────────────────────────

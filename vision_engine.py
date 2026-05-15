@@ -1203,7 +1203,10 @@ class SentinelStream:
         filename = f"{self.stream_id}_{tag}_{level}.mp4"
         filepath = os.path.join(self.temp_clips_dir, filename)
 
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        # avc1 = H.264 — the only codec browsers can decode inside an mp4
+        # container without plugins.  mp4v (MPEG-4 Part 2) is unplayable in
+        # Chrome/Safari/Firefox even though the file extension is .mp4.
+        fourcc = cv2.VideoWriter_fourcc(*'avc1')
         self.clip_writer = cv2.VideoWriter(filepath, fourcc, 30.0, (width, height))
 
         # Dump ring buffer (pre-event history)

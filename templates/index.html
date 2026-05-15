@@ -1224,7 +1224,9 @@
               <div class="p-6 border-b lg:border-b-0 lg:border-r border-slate-700 overflow-y-auto">
                 <p class="text-xs font-semibold text-slate-500 tracking-wider mb-3">CLIP PREVIEW</p>
                 <video id="report-video" class="w-full rounded-lg border border-slate-700 bg-slate-900" controls
-                  autoplay loop muted playsinline style="min-height:180px;max-height:260px;object-fit:cover"></video>
+                  autoplay loop muted playsinline style="min-height:180px;max-height:260px;object-fit:cover">
+                  <source id="report-video-source" src="" type="video/mp4">
+                </video>
                 <div class="mt-4 grid grid-cols-2 gap-2">
                   <div class="bg-slate-800/50 rounded-lg p-3 text-center">
                     <p class="text-xs text-slate-500 mb-1">CAMERA</p>
@@ -2960,7 +2962,12 @@
         currentReportClip = { filename, cameraId, timestamp, density, duration, peopleCount: peopleCount || 0 };
 
         const modal = document.getElementById('report-modal');
-        document.getElementById('report-video').src = `/clips/${filename}`;
+        // Set src on the <source> child and reload so the browser picks up
+        // the new URL (setting .src directly on <video> with a <source> child
+        // doesn't trigger a reload in all browsers).
+        const vid = document.getElementById('report-video');
+        document.getElementById('report-video-source').src = `/clips/${filename}`;
+        vid.load();
         document.getElementById('report-camera').textContent = cameraId;
         document.getElementById('report-timestamp').textContent = timestamp;
         document.getElementById('report-title').value = '';
@@ -2994,8 +3001,8 @@
       function closeReportModal() {
         const vid = document.getElementById('report-video');
         vid.pause();
-        vid.src = '';
-        vid.load();  // Fully release file handle so Windows can move it
+        document.getElementById('report-video-source').src = '';
+        vid.load();  // Fully release the file handle before archiving/moving
         document.getElementById('report-modal').classList.add('hidden');
       }
 
@@ -3076,7 +3083,7 @@
         // Release the video file handle before moving it on the server (avoids WinError 32)
         const vid = document.getElementById('report-video');
         vid.pause();
-        vid.src = '';
+        document.getElementById('report-video-source').src = '';
         vid.load();
         await new Promise(r => setTimeout(r, 200));
 
@@ -3868,7 +3875,6 @@
         container.innerHTML = incidents.map((inc, idx) => {
           const densityColor = inc.density_tag === 'HIGH' ? 'text-red-400' : inc.density_tag === 'MEDIUM' ? 'text-amber-400' : 'text-emerald-400';
           const dateStr = new Date(inc.timestamp).toISOString().split('T')[0];
-          const archivePath = `Archive_${dateStr}/${inc.clip_filename}`;
 
           const tl = inc.threat_level || 5;
           const tlInfo = tl <= 2 ? { label: 'MINIMAL', color: '#22c55e', bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.35)' }
@@ -3895,15 +3901,22 @@
                   <span class="text-xs font-mono text-slate-600">#${inc.id}</span>
                 </div>
               </div>
-              <button id="clip-btn-${idx}" onclick="toggleArchiveClip(${idx}, '${archivePath}')"
-                class="flex-shrink-0 px-4 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-xs tracking-wider transition-all">
+              <button id="clip-btn-${idx}" onclick="toggleArchiveClip(${idx})"
+                data-clip-url="${inc.clip_url || ''}"
+                class="flex-shrink-0 px-4 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-xs tracking-wider transition-all"
+                ${!inc.clip_url ? 'disabled title="Clip file not found"' : ''}>
                 &#9654; VIEW CLIP
               </button>
             </div>
 
             <!-- Clip Player -->
             <div id="clip-player-${idx}" class="hidden px-5 pb-4">
-              <img class="w-full max-h-64 object-contain rounded-lg border border-slate-700 bg-slate-900" />
+              <video id="clip-video-${idx}"
+                class="w-full rounded-lg border border-slate-700 bg-slate-900"
+                style="max-height:340px;object-fit:contain"
+                controls autoplay loop muted playsinline>
+                <source id="clip-video-src-${idx}" src="" type="video/mp4">
+              </video>
             </div>
 
             <!-- Two-column body -->
@@ -3976,17 +3989,24 @@
         }).join('');
       }
 
-      function toggleArchiveClip(idx, archivePath) {
-        const player = document.getElementById(`clip-player-${idx}`);
-        const btn = document.getElementById(`clip-btn-${idx}`);
-        const img = player.querySelector('img');
+      function toggleArchiveClip(idx) {
+        const player  = document.getElementById(`clip-player-${idx}`);
+        const btn     = document.getElementById(`clip-btn-${idx}`);
+        const vid     = document.getElementById(`clip-video-${idx}`);
+        const src     = document.getElementById(`clip-video-src-${idx}`);
+        const clipUrl = btn.dataset.clipUrl || '';
 
         if (player.classList.contains('hidden')) {
-          img.src = `/archive_stream/${archivePath}`;
+          // Load and play
+          src.src = clipUrl;
+          vid.load();
           player.classList.remove('hidden');
           btn.innerHTML = '&#9632; HIDE CLIP';
         } else {
-          img.src = '';
+          // Stop and unload to release file handle
+          vid.pause();
+          src.src = '';
+          vid.load();
           player.classList.add('hidden');
           btn.innerHTML = '&#9654; VIEW CLIP';
         }
