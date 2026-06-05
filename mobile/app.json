@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Barangay Sentinel",
+    "slug": "barangay-sentinel",
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "orientation": "portrait",
+    "scheme": "barangaysentinel",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.barangaysentinel.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera access is not required.",
+        "NSMicrophoneUsageDescription": "Microphone access is not required."
+      }
+    },
+    "android": {
+      "package": "com.barangaysentinel.app",
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "color": "#10b981",
+          "sounds": []
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

@@ -348,93 +348,202 @@
 
     /* ── Global font-size readability fixes ──────────────────────────────── */
     /* Bump Tailwind's 10 px arbitrary class to 12 px everywhere */
-    .text-\[10px\] { font-size: 0.75rem !important; line-height: 1rem !important; }
+    .text-\[10px\] {
+      font-size: 0.75rem !important;
+      line-height: 1rem !important;
+    }
+
     /* Bump 9 px badge text to 11 px */
-    .text-\[9px\]  { font-size: 0.688rem !important; line-height: 0.9rem !important; }
+    .text-\[9px\] {
+      font-size: 0.688rem !important;
+      line-height: 0.9rem !important;
+    }
+
     /* Give tracking-widest section labels (CAMERA / DENSITY / etc.) a tiny extra nudge */
-    .tracking-widest { letter-spacing: 0.12em; }
+    .tracking-widest {
+      letter-spacing: 0.12em;
+    }
 
     /* ── Light mode ────────────────────────────────────────────────────────── */
     body.light-mode {
       background-color: #f1f5f9 !important;
       color: #1e293b !important;
     }
+
     body.light-mode .grid-bg {
       background-color: #f1f5f9;
       background-image:
-        linear-gradient(rgba(16,185,129,0.06) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(16,185,129,0.06) 1px, transparent 1px);
+        linear-gradient(rgba(16, 185, 129, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16, 185, 129, 0.06) 1px, transparent 1px);
     }
+
     /* Cards */
     body.light-mode .card-border {
-      background: rgba(255,255,255,0.98) !important;
+      background: rgba(255, 255, 255, 0.98) !important;
       border-color: #94a3b8 !important;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     }
+
     /* Header */
     body.light-mode header {
-      background: rgba(248,250,252,0.97) !important;
+      background: rgba(248, 250, 252, 0.97) !important;
       border-bottom-color: #94a3b8 !important;
     }
 
     /* ── Background overrides ─────────────────────────────────────────────── */
-    body.light-mode [class*="bg-slate-950"] { background-color: #f8fafc !important; }
-    body.light-mode [class*="bg-slate-900"] { background-color: #f1f5f9 !important; }
-    body.light-mode [class*="bg-slate-800"] { background-color: #e2e8f0 !important; }
-    body.light-mode [class*="bg-slate-700"] { background-color: #cbd5e1 !important; }
-    body.light-mode [class*="bg-black"]     { background-color: rgba(0,0,0,0.45) !important; }
+    body.light-mode [class*="bg-slate-950"] {
+      background-color: #f8fafc !important;
+    }
+
+    body.light-mode [class*="bg-slate-900"] {
+      background-color: #f1f5f9 !important;
+    }
+
+    body.light-mode [class*="bg-slate-800"] {
+      background-color: #e2e8f0 !important;
+    }
+
+    body.light-mode [class*="bg-slate-700"] {
+      background-color: #cbd5e1 !important;
+    }
+
+    body.light-mode [class*="bg-black"] {
+      background-color: rgba(0, 0, 0, 0.45) !important;
+    }
 
     /* Activity log & RC card tinted backgrounds — stronger border + darker bg */
     body.light-mode [class*="bg-amber-500"] {
-      background-color: rgba(245,158,11,0.12) !important;
+      background-color: rgba(245, 158, 11, 0.12) !important;
     }
-    body.light-mode [class*="bg-red-500"]   {
-      background-color: rgba(239,68,68,0.10) !important;
+
+    body.light-mode [class*="bg-red-500"] {
+      background-color: rgba(239, 68, 68, 0.10) !important;
     }
+
     body.light-mode [class*="bg-emerald-500"] {
-      background-color: rgba(16,185,129,0.10) !important;
+      background-color: rgba(16, 185, 129, 0.10) !important;
     }
-    body.light-mode [class*="bg-blue-500"]  {
-      background-color: rgba(59,130,246,0.10) !important;
+
+    body.light-mode [class*="bg-blue-500"] {
+      background-color: rgba(59, 130, 246, 0.10) !important;
     }
 
     /* ── Text overrides ───────────────────────────────────────────────────── */
-    body.light-mode [class*="text-slate-100"] { color: #0f172a !important; }
-    body.light-mode [class*="text-slate-200"] { color: #1e293b !important; }
-    body.light-mode [class*="text-slate-300"] { color: #334155 !important; }
-    body.light-mode [class*="text-slate-400"] { color: #475569 !important; }
-    body.light-mode [class*="text-slate-500"] { color: #64748b !important; }
-    body.light-mode [class*="text-slate-600"] { color: #94a3b8 !important; }
+    body.light-mode [class*="text-slate-100"] {
+      color: #0f172a !important;
+    }
+
+    body.light-mode [class*="text-slate-200"] {
+      color: #1e293b !important;
+    }
+
+    body.light-mode [class*="text-slate-300"] {
+      color: #334155 !important;
+    }
+
+    body.light-mode [class*="text-slate-400"] {
+      color: #475569 !important;
+    }
+
+    body.light-mode [class*="text-slate-500"] {
+      color: #64748b !important;
+    }
+
+    body.light-mode [class*="text-slate-600"] {
+      color: #94a3b8 !important;
+    }
 
     /* Accent colors — shift to darker shades for AA contrast on white */
-    body.light-mode [class*="text-emerald-400"] { color: #047857 !important; } /* emerald-700 — 7:1 */
-    body.light-mode [class*="text-emerald-300"] { color: #059669 !important; } /* emerald-600 — 5:1 */
-    body.light-mode [class*="text-amber-400"]   { color: #b45309 !important; } /* amber-700  — 5:1 */
-    body.light-mode [class*="text-amber-300"]   { color: #d97706 !important; } /* amber-600  — 3.7:1 */
-    body.light-mode [class*="text-red-400"]     { color: #b91c1c !important; } /* red-700    — 7:1 */
-    body.light-mode [class*="text-red-300"]     { color: #dc2626 !important; } /* red-600    — 5.9:1 */
-    body.light-mode [class*="text-blue-400"]    { color: #1d4ed8 !important; } /* blue-700   — 7:1 */
-    body.light-mode [class*="text-purple-400"]  { color: #6d28d9 !important; } /* violet-700 — 7:1 */
-    body.light-mode [class*="text-orange-400"]  { color: #c2410c !important; } /* orange-700 — 6:1 */
+    body.light-mode [class*="text-emerald-400"] {
+      color: #047857 !important;
+    }
+
+    /* emerald-700 — 7:1 */
+    body.light-mode [class*="text-emerald-300"] {
+      color: #059669 !important;
+    }
+
+    /* emerald-600 — 5:1 */
+    body.light-mode [class*="text-amber-400"] {
+      color: #b45309 !important;
+    }
+
+    /* amber-700  — 5:1 */
+    body.light-mode [class*="text-amber-300"] {
+      color: #d97706 !important;
+    }
+
+    /* amber-600  — 3.7:1 */
+    body.light-mode [class*="text-red-400"] {
+      color: #b91c1c !important;
+    }
+
+    /* red-700    — 7:1 */
+    body.light-mode [class*="text-red-300"] {
+      color: #dc2626 !important;
+    }
+
+    /* red-600    — 5.9:1 */
+    body.light-mode [class*="text-blue-400"] {
+      color: #1d4ed8 !important;
+    }
+
+    /* blue-700   — 7:1 */
+    body.light-mode [class*="text-purple-400"] {
+      color: #6d28d9 !important;
+    }
+
+    /* violet-700 — 7:1 */
+    body.light-mode [class*="text-orange-400"] {
+      color: #c2410c !important;
+    }
+
+    /* orange-700 — 6:1 */
 
     /* ── Border overrides ─────────────────────────────────────────────────── */
-    body.light-mode [class*="border-slate-700"] { border-color: #94a3b8 !important; }
-    body.light-mode [class*="border-slate-800"] { border-color: #cbd5e1 !important; }
-    body.light-mode [class*="border-emerald-500"] { border-color: #059669 !important; }
-    body.light-mode [class*="border-amber-500"]   { border-color: #d97706 !important; }
-    body.light-mode [class*="border-red-500"]     { border-color: #dc2626 !important; }
+    body.light-mode [class*="border-slate-700"] {
+      border-color: #94a3b8 !important;
+    }
+
+    body.light-mode [class*="border-slate-800"] {
+      border-color: #cbd5e1 !important;
+    }
+
+    body.light-mode [class*="border-emerald-500"] {
+      border-color: #059669 !important;
+    }
+
+    body.light-mode [class*="border-amber-500"] {
+      border-color: #d97706 !important;
+    }
+
+    body.light-mode [class*="border-red-500"] {
+      border-color: #dc2626 !important;
+    }
 
     /* ── Activity log cards ───────────────────────────────────────────────── */
-    body.light-mode #all-activity-logs > div,
-    body.light-mode #camera-activity-logs > div {
+    body.light-mode #all-activity-logs>div,
+    body.light-mode #camera-activity-logs>div {
       border-width: 1.5px !important;
       border-color: #94a3b8 !important;
     }
+
     /* Specific tinted log cards — ensure they remain distinguishable */
-    body.light-mode [class*="bg-amber-500"][class*="border"] { border-color: #b45309 !important; }
-    body.light-mode [class*="bg-red-500"][class*="border"]   { border-color: #b91c1c !important; }
-    body.light-mode [class*="bg-emerald-500"][class*="border"] { border-color: #047857 !important; }
-    body.light-mode [class*="bg-blue-500"][class*="border"]  { border-color: #1d4ed8 !important; }
+    body.light-mode [class*="bg-amber-500"][class*="border"] {
+      border-color: #b45309 !important;
+    }
+
+    body.light-mode [class*="bg-red-500"][class*="border"] {
+      border-color: #b91c1c !important;
+    }
+
+    body.light-mode [class*="bg-emerald-500"][class*="border"] {
+      border-color: #047857 !important;
+    }
+
+    body.light-mode [class*="bg-blue-500"][class*="border"] {
+      border-color: #1d4ed8 !important;
+    }
 
     /* ── Form controls ────────────────────────────────────────────────────── */
     body.light-mode input:not([type="checkbox"]):not([type="range"]),
@@ -444,42 +553,80 @@
       border-color: #94a3b8 !important;
       color: #1e293b !important;
     }
+
     body.light-mode input::placeholder,
-    body.light-mode textarea::placeholder { color: #94a3b8 !important; }
+    body.light-mode textarea::placeholder {
+      color: #94a3b8 !important;
+    }
+
     /* Dropdown option text (browser-native) */
-    body.light-mode option { background: #f1f5f9; color: #1e293b; }
+    body.light-mode option {
+      background: #f1f5f9;
+      color: #1e293b;
+    }
 
     /* ── Scrollbars in light mode ─────────────────────────────────────────── */
-    body.light-mode ::-webkit-scrollbar-track { background: #e2e8f0; }
-    body.light-mode ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
-    body.light-mode ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    body.light-mode ::-webkit-scrollbar-track {
+      background: #e2e8f0;
+    }
+
+    body.light-mode ::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 4px;
+    }
+
+    body.light-mode ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
 
     /* Camera feed scan line — soften in light mode */
     body.light-mode .camera-feed::after {
       background: repeating-linear-gradient(0deg, transparent, transparent 2px,
-        rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+          rgba(0, 0, 0, 0.04) 2px, rgba(0, 0, 0, 0.04) 4px);
     }
 
     /* ── Dark mode — ensure dark scrollbars ──────────────────────────────── */
-    body:not(.light-mode) ::-webkit-scrollbar { width: 6px; }
-    body:not(.light-mode) ::-webkit-scrollbar-track { background: #0f172a; }
-    body:not(.light-mode) ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    body:not(.light-mode) ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    body:not(.light-mode) ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    body:not(.light-mode) ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+
+    body:not(.light-mode) ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+
+    body:not(.light-mode) ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
 
     /* Theme toggle button */
-    #theme-toggle { transition: transform 0.3s ease; }
-    #theme-toggle:hover { transform: rotate(20deg); }
-    /* Lang toggle */
-    .lang-btn { transition: all 0.2s ease; }
-    .lang-btn.active {
-      background: rgba(52,211,153,0.2);
-      color: #34d399;
-      border-color: rgba(52,211,153,0.5);
+    #theme-toggle {
+      transition: transform 0.3s ease;
     }
+
+    #theme-toggle:hover {
+      transform: rotate(20deg);
+    }
+
+    /* Lang toggle */
+    .lang-btn {
+      transition: all 0.2s ease;
+    }
+
+    .lang-btn.active {
+      background: rgba(52, 211, 153, 0.2);
+      color: #34d399;
+      border-color: rgba(52, 211, 153, 0.5);
+    }
+
     body.light-mode .lang-btn.active {
-      background: rgba(4,120,87,0.12);
+      background: rgba(4, 120, 87, 0.12);
       color: #047857;
-      border-color: rgba(4,120,87,0.5);
+      border-color: rgba(4, 120, 87, 0.5);
     }
   </style>
   <style>
@@ -525,7 +672,8 @@
           </div>
           <h1 id="system-title" class="font-display text-2xl font-bold text-emerald-400 tracking-wider">BARANGAY
             SENTINEL</h1>
-          <p id="welcome-text" data-i18n="system.subtitle" class="text-slate-400 mt-2 text-sm tracking-wide">ADVANCED SURVEILLANCE SYSTEM</p>
+          <p id="welcome-text" data-i18n="system.subtitle" class="text-slate-400 mt-2 text-sm tracking-wide">ADVANCED
+            SURVEILLANCE SYSTEM</p>
         </div><!-- Auth Card -->
         <div class="card-border rounded-2xl p-8 backdrop-blur-xl">
           <!-- Operator Tabs -->
@@ -551,8 +699,8 @@
               </div>
             </div>
             <div>
-              <label for="login-password"
-                class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider"><span data-i18n="auth.password">PASSWORD</span></label>
+              <label for="login-password" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider"><span
+                  data-i18n="auth.password">PASSWORD</span></label>
               <div class="relative">
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
                   stroke="currentColor" viewbox="0 0 24 24">
@@ -601,7 +749,8 @@
             </div>
             <div>
               <label for="register-password"
-                class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider"><span data-i18n="auth.create_password">CREATE PASSWORD</span></label>
+                class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider"><span
+                  data-i18n="auth.create_password">CREATE PASSWORD</span></label>
               <div class="relative">
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
                   stroke="currentColor" viewbox="0 0 24 24">
@@ -612,8 +761,8 @@
               </div>
             </div>
             <div>
-              <label for="register-confirm"
-                class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider"><span data-i18n="auth.confirm_password">CONFIRM PASSWORD</span></label>
+              <label for="register-confirm" class="block text-xs font-semibold text-slate-400 mb-2 tracking-wider"><span
+                  data-i18n="auth.confirm_password">CONFIRM PASSWORD</span></label>
               <div class="relative">
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none"
                   stroke="currentColor" viewbox="0 0 24 24">
@@ -807,11 +956,11 @@
               class="w-8 h-8 rounded-lg bg-slate-800/60 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-emerald-400 hover:border-emerald-500/50 transition-all">
               <svg id="theme-icon-moon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
               </svg>
               <svg id="theme-icon-sun" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
               </svg>
             </button>
           </div>
@@ -840,12 +989,13 @@
             <div id="status-container"
               class="hidden md:flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
               <div class="w-2 h-2 rounded-full bg-emerald-400 status-online"></div><span
-                class="text-emerald-400 text-xs font-semibold tracking-wider" data-i18n="status.online">ALL SYSTEMS ONLINE</span>
+                class="text-emerald-400 text-xs font-semibold tracking-wider" data-i18n="status.online">ALL SYSTEMS
+                ONLINE</span>
             </div><!-- User Menu -->
             <div class="flex items-center gap-3">
-              <div class="text-right hidden sm:block">
-                <p id="user-name" class="text-sm font-semibold text-slate-200">Operator</p>
-                <p class="text-xs text-slate-500">Security Level: Operator</p>
+              <div class="text-right hidden sm:block cursor-pointer group" onclick="showUserProfile()" title="View Profile">
+                <p id="user-name" class="text-sm font-semibold text-slate-200 group-hover:text-emerald-400 transition-colors">Operator</p>
+                <p class="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">Security Level: Operator</p>
               </div><button onclick="handleLogout()"
                 class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center hover:border-red-500/50 hover:bg-red-500/10 transition-all group">
                 <svg class="w-5 h-5 text-slate-400 group-hover:text-red-400 transition-colors" fill="none"
@@ -1074,7 +1224,9 @@
               <div class="p-6 border-b lg:border-b-0 lg:border-r border-slate-700 overflow-y-auto">
                 <p class="text-xs font-semibold text-slate-500 tracking-wider mb-3">CLIP PREVIEW</p>
                 <video id="report-video" class="w-full rounded-lg border border-slate-700 bg-slate-900" controls
-                  autoplay loop muted playsinline style="min-height:180px;max-height:260px;object-fit:cover"></video>
+                  autoplay loop muted playsinline style="min-height:180px;max-height:260px;object-fit:cover">
+                  <source id="report-video-source" src="" type="video/mp4">
+                </video>
                 <div class="mt-4 grid grid-cols-2 gap-2">
                   <div class="bg-slate-800/50 rounded-lg p-3 text-center">
                     <p class="text-xs text-slate-500 mb-1">CAMERA</p>
@@ -1184,6 +1336,139 @@
           </div>
         </div>
 
+        <!-- ── First-Time Guide Modal ─────────────────────────────────── -->
+        <div id="ft-guide-modal"
+          class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div class="w-full max-w-lg bg-slate-900 rounded-2xl border border-emerald-500/30 shadow-2xl overflow-hidden">
+
+            <!-- Guide header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700/60 bg-emerald-500/5">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-sm font-bold text-emerald-400 tracking-wider">SYSTEM GUIDE</p>
+                  <p id="ft-step-label" class="text-xs text-slate-500">Step 1 of 6</p>
+                </div>
+              </div>
+              <button onclick="closeFtGuide()" class="text-slate-500 hover:text-slate-300 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Guide body -->
+            <div class="px-6 py-5">
+              <!-- Icon + title -->
+              <div class="flex items-start gap-4 mb-4">
+                <div id="ft-step-icon"
+                  class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 text-2xl">
+                </div>
+                <div class="flex-1 min-w-0">
+                  <h3 id="ft-step-title" class="text-lg font-bold text-slate-100 mb-1"></h3>
+                  <p id="ft-step-body" class="text-sm text-slate-400 leading-relaxed"></p>
+                </div>
+              </div>
+
+              <!-- Progress dots -->
+              <div id="ft-dots" class="flex gap-1.5 justify-center mb-5"></div>
+
+              <!-- Buttons -->
+              <div class="flex gap-3">
+                <button id="ft-skip-btn" onclick="closeFtGuide()"
+                  class="px-4 py-2.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-300 transition-colors">
+                  Skip Guide
+                </button>
+                <button id="ft-next-btn" onclick="ftGuideNext()"
+                  class="flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30 transition-all">
+                  Next →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── User Profile Modal ──────────────────────────────────────── -->
+        <div id="user-profile-modal"
+          class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div class="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl overflow-hidden">
+
+            <!-- Profile header -->
+            <div class="relative px-6 pt-8 pb-5 text-center border-b border-slate-700/60 bg-gradient-to-b from-emerald-500/8 to-transparent">
+              <button onclick="closeUserProfile()"
+                class="absolute top-4 right-4 text-slate-500 hover:text-slate-300 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+              <!-- Avatar -->
+              <div class="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500/50
+                          flex items-center justify-center mx-auto mb-3">
+                <span id="up-avatar" class="text-2xl font-bold text-emerald-400"></span>
+              </div>
+              <p id="up-name" class="text-lg font-bold text-slate-100"></p>
+              <span id="up-role"
+                class="inline-block mt-1 text-xs font-semibold px-3 py-1 rounded-full
+                       bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"></span>
+            </div>
+
+            <!-- Profile body -->
+            <div class="px-6 py-4 space-y-4">
+
+              <!-- About section -->
+              <div>
+                <p class="text-xs font-bold text-slate-500 tracking-widest uppercase mb-2">About Barangay Sentinel</p>
+                <p class="text-xs text-slate-400 leading-relaxed">
+                  A real-time crowd monitoring and incident response system for barangay security operations.
+                  Computer-vision-powered density detection alerts operators to threats, while the mobile app
+                  keeps field responders coordinated.
+                </p>
+              </div>
+
+              <div class="border-t border-slate-700/50"></div>
+
+              <!-- System info -->
+              <div class="space-y-2">
+                <p class="text-xs font-bold text-slate-500 tracking-widest uppercase mb-2">System Info</p>
+                <div class="flex justify-between text-xs">
+                  <span class="text-slate-500">Version</span>
+                  <span class="text-slate-300 font-semibold">1.0.0</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-slate-500">System</span>
+                  <span class="text-slate-300 font-semibold">Barangay Sentinel CCTV</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-slate-500">Role</span>
+                  <span id="up-role-info" class="text-emerald-400 font-semibold">Operator</span>
+                </div>
+              </div>
+
+              <div class="border-t border-slate-700/50"></div>
+
+              <!-- Action buttons -->
+              <div class="flex gap-2 pt-1">
+                <button onclick="closeUserProfile(); showFtGuide();"
+                  class="flex-1 py-2.5 rounded-lg text-xs font-bold tracking-wider
+                         bg-slate-800 text-slate-300 border border-slate-700
+                         hover:border-emerald-500/50 hover:text-emerald-400 transition-all">
+                  📖 View Guide
+                </button>
+                <button onclick="closeUserProfile(); handleLogout();"
+                  class="flex-1 py-2.5 rounded-lg text-xs font-bold tracking-wider
+                         bg-red-500/10 text-red-400 border border-red-500/30
+                         hover:bg-red-500/20 transition-all">
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- ── HIGH Density Alert Overlay ──────────────────────────────── -->
         <div id="high-alert-overlay"
           class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center z-[150] p-4">
@@ -1245,41 +1530,82 @@
 
         <!-- Response Center View -->
         <div id="response-view" class="hidden">
-          <!-- Header -->
-          <div class="mb-6 flex items-end justify-between flex-wrap gap-3">
+
+          <!-- ── Top header row ─────────────────────────────────────────── -->
+          <div class="mb-5 flex items-start justify-between flex-wrap gap-3">
             <div>
-              <h2 class="font-display text-2xl font-bold text-emerald-400 tracking-wider mb-1">INCIDENT RESPONSE CENTER
-              </h2>
+              <h2 class="font-display text-2xl font-bold text-emerald-400 tracking-wider mb-1">INCIDENT RESPONSE CENTER</h2>
               <p class="text-slate-500 text-sm">Assign barangay officials and track incident resolution in real time</p>
             </div>
-            <div class="flex items-center gap-3">
-              <!-- Status filter -->
-              <div class="flex gap-1 bg-slate-900/50 rounded-lg p-1">
-                <button onclick="filterResponseView('ALL')" id="rf-all"
-                  class="px-3 py-1 rounded-md text-xs font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/50">ALL</button>
-                <button onclick="filterResponseView('OPEN')" id="rf-open"
-                  class="px-3 py-1 rounded-md text-xs font-semibold transition-all text-slate-400 hover:text-slate-300">OPEN</button>
-                <button onclick="filterResponseView('RESPONDING')" id="rf-responding"
-                  class="px-3 py-1 rounded-md text-xs font-semibold transition-all text-slate-400 hover:text-slate-300">RESPONDING</button>
-                <button onclick="filterResponseView('RESOLVED')" id="rf-resolved"
-                  class="px-3 py-1 rounded-md text-xs font-semibold transition-all text-slate-400 hover:text-slate-300">RESOLVED</button>
-              </div>
-              <button onclick="loadResponseCenter()"
-                class="px-5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-sm tracking-wider transition-all">
-                REFRESH
-              </button>
-            </div>
+            <!-- Refresh always visible -->
+            <button id="rc-refresh-btn" onclick="rcRefresh()"
+              class="px-5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-sm tracking-wider transition-all">
+              REFRESH
+            </button>
           </div>
-          <!-- Incident Cards -->
-          <div id="response-results" class="space-y-4">
-            <div class="text-center py-12 text-slate-500">
-              <svg class="w-12 h-12 mx-auto mb-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+
+          <!-- ── Sub-tab strip ───────────────────────────────────────────── -->
+          <div class="flex gap-1 bg-slate-900/60 rounded-xl p-1 mb-5 w-fit border border-slate-700/50">
+            <button id="rct-incidents-btn" onclick="switchRcTab('incidents')"
+              class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold tracking-wider transition-all
+                     bg-emerald-500/20 text-emerald-400 border border-emerald-500/50">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
               </svg>
-              <p>Switch to RESPONSE view to load incidents</p>
+              INCIDENTS
+            </button>
+            <button id="rct-declines-btn" onclick="switchRcTab('declines')"
+              class="relative flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold tracking-wider transition-all
+                     text-slate-400 hover:text-slate-300">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+              </svg>
+              DECLINED REQUESTS
+              <span id="rc-decline-badge"
+                class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500
+                       text-white text-[10px] font-bold flex items-center justify-center leading-none">0</span>
+            </button>
+          </div>
+
+          <!-- ── INCIDENTS panel ────────────────────────────────────────── -->
+          <div id="rc-incidents-panel">
+            <!-- Status filter -->
+            <div class="flex gap-1 bg-slate-900/50 rounded-lg p-1 mb-4 w-fit">
+              <button onclick="filterResponseView('ALL')" id="rf-all"
+                class="px-3 py-1 rounded-md text-xs font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/50">ALL</button>
+              <button onclick="filterResponseView('OPEN')" id="rf-open"
+                class="px-3 py-1 rounded-md text-xs font-semibold transition-all text-slate-400 hover:text-slate-300">OPEN</button>
+              <button onclick="filterResponseView('RESPONDING')" id="rf-responding"
+                class="px-3 py-1 rounded-md text-xs font-semibold transition-all text-slate-400 hover:text-slate-300">RESPONDING</button>
+              <button onclick="filterResponseView('RESOLVED')" id="rf-resolved"
+                class="px-3 py-1 rounded-md text-xs font-semibold transition-all text-slate-400 hover:text-slate-300">RESOLVED</button>
+            </div>
+            <div id="response-results" class="space-y-4">
+              <div class="text-center py-12 text-slate-500">
+                <svg class="w-12 h-12 mx-auto mb-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <p>Switch to RESPONSE view to load incidents</p>
+              </div>
             </div>
           </div>
+
+          <!-- ── DECLINED REQUESTS panel ────────────────────────────────── -->
+          <div id="rc-declines-panel" class="hidden">
+            <div id="rc-declines-results" class="space-y-3">
+              <div class="text-center py-12 text-slate-500">
+                <svg class="w-12 h-12 mx-auto mb-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                </svg>
+                <p>Loading declined requests…</p>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- Archive View -->
@@ -1385,7 +1711,7 @@
                   </div>
                   <div id="cam01-stats-overlay"
                     class="absolute top-12 left-3 right-3 flex items-center gap-2 flex-wrap text-xs font-mono">
-                    <span class="bg-slate-900/80 px-2 py-1 rounded text-amber-300">People: <strong
+                    <span class="bg-slate-900/80 px-2 py-1 rounded text-amber-300">People: ~ <strong
                         id="cam01-count">0</strong></span>
                     <span class="bg-slate-900/80 px-2 py-1 rounded text-slate-300">Density: <strong
                         id="cam01-density">0</strong>%</span>
@@ -1580,7 +1906,14 @@
           responseView.classList.remove('hidden');
           btnResponse.classList.add(...activeClass);
           btnResponse.classList.remove(...inactiveClass);
+          // Always start on the Incidents sub-tab and load data
+          switchRcTab('incidents');
           loadResponseCenter();
+          // Pre-fetch decline count so badge appears immediately
+          fetch('/api/assignments/declined')
+            .then(r => r.json())
+            .then(data => _updateDeclineBadge(data.length))
+            .catch(() => {});
         }
       }
 
@@ -1752,7 +2085,15 @@
         }
       }
 
+      // Holds IDs of all polling intervals started by showDashboard()
+      // so handleLogout() can stop them cleanly.
+      window._dashboardIntervals = [];
+
       function showDashboard() {
+        // Clear any stale intervals from a previous session before starting new ones
+        window._dashboardIntervals.forEach(id => clearInterval(id));
+        window._dashboardIntervals = [];
+
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('dashboard-screen').classList.remove('hidden');
 
@@ -1760,15 +2101,20 @@
           document.getElementById('user-name').textContent = currentUser.name;
         }
 
+        // Show first-time guide once per browser (localStorage flag)
+        if (!localStorage.getItem(FT_GUIDE_KEY)) {
+          setTimeout(showFtGuide, 900);
+        }
+
         initializeGlobalActivityLogs();
         populateGlobalActivityLogs();
 
         updateTime();
-        setInterval(updateTime, 1000);
-        setInterval(updateCam01Stats, 500);
+        window._dashboardIntervals.push(setInterval(updateTime, 1000));
+        window._dashboardIntervals.push(setInterval(updateCam01Stats, 500));
         updateCam01Stats();
         updateDashboardStats();
-        setInterval(updateDashboardStats, 30000);
+        window._dashboardIntervals.push(setInterval(updateDashboardStats, 30000));
         startCam01FrameUpdates();
         startTempClipUpdates();
         loadVideoList();
@@ -2414,11 +2760,37 @@
       }
 
       function handleLogout() {
+        // ── 1. Stop all polling intervals so no alerts fire after logout ──
+        (window._dashboardIntervals || []).forEach(id => clearInterval(id));
+        window._dashboardIntervals = [];
+
+        // Also clear the temp-clip interval (managed separately)
+        if (typeof tempClipRefreshInterval !== 'undefined' && tempClipRefreshInterval) {
+          clearInterval(tempClipRefreshInterval);
+          tempClipRefreshInterval = null;
+        }
+
+        // Stop the camera frame poller flag so it won't restart
+        window._camFrameRunning = false;
+
+        // ── 2. Dismiss any in-progress alert overlay and stop alert sound ──
+        dismissHighAlert();
+
+        // ── 3. Clear server-side Flask session ──
+        fetch('/api/logout', { method: 'POST' }).catch(() => {});
+
+        // ── 4. Reset client-side state ──
         currentUser = null;
+        _currentUsername = '';
+        _highAlertActive = false;
+        _highAlertCooldown = 0;
+
+        // ── 5. Swap screens ──
         document.getElementById('dashboard-screen').classList.add('hidden');
         document.getElementById('auth-screen').classList.remove('hidden');
         document.getElementById('login-form').reset();
-        document.getElementById('admin-login-form').reset();
+        const adminForm = document.getElementById('admin-login-form');
+        if (adminForm) adminForm.reset();
         document.getElementById('auth-error').classList.add('hidden');
         document.getElementById('auth-success').classList.add('hidden');
       }
@@ -2810,7 +3182,12 @@
         currentReportClip = { filename, cameraId, timestamp, density, duration, peopleCount: peopleCount || 0 };
 
         const modal = document.getElementById('report-modal');
-        document.getElementById('report-video').src = `/clips/${filename}`;
+        // Set src on the <source> child and reload so the browser picks up
+        // the new URL (setting .src directly on <video> with a <source> child
+        // doesn't trigger a reload in all browsers).
+        const vid = document.getElementById('report-video');
+        document.getElementById('report-video-source').src = `/clips/${filename}`;
+        vid.load();
         document.getElementById('report-camera').textContent = cameraId;
         document.getElementById('report-timestamp').textContent = timestamp;
         document.getElementById('report-title').value = '';
@@ -2844,8 +3221,8 @@
       function closeReportModal() {
         const vid = document.getElementById('report-video');
         vid.pause();
-        vid.src = '';
-        vid.load();  // Fully release file handle so Windows can move it
+        document.getElementById('report-video-source').src = '';
+        vid.load();  // Fully release the file handle before archiving/moving
         document.getElementById('report-modal').classList.add('hidden');
       }
 
@@ -2869,6 +3246,9 @@
       }
 
       function showHighAlert(count, camId, videoLabel, now) {
+        // Safety net: never show the alert if no one is logged in
+        if (!currentUser) return;
+
         document.getElementById('high-alert-count').textContent = count;
         document.getElementById('high-alert-cam').textContent = camId;
         document.getElementById('high-alert-video').textContent = videoLabel || '—';
@@ -2926,7 +3306,7 @@
         // Release the video file handle before moving it on the server (avoids WinError 32)
         const vid = document.getElementById('report-video');
         vid.pause();
-        vid.src = '';
+        document.getElementById('report-video-source').src = '';
         vid.load();
         await new Promise(r => setTimeout(r, 200));
 
@@ -2978,11 +3358,15 @@
 
         const colors = type === 'success'
           ? { border: 'border-emerald-500/60', icon: 'text-emerald-400', bg: 'bg-emerald-500/15', title: 'text-emerald-400' }
-          : { border: 'border-red-500/60', icon: 'text-red-400', bg: 'bg-red-500/15', title: 'text-red-400' };
+          : type === 'info'
+            ? { border: 'border-amber-500/60', icon: 'text-amber-400', bg: 'bg-amber-500/15', title: 'text-amber-400' }
+            : { border: 'border-red-500/60', icon: 'text-red-400', bg: 'bg-red-500/15', title: 'text-red-400' };
 
         const iconPath = type === 'success'
           ? 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
-          : 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z';
+          : type === 'info'
+            ? 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+            : 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z';
 
         const toast = document.createElement('div');
         toast.id = 'sentinel-toast';
@@ -3039,6 +3423,264 @@
         CLOSED: { label: 'CLOSED', color: 'text-slate-400', bg: 'bg-slate-700/30', border: 'border-slate-600/40', dot: 'bg-slate-500' },
       };
       const TL_COLOR = v => v >= 8 ? 'text-red-400' : v >= 5 ? 'text-amber-400' : 'text-emerald-400';
+
+      // ── First-Time Guide ────────────────────────────────────────────────────
+      const FT_GUIDE_KEY = 'bsentinel_guide_done';
+
+      const FT_STEPS = [
+        {
+          icon: '🛡️', bg: 'bg-emerald-500/15 border border-emerald-500/30',
+          title: 'Welcome to Barangay Sentinel',
+          body:  'This is the Command Center — your real-time crowd monitoring and incident response dashboard. This quick guide will walk you through the key features.',
+        },
+        {
+          icon: '📡', bg: 'bg-blue-500/15 border border-blue-500/30',
+          title: 'Live Dashboard',
+          body:  'The LIVE view shows the CAM-01 camera feed, real-time crowd density, detection stats, and the activity log. Use the Scenario Selector to load test videos for demonstration purposes.',
+        },
+        {
+          icon: '🎬', bg: 'bg-amber-500/15 border border-amber-500/30',
+          title: 'Anomaly Clip Tray',
+          body:  'When density spikes to HIGH or MEDIUM, clips are automatically saved to the tray. Click a clip to review it, then use SAVE TO INCIDENT to create a permanent incident report. You can also start a manual recording with the RECORD button.',
+        },
+        {
+          icon: '🚨', bg: 'bg-red-500/15 border border-red-500/30',
+          title: 'Incident Response Center',
+          body:  'Switch to the RESPONSE tab to manage all archived incidents. Assign field responders, track who is pending or confirmed, monitor status changes, and update resolution notes.',
+        },
+        {
+          icon: '📁', bg: 'bg-purple-500/15 border border-purple-500/30',
+          title: 'Incident Archive',
+          body:  'The ARCHIVE tab stores all permanently saved incident reports with their clips, responder history, and status timelines. Use it for post-incident reviews and records.',
+        },
+        {
+          icon: '🔔', bg: 'bg-red-500/15 border border-red-500/30',
+          title: 'HIGH Density Alerts',
+          body:  'When crowd density reaches a HIGH level, an alert overlay appears automatically with a video preview and assignment options. You can dismiss or assign a responder directly from the alert. Click your username (top right) anytime to view your profile and reopen this guide.',
+        },
+      ];
+
+      let _ftStep = 0;
+
+      function showFtGuide() {
+        _ftStep = 0;
+        _renderFtStep();
+        document.getElementById('ft-guide-modal').classList.remove('hidden');
+      }
+
+      function closeFtGuide() {
+        localStorage.setItem(FT_GUIDE_KEY, '1');
+        document.getElementById('ft-guide-modal').classList.add('hidden');
+      }
+
+      function ftGuideNext() {
+        if (_ftStep >= FT_STEPS.length - 1) { closeFtGuide(); return; }
+        _ftStep++;
+        _renderFtStep();
+      }
+
+      function _renderFtStep() {
+        const step  = FT_STEPS[_ftStep];
+        const total = FT_STEPS.length;
+
+        document.getElementById('ft-step-label').textContent = `Step ${_ftStep + 1} of ${total}`;
+        document.getElementById('ft-step-icon').className =
+          `w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 text-2xl ${step.bg}`;
+        document.getElementById('ft-step-icon').textContent = step.icon;
+        document.getElementById('ft-step-title').textContent = step.title;
+        document.getElementById('ft-step-body').textContent  = step.body;
+
+        // Progress dots
+        const dots = document.getElementById('ft-dots');
+        dots.innerHTML = FT_STEPS.map((_, i) =>
+          `<div class="h-1.5 rounded-full transition-all ${i === _ftStep
+            ? 'bg-emerald-400 w-5'
+            : 'bg-slate-700 w-1.5'}"></div>`
+        ).join('');
+
+        // Last step button
+        const btn = document.getElementById('ft-next-btn');
+        btn.textContent = _ftStep === total - 1 ? '✓  Get Started' : 'Next  →';
+
+        // Hide skip on last step
+        document.getElementById('ft-skip-btn').style.display =
+          _ftStep === total - 1 ? 'none' : '';
+      }
+
+      // ── User Profile Modal ───────────────────────────────────────────────────
+      function showUserProfile() {
+        const name = (currentUser?.name || document.getElementById('user-name')?.textContent || 'Operator').trim();
+        const role = currentUser?.role || 'Operator';
+        document.getElementById('up-avatar').textContent = name.charAt(0).toUpperCase();
+        document.getElementById('up-name').textContent   = name;
+        document.getElementById('up-role').textContent   = role;
+        document.getElementById('up-role-info').textContent = role;
+        document.getElementById('user-profile-modal').classList.remove('hidden');
+      }
+
+      function closeUserProfile() {
+        document.getElementById('user-profile-modal').classList.add('hidden');
+      }
+
+      // ── Response-Center sub-tab state ───────────────────────────────────────
+      let _rcActiveTab = 'incidents';
+
+      function switchRcTab(tab) {
+        _rcActiveTab = tab;
+        const incPanel   = document.getElementById('rc-incidents-panel');
+        const decPanel   = document.getElementById('rc-declines-panel');
+        const incBtn     = document.getElementById('rct-incidents-btn');
+        const decBtn     = document.getElementById('rct-declines-btn');
+        const activeStyle   = ['bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/50'];
+        const inactiveStyle = ['text-slate-400', 'hover:text-slate-300'];
+
+        if (tab === 'incidents') {
+          incPanel.classList.remove('hidden');
+          decPanel.classList.add('hidden');
+          incBtn.classList.add(...activeStyle);
+          incBtn.classList.remove(...inactiveStyle);
+          decBtn.classList.remove(...activeStyle);
+          decBtn.classList.add(...inactiveStyle);
+        } else {
+          decPanel.classList.remove('hidden');
+          incPanel.classList.add('hidden');
+          decBtn.classList.add(...activeStyle);
+          decBtn.classList.remove(...inactiveStyle);
+          incBtn.classList.remove(...activeStyle);
+          incBtn.classList.add(...inactiveStyle);
+          loadDeclinedAssignments();
+        }
+      }
+
+      function rcRefresh() {
+        if (_rcActiveTab === 'incidents') loadResponseCenter();
+        else loadDeclinedAssignments();
+      }
+
+      // ── Declined-assignments loader + renderer ───────────────────────────────
+      function loadDeclinedAssignments() {
+        const container = document.getElementById('rc-declines-results');
+        container.innerHTML = '<div class="text-center py-8 text-slate-500"><p>Loading declined requests…</p></div>';
+        fetch('/api/assignments/declined')
+          .then(r => r.json())
+          .then(data => renderDeclinedAssignments(data))
+          .catch(() => {
+            container.innerHTML =
+              '<div class="text-center py-8 text-red-400"><p>Failed to load declined assignments.</p></div>';
+          });
+      }
+
+      function _updateDeclineBadge(count) {
+        const badge = document.getElementById('rc-decline-badge');
+        if (!badge) return;
+        if (count > 0) {
+          badge.textContent = count > 9 ? '9+' : count;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+
+      function renderDeclinedAssignments(rows) {
+        const container = document.getElementById('rc-declines-results');
+        _updateDeclineBadge(rows.length);
+
+        if (rows.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-16 text-slate-500">
+              <svg class="w-14 h-14 mx-auto mb-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <p class="text-base font-semibold mb-1 text-slate-400">No Declined Requests</p>
+              <p class="text-sm text-slate-600">All assigned responders have accepted their assignments.</p>
+            </div>`;
+          return;
+        }
+
+        // Group by incident for a cleaner overview
+        container.innerHTML = rows.map(r => _declineCard(r)).join('');
+      }
+
+      function _declineCard(r) {
+        const incStatus = RC_STATUS[r.incident_status] || RC_STATUS.OPEN;
+        const tl        = r.threat_level || 0;
+        const tlColor   = TL_COLOR(tl);
+        const declinedAt = r.responded_at
+          ? new Date(r.responded_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+          : '—';
+        const sentAt = new Date(r.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+        const incTitle   = _esc(r.incident_title || 'Untitled Incident');
+        const density    = r.density_tag || '—';
+        const densityColor = density === 'HIGH' ? 'text-red-400' : density === 'MEDIUM' ? 'text-amber-400' : 'text-emerald-400';
+
+        return `
+        <div class="card-border rounded-xl overflow-hidden border border-red-500/25 bg-slate-900/40">
+
+          <!-- Header row -->
+          <div class="px-5 py-4 flex items-start justify-between gap-3 flex-wrap border-b border-slate-700/50">
+            <div class="flex items-center gap-3 min-w-0">
+              <!-- Declined avatar -->
+              <div class="w-10 h-10 rounded-full bg-red-500/15 border border-red-500/40
+                          flex items-center justify-center text-sm font-bold text-red-400 flex-shrink-0">
+                ${_esc((r.assigned_to_name || '?').charAt(0).toUpperCase())}
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap mb-0.5">
+                  <span class="text-sm font-bold text-slate-100">${_esc(r.assigned_to_name)}</span>
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 font-bold tracking-wider">
+                    DECLINED
+                  </span>
+                </div>
+                <p class="text-xs text-slate-500">
+                  Assigned by <span class="text-emerald-400 font-semibold">${_esc(r.assigned_by)}</span>
+                  &nbsp;·&nbsp; Sent ${sentAt}
+                </p>
+              </div>
+            </div>
+            <!-- Declined timestamp -->
+            <div class="text-right flex-shrink-0">
+              <p class="text-xs text-slate-500">Declined at</p>
+              <p class="text-xs font-semibold text-red-400">${declinedAt}</p>
+            </div>
+          </div>
+
+          <!-- Body -->
+          <div class="p-5 space-y-4">
+
+            <!-- Incident summary strip -->
+            <div class="flex items-start gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap mb-1">
+                  <span class="text-xs font-bold px-2 py-0.5 rounded ${incStatus.bg} ${incStatus.color} border ${incStatus.border}">
+                    ${incStatus.label}
+                  </span>
+                  <span class="text-xs font-semibold ${densityColor}">${density}</span>
+                  <span class="text-xs font-semibold ${tlColor}">TL-${tl}</span>
+                  <span class="text-xs text-slate-600 font-mono">#${r.incident_id}</span>
+                </div>
+                <p class="text-sm font-bold text-slate-200 truncate">${incTitle}</p>
+                ${r.location ? `<p class="text-xs text-slate-500 mt-0.5">📍 ${_esc(r.location)}</p>` : ''}
+              </div>
+            </div>
+
+            <!-- Decline reason -->
+            <div>
+              <p class="text-xs font-bold text-slate-500 tracking-wider uppercase mb-2">Reason for Declining</p>
+              <div class="p-4 rounded-lg bg-red-500/8 border border-red-500/20">
+                <div class="flex items-start gap-3">
+                  <svg class="w-4 h-4 text-red-400/70 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3-3-3z"/>
+                  </svg>
+                  <p class="text-sm text-slate-300 leading-relaxed italic">"${_esc(r.decline_reason)}"</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>`;
+      }
 
       function loadResponseCenter() {
         const container = document.getElementById('response-results');
@@ -3112,220 +3754,297 @@
         const loc = inc.location || CAMERA_LOCATIONS[inc.camera_id] || inc.camera_id;
         const pc = inc.people_count || 0;
         const ts = new Date(inc.timestamp).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+        const tlColor = TL_COLOR(tl);
 
-        // ── Responder list HTML ──────────────────────────────
-        const respHtml = inc.responders.length === 0
-          ? `<div class="flex flex-col items-center justify-center py-6 text-center">
-               <svg class="w-8 h-8 text-slate-700 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-               </svg>
-               <p class="text-xs text-slate-600 italic">No officials assigned yet</p>
-               <p class="text-xs text-slate-700 mt-1">Use the form on the right to assign a responder</p>
-             </div>`
-          : inc.responders.map(r => `
-              <div class="flex items-center justify-between py-2 border-b border-slate-800/60 last:border-0">
-                <div class="flex items-center gap-2 min-w-0">
-                  <div class="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xs font-bold text-emerald-400 flex-shrink-0">
-                    ${_esc((r.responder_name || '?').charAt(0).toUpperCase())}
-                  </div>
-                  <div class="min-w-0">
-                    <p class="text-xs font-bold text-slate-200 truncate">${_esc(r.responder_name || '—')}</p>
-                    <p class="text-xs text-slate-500">${_esc(r.responder_role || 'Tanod')} · assigned ${_timeAgo(r.assigned_at)}</p>
-                    ${r.note ? `<p class="text-xs text-emerald-400/70 italic mt-0.5">"${_esc(r.note)}"</p>` : ''}
-                  </div>
+        // ── Confirmed responders ─────────────────────────────────────────
+        const confirmedRows = inc.responders.map(r => `
+          <div class="flex items-center justify-between py-2.5 border-b border-slate-800/60 last:border-0">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40
+                          flex items-center justify-center text-xs font-bold text-emerald-400 flex-shrink-0">
+                ${_esc((r.responder_name || '?').charAt(0).toUpperCase())}
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <p class="text-sm font-semibold text-slate-200 truncate">${_esc(r.responder_name || '—')}</p>
+                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full
+                               bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 tracking-wider">
+                    CONFIRMED
+                  </span>
                 </div>
-                <button onclick="removeResponder(${inc.id},${r.id})"
-                  class="text-xs text-slate-600 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-500/10 flex-shrink-0 ml-2 tracking-wider font-semibold">
-                  REMOVE
-                </button>
-              </div>`).join('');
+                <p class="text-xs text-slate-500">${_esc(r.responder_role || 'Tanod')} · ${_timeAgo(r.assigned_at)}
+                  ${r.note ? `· <span class="text-emerald-400/80 italic">"${_esc(r.note)}"</span>` : ''}
+                </p>
+              </div>
+            </div>
+            <button onclick="removeResponder(${inc.id},${r.id})"
+              class="text-xs text-slate-600 hover:text-red-400 transition-colors px-2 py-1 rounded
+                     hover:bg-red-500/10 flex-shrink-0 ml-2">
+              Remove
+            </button>
+          </div>`).join('');
+
+        // ── Pending assignment requests (awaiting mobile response) ───────────
+        const pendingRows = (inc.pending_assignments || []).map(pa => `
+          <div class="flex items-center justify-between py-2.5 border-b border-slate-800/60 last:border-0">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-8 h-8 rounded-full bg-amber-500/15 border border-amber-500/35
+                          flex items-center justify-center text-xs font-bold text-amber-400 flex-shrink-0">
+                ${_esc((pa.assigned_to_name || '?').charAt(0).toUpperCase())}
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <p class="text-sm font-semibold text-slate-300 truncate">${_esc(pa.assigned_to_name || '—')}</p>
+                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full
+                               bg-amber-500/15 border border-amber-500/30 text-amber-400 tracking-wider
+                               flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 blink inline-block"></span>
+                    AWAITING RESPONSE
+                  </span>
+                </div>
+                <p class="text-xs text-slate-500">
+                  Sent by ${_esc(pa.assigned_by)} · ${_timeAgo(pa.created_at)}
+                </p>
+              </div>
+            </div>
+            <button onclick="cancelPendingAssignment(${inc.id}, ${pa.id})"
+              class="text-xs text-slate-600 hover:text-red-400 transition-colors px-2 py-1 rounded
+                     hover:bg-red-500/10 flex-shrink-0 ml-2"
+              title="Cancel this pending assignment request">
+              Cancel
+            </button>
+          </div>`).join('');
+
+        const totalAssigned = inc.responders.length + (inc.pending_assignments || []).length;
+        const respHtml = totalAssigned === 0
+          ? `<p class="text-sm text-slate-500 italic py-2">No one assigned yet.</p>`
+          : (confirmedRows + pendingRows);
 
         const statusOptions = ['OPEN', 'RESPONDING', 'RESOLVED', 'CLOSED'].map(s =>
           `<option value="${s}" ${inc.incident_status === s ? 'selected' : ''}>${s}</option>`).join('');
 
-        const thumbHtml = inc.thumbnail_url
-          ? `<img src="${inc.thumbnail_url}" alt="Incident clip thumbnail"
-               class="w-full h-40 object-cover rounded-lg border border-slate-700 bg-slate-900"
-               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
-             <div class="hidden w-full h-40 rounded-lg bg-slate-800 border border-slate-700 items-center justify-center">
-               <svg class="w-10 h-10 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-               </svg>
-             </div>`
-          : `<div class="w-full h-40 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center">
-               <svg class="w-10 h-10 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 002 2z"/>
+        // Thumbnail / clip-player widget
+        const hasClip    = !!(inc.clip_url);
+        const safeClipUrl = _esc(inc.clip_url || '');
+        const thumbInner  = inc.thumbnail_url
+          ? `<img src="${inc.thumbnail_url}" alt="Incident thumbnail"
+               class="w-full h-full object-cover"
+               onerror="this.style.opacity='0'" />`
+          : `<div class="w-full h-full flex items-center justify-center bg-slate-800">
+               <svg class="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                   d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.362a1 1 0 01-1.447.894L15 14
+                      M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                </svg>
              </div>`;
 
-        const dColorMap = { HIGH: 'text-red-400', MEDIUM: 'text-amber-400', LOW: 'text-emerald-400', MANUAL: 'text-purple-400' };
-        const tlColor = TL_COLOR(tl);
+        const thumbHtml = hasClip
+          ? `<div id="rc-thumb-${inc.id}"
+               data-clip-url="${safeClipUrl}"
+               class="relative group cursor-pointer rounded-lg overflow-hidden border border-slate-700 bg-slate-900"
+               style="height:144px"
+               onclick="toggleRcClip(${inc.id})">
+               ${thumbInner}
+               <div class="absolute inset-0 flex flex-col items-center justify-center
+                           bg-black/45 group-hover:bg-black/60 transition-colors">
+                 <div class="w-12 h-12 rounded-full bg-emerald-500/90 shadow-lg
+                             flex items-center justify-center mb-1">
+                   <span class="text-white text-lg" style="padding-left:3px">&#9654;</span>
+                 </div>
+                 <span class="text-xs text-white/90 font-bold tracking-wider">PLAY CLIP</span>
+               </div>
+             </div>`
+          : inc.thumbnail_url
+            ? `<div class="rounded-lg overflow-hidden border border-slate-700 bg-slate-900" style="height:144px">
+                 ${thumbInner}
+               </div>`
+            : `<div class="w-full rounded-lg bg-slate-800/60 border border-slate-700/50
+                          flex flex-col items-center justify-center gap-2" style="height:144px">
+                 <svg class="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                     d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.362a1 1 0 01-1.447.894L15 14
+                        M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                 </svg>
+                 <p class="text-xs text-slate-600">No clip available</p>
+               </div>`;
+
+        // Full-width inline video player (hidden until PLAY CLIP is clicked)
+        const clipPlayerHtml = hasClip
+          ? `<div id="rc-clip-player-${inc.id}" class="hidden">
+               <div class="border-t border-slate-700/40 my-0"></div>
+               <div class="pt-3 space-y-2">
+                 <video id="rc-clip-vid-${inc.id}"
+                   class="w-full rounded-lg border border-slate-700 bg-black"
+                   style="max-height:320px;object-fit:contain"
+                   controls playsinline>
+                   <source id="rc-clip-src-${inc.id}" src="" type="video/mp4">
+                   Your browser does not support video playback.
+                 </video>
+                 <div class="flex items-center justify-between px-1">
+                   <span class="text-xs text-slate-500 font-mono truncate max-w-xs">
+                     &#128249; ${_esc(inc.clip_filename || 'incident clip')}
+                   </span>
+                   <button onclick="toggleRcClip(${inc.id})"
+                     class="text-xs text-slate-500 hover:text-slate-300 px-2 py-1 rounded
+                            border border-slate-700/50 hover:border-slate-600 hover:bg-slate-700/40
+                            transition-all flex items-center gap-1">
+                     &#10005; Close
+                   </button>
+                 </div>
+               </div>
+             </div>`
+          : '';
 
         const resNoteHtml = (inc.incident_status === 'RESOLVED' || inc.incident_status === 'CLOSED') && inc.resolution_note
-          ? `<div class="mx-4 mb-3 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300">
-               <span class="font-bold tracking-wider">RESOLUTION:</span> ${_esc(inc.resolution_note)}</div>`
+          ? `<div class="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
+               <span class="font-semibold">Resolution:</span> ${_esc(inc.resolution_note)}</div>`
           : '';
 
         const notesHtml = inc.report_html
           ? `<div class="prose-sm text-slate-300 text-xs leading-relaxed quill-output"
-               style="max-height:120px;overflow-y:auto">${inc.report_html}</div>`
-          : `<p class="text-xs text-slate-600 italic">No operator notes added</p>`;
+               style="max-height:100px;overflow-y:auto">${inc.report_html}</div>`
+          : `<p class="text-xs text-slate-600 italic">No notes added.</p>`;
 
         return `
         <div class="card-border rounded-xl overflow-hidden border ${st.border}" id="rc-card-${inc.id}">
 
-          <!-- ── COLLAPSED HEADER (always visible) ─────────────────── -->
-          <div class="p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-800/30 transition-colors"
+          <!-- ── COLLAPSED HEADER ──────────────────────────────────────── -->
+          <div class="px-4 py-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-800/30 transition-colors"
                onclick="_rcToggle(${inc.id})">
             <div class="flex items-center gap-3 min-w-0">
               <div class="w-2.5 h-2.5 rounded-full ${st.dot} flex-shrink-0 ${inc.incident_status === 'OPEN' ? 'blink' : ''}"></div>
               <div class="min-w-0">
                 <div class="flex items-center gap-2 flex-wrap mb-0.5">
-                  <span class="text-xs font-bold px-2 py-0.5 rounded ${st.bg} ${st.color} border ${st.border} tracking-wider">${st.label}</span>
-                  <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-700/50 text-slate-300 border border-slate-600/50">${_esc(inc.density_tag)}</span>
-                  <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-700/50 ${tlColor} border border-slate-600/50">TL-${tl}</span>
+                  <span class="text-xs font-bold px-2 py-0.5 rounded ${st.bg} ${st.color} border ${st.border}">${st.label}</span>
+                  <span class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-700/50 text-slate-300 border border-slate-600/50">${_esc(inc.density_tag)}</span>
+                  <span class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-700/50 ${tlColor} border border-slate-600/50">TL-${tl}</span>
                 </div>
                 <p class="text-sm font-bold text-slate-100 truncate">${inc.title ? _esc(inc.title) : 'Untitled Incident'}</p>
                 <p class="text-[11px] text-slate-500 mt-0.5">
-                  ${pc > 0 ? `<span class="text-slate-300 font-semibold">${pc} ${pc === 1 ? 'person' : 'people'} detected</span> · ` : ''}${inc.responders.length} responder${inc.responders.length !== 1 ? 's' : ''} · ${_timeAgo(inc.timestamp)}
+                  ${pc > 0 ? `<span class="text-slate-400">${pc} ${pc === 1 ? 'person' : 'people'}</span> · ` : ''}${inc.responders.length} confirmed${(inc.pending_assignments || []).length > 0 ? ` · <span class="text-amber-400/80">${inc.pending_assignments.length} pending</span>` : ''} · ${_timeAgo(inc.timestamp)}
                 </p>
               </div>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
-              <span id="rc-chevron-${inc.id}" class="text-slate-500 text-xs transition-transform">▾</span>
-              <span class="text-xs font-bold tracking-wider text-slate-400 bg-slate-700/50 border border-slate-600 px-3 py-1 rounded-lg">MANAGE</span>
+              <span id="rc-chevron-${inc.id}" class="text-slate-500 text-sm transition-transform">▾</span>
             </div>
           </div>
 
-          ${resNoteHtml}
-
-          <!-- ── EXPANDED PANEL (toggled) ───────────────────────────── -->
+          <!-- ── EXPANDED PANEL ────────────────────────────────────────── -->
           <div id="rc-panel-${inc.id}" class="hidden border-t border-slate-700/50">
+            <div class="p-4 space-y-5">
 
-            <!-- Section 1: Incident Details ──────────────────────── -->
-            <div class="grid grid-cols-1 lg:grid-cols-5 divide-y lg:divide-y-0 lg:divide-x divide-slate-700/40">
-
-              <!-- Left: Clip + Metadata grid -->
-              <div class="lg:col-span-2 p-4 space-y-3">
-                <p class="text-xs font-bold text-slate-500 tracking-widest">CLIP PREVIEW</p>
-                ${thumbHtml}
-                <div class="grid grid-cols-2 gap-2 mt-3">
-                  <div class="bg-slate-800/60 rounded-lg p-2.5 text-center">
-                    <p class="text-[11px] text-slate-500 tracking-wider mb-1">CAMERA</p>
-                    <p class="text-xs font-bold text-slate-200">${_esc(inc.camera_id)}</p>
-                  </div>
-                  <div class="bg-slate-800/60 rounded-lg p-2.5 text-center">
-                    <p class="text-[11px] text-slate-500 tracking-wider mb-1">DENSITY</p>
-                    <p class="text-xs font-bold ${dColorMap[inc.density_tag] || 'text-slate-300'}">${_esc(inc.density_tag)}</p>
-                  </div>
-                  <div class="bg-slate-800/60 rounded-lg p-2.5 text-center">
-                    <p class="text-[11px] text-slate-500 tracking-wider mb-1">PEOPLE DETECTED</p>
-                    <p class="text-xs font-bold text-emerald-400">${pc > 0 ? pc : '—'}</p>
-                  </div>
-                  <div class="bg-slate-800/60 rounded-lg p-2.5 text-center">
-                    <p class="text-[11px] text-slate-500 tracking-wider mb-1">THREAT LEVEL</p>
-                    <p class="text-xs font-bold ${tlColor}">TL-${tl} / 10</p>
-                  </div>
+              <!-- Row 1: Quick info + clip thumbnail -->
+              <div class="flex gap-4 flex-wrap sm:flex-nowrap">
+                <!-- Clip thumbnail / play button -->
+                <div class="w-full sm:w-44 flex-shrink-0">
+                  ${thumbHtml}
+                  ${hasClip ? `<p class="text-center text-[10px] text-slate-600 mt-1">Click to play video</p>` : ''}
                 </div>
-                <div class="bg-slate-800/60 rounded-lg p-2.5">
-                  <p class="text-[11px] text-slate-500 tracking-wider mb-1">TIMESTAMP</p>
-                  <p class="text-xs font-semibold text-slate-300 font-mono">${ts}</p>
-                </div>
-                <div class="bg-slate-800/60 rounded-lg p-2.5">
-                  <p class="text-[11px] text-slate-500 tracking-wider mb-1">LOCATION</p>
-                  <p class="text-xs font-semibold text-slate-300">${_esc(loc)}</p>
-                </div>
-                <div class="bg-slate-800/60 rounded-lg p-2.5">
-                  <p class="text-[11px] text-slate-500 tracking-wider mb-1">REPORTED BY</p>
-                  <p class="text-xs font-bold text-emerald-400">${_esc(inc.reporter_name)}</p>
+                <!-- Info summary -->
+                <div class="flex-1 min-w-0 space-y-2">
+                  <h3 class="text-base font-bold text-slate-100">${inc.title ? _esc(inc.title) : '<span class="text-slate-500 italic">Untitled Incident</span>'}</h3>
+                  <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+                    <span>📍 ${_esc(loc)}</span>
+                    <span>🕒 ${ts}</span>
+                    ${pc > 0 ? `<span>👥 ${pc} ${pc === 1 ? 'person' : 'people'} detected</span>` : ''}
+                    <span>Reported by <span class="text-emerald-400 font-semibold">${_esc(inc.reporter_name)}</span></span>
+                  </div>
+                  ${notesHtml}
+                  ${resNoteHtml}
                 </div>
               </div>
 
-              <!-- Right: Title + Notes + Response -->
-              <div class="lg:col-span-3 flex flex-col divide-y divide-slate-700/40">
+              <!-- Inline clip video player (toggled by thumbnail click) -->
+              ${clipPlayerHtml}
 
-                <!-- Incident details -->
-                <div class="p-4">
-                  <p class="text-xs font-bold text-slate-500 tracking-widest mb-2">INCIDENT DETAILS</p>
-                  <h3 class="text-base font-bold text-slate-100 mb-3">${inc.title ? _esc(inc.title) : '<span class="text-slate-500 italic">Untitled Incident</span>'}</h3>
-                  <p class="text-xs font-bold text-slate-500 tracking-widest mb-2">OPERATOR NOTES</p>
-                  ${notesHtml}
+              <!-- Divider -->
+              <div class="border-t border-slate-700/40"></div>
+
+              <!-- Row 2: Assign Responder -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-semibold text-slate-300">👮 Assign a Responder</p>
+                  ${(inc.pending_assignments || []).length > 0
+                    ? `<span class="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                         ${inc.pending_assignments.length} awaiting response
+                       </span>`
+                    : ''}
                 </div>
-
-                <!-- Assigned Responders -->
-                <div class="p-4">
-                  <p class="text-xs font-bold text-slate-500 tracking-widest mb-2">ASSIGNED RESPONDERS</p>
-                  <div id="rc-responders-${inc.id}" class="space-y-0">
-                    ${respHtml}
-                  </div>
+                <div id="rc-responders-${inc.id}" class="mb-3">
+                  ${respHtml}
                 </div>
-
-                <!-- Assign form -->
-                <div class="p-4">
-                  <p class="text-xs font-bold text-slate-500 tracking-widest mb-2">ASSIGN RESPONDER</p>
-                  <!-- Hidden fields populated by user picker -->
-                  <input type="hidden" id="rc-name-${inc.id}" />
-                  <input type="hidden" id="rc-role-${inc.id}" />
-                  <!-- User picker dropdown -->
-                  <div class="relative mb-2" id="rc-picker-wrap-${inc.id}">
-                    <button type="button" onclick="toggleUserPicker(${inc.id})"
-                      id="rc-picker-btn-${inc.id}"
-                      class="w-full flex items-center justify-between bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-400 hover:border-emerald-500/60 focus:outline-none transition-all">
-                      <span id="rc-picker-label-${inc.id}">Select a registered user…</span>
-                      <svg class="w-3 h-3 text-slate-500 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                      </svg>
-                    </button>
-                    <div id="rc-picker-menu-${inc.id}"
-                      class="hidden absolute z-50 left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl max-h-52 overflow-y-auto">
-                      <div id="rc-picker-list-${inc.id}" class="p-1 space-y-0.5">
-                        <p class="text-xs text-slate-500 text-center py-3">Loading users…</p>
-                      </div>
+                <!-- Hidden fields populated by user picker -->
+                <input type="hidden" id="rc-name-${inc.id}" />
+                <input type="hidden" id="rc-role-${inc.id}" />
+                <!-- User picker dropdown -->
+                <div class="relative mb-2" id="rc-picker-wrap-${inc.id}">
+                  <button type="button" onclick="toggleUserPicker(${inc.id})"
+                    id="rc-picker-btn-${inc.id}"
+                    class="w-full flex items-center justify-between bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-400 hover:border-emerald-500/60 focus:outline-none transition-all">
+                    <span id="rc-picker-label-${inc.id}">Select a registered user…</span>
+                    <svg class="w-3.5 h-3.5 text-slate-500 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                  </button>
+                  <div id="rc-picker-menu-${inc.id}"
+                    class="hidden absolute z-50 left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl max-h-52 overflow-y-auto">
+                    <div id="rc-picker-list-${inc.id}" class="p-1 space-y-0.5">
+                      <p class="text-xs text-slate-500 text-center py-3">Loading users…</p>
                     </div>
                   </div>
-                  <!-- Note field -->
-                  <input id="rc-note-${inc.id}" type="text" maxlength="300"
-                    placeholder="Note (e.g. En route)"
-                    class="w-full mb-2 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500/60" />
-                  <div class="flex gap-2">
-                    <button onclick="takeIncident(${inc.id})"
-                      class="flex-1 py-2 rounded-lg text-xs font-bold tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30 transition-all">
-                      TAKE THIS INCIDENT
-                    </button>
-                    <button onclick="assignResponder(${inc.id})"
-                      class="flex-1 py-2 rounded-lg text-xs font-bold tracking-wider bg-slate-700/50 text-slate-300 border border-slate-600 hover:bg-slate-700 transition-all">
-                      ASSIGN OFFICIAL
-                    </button>
-                  </div>
                 </div>
-
-                <!-- Status update -->
-                <div class="p-4">
-                  <p class="text-xs font-bold text-slate-500 tracking-widest mb-2">UPDATE INCIDENT STATUS</p>
-                  <div class="flex gap-2 mb-2">
-                         <select id="rc-status-${inc.id}"
-                           class="flex-1 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500/60">
-                           ${statusOptions}
-                         </select>
-                         <button onclick="updateIncidentStatus(${inc.id})"
-                           class="px-5 py-2 rounded-lg text-xs font-bold tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/50 hover:bg-amber-500/30 transition-all">
-                           APPLY
-                         </button>
-                       </div>
-                       <textarea id="rc-resnote-${inc.id}" rows="2" maxlength="1000"
-                         placeholder="Resolution note — describe what action was taken (shown on resolved incidents)"
-                         class="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/60 resize-none mb-3"></textarea>
-                       <div class="border-t border-slate-700/50 pt-3">
-                         <p class="text-xs font-bold text-slate-600 tracking-widest mb-2">DANGER ZONE</p>
-                         <button onclick="openDeleteConfirm(${inc.id}, '${_esc(inc.title || 'Untitled Incident')}')"
-                           class="w-full py-2 rounded-lg text-xs font-bold tracking-wider bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 hover:border-red-500/60 transition-all">
-                           DELETE INCIDENT
-                         </button>
-                         <p class="text-xs text-slate-600 mt-1.5 text-center">Permanently removes the incident report and clip</p>
-                       </div>
+                <input id="rc-note-${inc.id}" type="text" maxlength="300"
+                  placeholder="Optional note (e.g. En route, ETA 5 min)"
+                  class="w-full mb-2 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500/60" />
+                <div class="flex gap-2">
+                  <button onclick="takeIncident(${inc.id})"
+                    class="flex-1 py-2 rounded-lg text-sm font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30 transition-all">
+                    ✋ I'll Take This
+                  </button>
+                  <button onclick="assignResponder(${inc.id})"
+                    class="flex-1 py-2 rounded-lg text-sm font-semibold bg-slate-700/50 text-slate-300 border border-slate-600 hover:bg-slate-700 transition-all">
+                    Assign Selected User
+                  </button>
                 </div>
-
+                <p class="text-xs text-slate-600 mt-1.5">
+                  "I'll Take This" assigns <strong>you</strong> immediately. "Assign Selected User" sends a request to the selected user's mobile app — they must accept before appearing as confirmed.
+                </p>
               </div>
+
+              <!-- Divider -->
+              <div class="border-t border-slate-700/40"></div>
+
+              <!-- Row 3: Update Status -->
+              <div>
+                <p class="text-sm font-semibold text-slate-300 mb-2">🔄 Update Incident Status</p>
+                <div class="flex gap-2 mb-2">
+                  <select id="rc-status-${inc.id}"
+                    class="flex-1 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-500/60">
+                    ${statusOptions}
+                  </select>
+                  <button onclick="updateIncidentStatus(${inc.id})"
+                    class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/50 hover:bg-amber-500/30 transition-all">
+                    Save
+                  </button>
+                </div>
+                <textarea id="rc-resnote-${inc.id}" rows="2" maxlength="1000"
+                  placeholder="What action was taken? (Optional — shown when incident is resolved)"
+                  class="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/60 resize-none"></textarea>
+              </div>
+
+              <!-- Divider -->
+              <div class="border-t border-slate-700/40"></div>
+
+              <!-- Row 4: Delete (subtle, not alarming) -->
+              <div class="flex items-center justify-between">
+                <p class="text-xs text-slate-600">Permanently removes this incident and its clip.</p>
+                <button onclick="openDeleteConfirm(${inc.id}, '${_esc(inc.title || 'Untitled Incident')}')"
+                  class="text-xs text-slate-600 hover:text-red-400 transition-colors px-3 py-1.5 rounded border border-slate-700/50 hover:border-red-500/40 hover:bg-red-500/10">
+                  Delete Incident
+                </button>
+              </div>
+
             </div>
           </div>
         </div>`;
@@ -3428,18 +4147,46 @@
         const name = (document.getElementById(`rc-name-${incId}`)?.value || '').trim();
         const role = (document.getElementById(`rc-role-${incId}`)?.value || 'Barangay Tanod').trim();
         const note = (document.getElementById(`rc-note-${incId}`)?.value || '').trim();
-        if (!name) { alert('Please select a responder from the dropdown.'); return; }
+        if (!name) { _showToast('No user selected', 'Please select a responder from the dropdown.', 'error'); return; }
         try {
-          const r = await fetch(`/api/incidents/${incId}/respond`, {
+          const r   = await fetch(`/api/incidents/${incId}/respond`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ responder_name: name, responder_role: role, note })
+            body: JSON.stringify({ responder_name: name, responder_role: role, note }),
           });
-          if (!r.ok) throw new Error();
-          // clear note, reload
+          const data = await r.json();
+          if (!r.ok) {
+            _showToast('Assignment failed', data.error || 'Could not assign responder.', 'error');
+            return;
+          }
+          // Clear picker + note
           const noteEl = document.getElementById(`rc-note-${incId}`);
           if (noteEl) noteEl.value = '';
+          const labelEl = document.getElementById(`rc-picker-label-${incId}`);
+          if (labelEl) labelEl.textContent = 'Select a registered user…';
+          document.getElementById(`rc-name-${incId}`).value = '';
+          document.getElementById(`rc-role-${incId}`).value = '';
+
+          if (data.pending) {
+            _showToast('Request Sent', `Assignment request sent to ${name}. They will see it on their mobile app.`, 'info');
+          } else {
+            _showToast('Assigned', `${name} has been assigned immediately.`, 'success');
+          }
           loadResponseCenter();
-        } catch { alert('Failed to assign responder.'); }
+        } catch {
+          _showToast('Error', 'Failed to assign responder. Please try again.', 'error');
+        }
+      }
+
+      async function cancelPendingAssignment(incId, notifId) {
+        if (!confirm('Cancel this pending assignment request? The user will no longer receive it.')) return;
+        try {
+          const r = await fetch(`/api/incidents/${incId}/assignments/${notifId}`, { method: 'DELETE' });
+          if (!r.ok) throw new Error();
+          _showToast('Cancelled', 'The pending assignment request has been cancelled.', 'info');
+          loadResponseCenter();
+        } catch {
+          _showToast('Error', 'Could not cancel the assignment.', 'error');
+        }
       }
 
       async function removeResponder(incId, rid) {
@@ -3519,10 +4266,10 @@
 
       function _applyThemeIcons(isLight) {
         const moon = document.getElementById('theme-icon-moon');
-        const sun  = document.getElementById('theme-icon-sun');
+        const sun = document.getElementById('theme-icon-sun');
         if (!moon || !sun) return;
         if (isLight) { moon.classList.add('hidden'); sun.classList.remove('hidden'); }
-        else         { sun.classList.add('hidden');  moon.classList.remove('hidden'); }
+        else { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
       }
 
       // Restore saved theme on load
@@ -3539,44 +4286,44 @@
       // ══════════════════════════════════════════════════════════════════════
       const TRANSLATIONS = {
         en: {
-          'system.subtitle':      'ADVANCED SURVEILLANCE SYSTEM',
-          'auth.login':           'LOGIN',
-          'auth.register':        'REGISTER',
-          'auth.email':           'EMAIL ADDRESS',
-          'auth.password':        'PASSWORD',
-          'auth.remember':        'Remember device',
-          'auth.forgot':          'Forgot password?',
-          'auth.operator_name':   'OPERATOR NAME',
+          'system.subtitle': 'ADVANCED SURVEILLANCE SYSTEM',
+          'auth.login': 'LOGIN',
+          'auth.register': 'REGISTER',
+          'auth.email': 'EMAIL ADDRESS',
+          'auth.password': 'PASSWORD',
+          'auth.remember': 'Remember device',
+          'auth.forgot': 'Forgot password?',
+          'auth.operator_name': 'OPERATOR NAME',
           'auth.create_password': 'CREATE PASSWORD',
-          'auth.confirm_password':'CONFIRM PASSWORD',
-          'auth.create_account':  'CREATE ACCOUNT',
-          'auth.admin_email':     'ADMIN EMAIL',
-          'auth.admin_code':      'ADMIN CODE',
-          'status.online':        'ALL SYSTEMS ONLINE',
-          'stats.cameras':        'CAMERAS ONLINE',
-          'stats.alerts':         'ALERTS TODAY',
-          'stats.storage':        'STORAGE USED',
-          'stats.uptime':         'UPTIME',
+          'auth.confirm_password': 'CONFIRM PASSWORD',
+          'auth.create_account': 'CREATE ACCOUNT',
+          'auth.admin_email': 'ADMIN EMAIL',
+          'auth.admin_code': 'ADMIN CODE',
+          'status.online': 'ALL SYSTEMS ONLINE',
+          'stats.cameras': 'CAMERAS ONLINE',
+          'stats.alerts': 'ALERTS TODAY',
+          'stats.storage': 'STORAGE USED',
+          'stats.uptime': 'UPTIME',
         },
         tl: {
-          'system.subtitle':      'ADVANCED NA SISTEMA NG PAGMAMATYAG',
-          'auth.login':           'MAG-LOGIN',
-          'auth.register':        'MAGPAREHISTRO',
-          'auth.email':           'EMAIL ADDRESS',
-          'auth.password':        'PASSWORD',
-          'auth.remember':        'Tandaan ang device',
-          'auth.forgot':          'Nakalimutan ang password?',
-          'auth.operator_name':   'PANGALAN NG OPERATOR',
+          'system.subtitle': 'ADVANCED NA SISTEMA NG PAGMAMATYAG',
+          'auth.login': 'MAG-LOGIN',
+          'auth.register': 'MAGPAREHISTRO',
+          'auth.email': 'EMAIL ADDRESS',
+          'auth.password': 'PASSWORD',
+          'auth.remember': 'Tandaan ang device',
+          'auth.forgot': 'Nakalimutan ang password?',
+          'auth.operator_name': 'PANGALAN NG OPERATOR',
           'auth.create_password': 'LUMIKHA NG PASSWORD',
-          'auth.confirm_password':'KUMPIRMAHIN ANG PASSWORD',
-          'auth.create_account':  'LUMIKHA NG ACCOUNT',
-          'auth.admin_email':     'EMAIL NG ADMIN',
-          'auth.admin_code':      'CODE NG ADMIN',
-          'status.online':        'LAHAT NG SISTEMA AY ONLINE',
-          'stats.cameras':        'CAMERAS NA ONLINE',
-          'stats.alerts':         'ALERTO NGAYON',
-          'stats.storage':        'STORAGE NA GINAMIT',
-          'stats.uptime':         'ORAS NG PAGTAKBO',
+          'auth.confirm_password': 'KUMPIRMAHIN ANG PASSWORD',
+          'auth.create_account': 'LUMIKHA NG ACCOUNT',
+          'auth.admin_email': 'EMAIL NG ADMIN',
+          'auth.admin_code': 'CODE NG ADMIN',
+          'status.online': 'LAHAT NG SISTEMA AY ONLINE',
+          'stats.cameras': 'CAMERAS NA ONLINE',
+          'stats.alerts': 'ALERTO NGAYON',
+          'stats.storage': 'STORAGE NA GINAMIT',
+          'stats.uptime': 'ORAS NG PAGTAKBO',
         },
       };
 
@@ -3599,7 +4346,7 @@
           const btn = document.getElementById('lang-' + l);
           if (!btn) return;
           if (l === lang) btn.classList.add('active');
-          else            btn.classList.remove('active');
+          else btn.classList.remove('active');
         });
       }
 
@@ -3718,7 +4465,6 @@
         container.innerHTML = incidents.map((inc, idx) => {
           const densityColor = inc.density_tag === 'HIGH' ? 'text-red-400' : inc.density_tag === 'MEDIUM' ? 'text-amber-400' : 'text-emerald-400';
           const dateStr = new Date(inc.timestamp).toISOString().split('T')[0];
-          const archivePath = `Archive_${dateStr}/${inc.clip_filename}`;
 
           const tl = inc.threat_level || 5;
           const tlInfo = tl <= 2 ? { label: 'MINIMAL', color: '#22c55e', bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.35)' }
@@ -3745,15 +4491,22 @@
                   <span class="text-xs font-mono text-slate-600">#${inc.id}</span>
                 </div>
               </div>
-              <button id="clip-btn-${idx}" onclick="toggleArchiveClip(${idx}, '${archivePath}')"
-                class="flex-shrink-0 px-4 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-xs tracking-wider transition-all">
+              <button id="clip-btn-${idx}" onclick="toggleArchiveClip(${idx})"
+                data-clip-url="${inc.clip_url || ''}"
+                class="flex-shrink-0 px-4 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 rounded-lg font-semibold text-xs tracking-wider transition-all"
+                ${!inc.clip_url ? 'disabled title="Clip file not found"' : ''}>
                 &#9654; VIEW CLIP
               </button>
             </div>
 
             <!-- Clip Player -->
             <div id="clip-player-${idx}" class="hidden px-5 pb-4">
-              <img class="w-full max-h-64 object-contain rounded-lg border border-slate-700 bg-slate-900" />
+              <video id="clip-video-${idx}"
+                class="w-full rounded-lg border border-slate-700 bg-slate-900"
+                style="max-height:340px;object-fit:contain"
+                controls autoplay loop muted playsinline>
+                <source id="clip-video-src-${idx}" src="" type="video/mp4">
+              </video>
             </div>
 
             <!-- Two-column body -->
@@ -3826,19 +4579,56 @@
         }).join('');
       }
 
-      function toggleArchiveClip(idx, archivePath) {
-        const player = document.getElementById(`clip-player-${idx}`);
-        const btn = document.getElementById(`clip-btn-${idx}`);
-        const img = player.querySelector('img');
+      function toggleArchiveClip(idx) {
+        const player  = document.getElementById(`clip-player-${idx}`);
+        const btn     = document.getElementById(`clip-btn-${idx}`);
+        const vid     = document.getElementById(`clip-video-${idx}`);
+        const src     = document.getElementById(`clip-video-src-${idx}`);
+        const clipUrl = btn.dataset.clipUrl || '';
 
         if (player.classList.contains('hidden')) {
-          img.src = `/archive_stream/${archivePath}`;
+          // Load and play
+          src.src = clipUrl;
+          vid.load();
           player.classList.remove('hidden');
           btn.innerHTML = '&#9632; HIDE CLIP';
         } else {
-          img.src = '';
+          // Stop and unload to release file handle
+          vid.pause();
+          src.src = '';
+          vid.load();
           player.classList.add('hidden');
           btn.innerHTML = '&#9654; VIEW CLIP';
+        }
+      }
+
+      // ── Response-Center inline clip player ──────────────────────────────────
+      function toggleRcClip(incId) {
+        const thumb  = document.getElementById(`rc-thumb-${incId}`);
+        const player = document.getElementById(`rc-clip-player-${incId}`);
+        const vid    = document.getElementById(`rc-clip-vid-${incId}`);
+        const src    = document.getElementById(`rc-clip-src-${incId}`);
+        if (!player || !vid || !src) return;
+
+        const isHidden = player.classList.contains('hidden');
+
+        if (isHidden) {
+          // Read clip URL from thumbnail wrapper's data attribute
+          const clipUrl = (thumb && thumb.dataset.clipUrl) || '';
+          if (!clipUrl) return;
+          src.src = clipUrl;
+          vid.load();
+          vid.play().catch(() => {}); // auto-play (browser may block; controls still available)
+          player.classList.remove('hidden');
+          // Collapse the thumbnail so the video takes prominence
+          if (thumb) thumb.style.display = 'none';
+        } else {
+          // Stop, unload, hide player, restore thumbnail
+          vid.pause();
+          src.src = '';
+          vid.load();
+          player.classList.add('hidden');
+          if (thumb) thumb.style.display = '';
         }
       }
     </script>

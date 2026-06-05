@@ -5,13 +5,20 @@ Usage:
     from mailer import send_reset_code
     send_reset_code(recipient="user@example.com", code="482917")
 
-All credentials are read from environment variables (see .env.example).
+All credentials are read from environment variables (see .env).
+
+Gmail App Passwords are displayed with spaces (e.g. "abcd efgh ijkl mnop")
+but the actual SMTP credential is the 16-character string without spaces.
+This module strips spaces automatically so both formats work in .env.
 """
 
 import os
 import smtplib
+import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+logger = logging.getLogger(__name__)
 
 
 def _build_html_body(code: str) -> str:
@@ -83,30 +90,81 @@ def _build_plain_body(code: str) -> str:
     )
 
 
+def _get_smtp_config() -> dict:
+    """
+    Read and validate SMTP configuration from environment variables.
+
+    Raises RuntimeError with a clear message if any required variable is missing.
+    Strips spaces from the App Password automatically (Gmail shows them grouped
+    but they are not part of the actual credential).
+    """
+    missing = [v for v in ('SMTP_USERNAME', 'SMTP_PASSWORD') if not os.environ.get(v)]
+    if missing:
+        raise RuntimeError(
+            f"Missing required SMTP environment variable(s): {', '.join(missing)}\n"
+            f"  → Make sure your .env file at the project root contains:\n"
+            f"       SMTP_USERNAME=your-gmail@gmail.com\n"
+            f"       SMTP_PASSWORD=your-16-char-app-password\n"
+            f"  → Then restart Flask."
+        )
+
+    return {
+        'host':      os.environ.get('SMTP_HOST', 'smtp.gmail.com'),
+        'port':      int(os.environ.get('SMTP_PORT', '587')),
+        # Strip spaces — Gmail App Passwords are shown grouped (e.g. "abcd efgh ijkl mnop")
+        # but the actual credential is the 16 chars without spaces.
+        'username':  os.environ['SMTP_USERNAME'].strip(),
+        'password':  os.environ['SMTP_PASSWORD'].replace(' ', '').strip(),
+        'from_name': os.environ.get('MAIL_FROM_NAME', 'Barangay Sentinel'),
+    }
+
+
 def send_reset_code(recipient: str, code: str) -> None:
     """
     Send a password-reset OTP to *recipient* via SMTP.
 
-    Raises smtplib.SMTPException (or subclass) on failure so callers can
-    decide how to handle it.  **Never** log the code or email body.
+    Raises RuntimeError  if SMTP credentials are missing from .env.
+    Raises smtplib.SMTPException (or subclass) on send failure so callers
+    can decide how to handle it.  **Never** log the code or email body.
     """
-    host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-    port = int(os.environ.get("SMTP_PORT", "587"))
-    username = os.environ["SMTP_USERNAME"]
-    password = os.environ["SMTP_PASSWORD"]
-    from_name = os.environ.get("MAIL_FROM_NAME", "Barangay Sentinel")
+    cfg = _get_smtp_config()   # raises RuntimeError if credentials missing
 
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Barangay Sentinel \u2014 Your access recovery code"
-    msg["From"] = f"{from_name} <{username}>"
-    msg["To"] = recipient
+    msg["Subject"] = "Barangay Sentinel — Your access recovery code"
+    msg["From"]    = f"{cfg['from_name']} <{cfg['username']}>"
+    msg["To"]      = recipient
 
     msg.attach(MIMEText(_build_plain_body(code), "plain", "utf-8"))
-    msg.attach(MIMEText(_build_html_body(code), "html", "utf-8"))
+    msg.attach(MIMEText(_build_html_body(code),  "html",  "utf-8"))
 
-    with smtplib.SMTP(host, port) as server:
+    logger.debug("Connecting to SMTP %s:%s as %s", cfg['host'], cfg['port'], cfg['username'])
+
+    with smtplib.SMTP(cfg['host'], cfg['port']) as server:
         server.ehlo()
         server.starttls()
         server.ehlo()
-        server.login(username, password)
-        server.sendmail(username, [recipient], msg.as_string())
+        server.login(cfg['username'], cfg['password'])
+        server.sendmail(cfg['username'], [recipient], msg.as_string())
+
+    logger.info("Reset code sent to %s", recipient)
+
+
+def verify_smtp_config() -> None:
+    """
+    Called once at Flask startup to catch .env problems early.
+    Logs a clear warning (not an exception) so Flask still starts even if
+    SMTP is unconfigured — the warning is visible in the console.
+    """
+    try:
+        cfg = _get_smtp_config()
+        logger.info(
+            "[SMTP] Configured — sending as %s via %s:%s",
+            cfg['username'], cfg['host'], cfg['port'],
+        )
+        print(
+            f"\n[SMTP] Ready — emails will be sent from {cfg['username']}"
+            f" via {cfg['host']}:{cfg['port']}\n"
+        )
+    except RuntimeError as exc:
+        logger.warning("[SMTP] NOT configured: %s", exc)
+        print(f"\n[SMTP WARNING] {exc}\n")
