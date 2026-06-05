@@ -837,12 +837,33 @@ def video_feed():
 @app.route('/cam1_frame')
 @login_required
 def cam1_frame():
-    """
-    Single JPEG frame for CAM-01.
+    """Single JPEG frame for CAM-01.
+
+    Returns the latest frame as image/jpeg.
+    If no frame is ready yet (warming up), returns a minimal 1×1 black JPEG
+    so mobile clients using <Image> don't treat the response as an error.
     """
     jpeg = cam1_stream.get_latest_jpeg()
     if jpeg is None:
-        return Response(status=204)
+        # 1×1 black JPEG — keeps mobile Image component happy while warming up
+        _BLANK_JPEG = (
+            b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00'
+            b'\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t'
+            b'\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a'
+            b'\x1f\x1e\x1d\x1a\x1c\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342\x1e>'
+            b'\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00'
+            b'\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01\x01\x00\x00'
+            b'\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b'
+            b'\xff\xc4\x00\xb5\x10\x00\x02\x01\x03\x03\x02\x04\x03\x05\x05\x04'
+            b'\x04\x00\x00\x01}\x01\x02\x03\x00\x04\x11\x05\x12!1A\x06\x13Qa'
+            b'\x07"q\x142\x81\x91\xa1\x08#B\xb1\xc1\x15R\xd1\xf0$3br'
+            b'\xff\xda\x00\x08\x01\x01\x00\x00?\x00\xf5\x14Q@\x1f\xff\xd9'
+        )
+        return Response(
+            _BLANK_JPEG,
+            mimetype='image/jpeg',
+            headers={'Cache-Control': 'no-store'},
+        )
 
     return Response(
         jpeg,
@@ -1386,10 +1407,26 @@ def add_responder(incident_id):
 @app.route('/api/incidents/<int:incident_id>/responders/<int:rid>', methods=['DELETE'])
 @login_required
 def remove_responder(incident_id, rid):
-    """Remove a confirmed responder from an incident."""
+    """Remove a confirmed responder from an incident.
+
+    Also marks their AssignmentNotification as 'removed' so the mobile app
+    can immediately hide the task from Active Assignments.
+    """
     responder = IncidentResponder.query.filter_by(id=rid, incident_id=incident_id).first_or_404()
     removed_name = responder.responder_name
     db.session.delete(responder)
+
+    # Mark the accepted notification as 'removed' so mobile stops showing it
+    # as an active assignment.  We match by name (case-insensitive) because
+    # the operator may have typed the name differently.
+    notif = AssignmentNotification.query.filter(
+        AssignmentNotification.incident_id         == incident_id,
+        db.func.lower(AssignmentNotification.assigned_to_name) == removed_name.lower(),
+        AssignmentNotification.status              == 'accepted',
+    ).first()
+    if notif:
+        notif.status       = 'removed'
+        notif.responded_at = notif.responded_at or datetime.utcnow()
 
     # Revert to OPEN if no confirmed responders remain
     incident = IncidentArchive.query.get_or_404(incident_id)
@@ -1397,6 +1434,52 @@ def remove_responder(incident_id, rid):
     if remaining == 0 and incident.incident_status == 'RESPONDING':
         incident.incident_status = 'OPEN'
         _log_status(incident_id, 'OPEN', _current_username())
+
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/incidents/<int:incident_id>/leave', methods=['POST'])
+@login_required
+def leave_incident(incident_id):
+    """Mobile user removes themselves from an incident.
+
+    - Deletes their IncidentResponder record (best-effort; skips if already gone).
+    - Deletes the AssignmentNotification entirely so the task disappears
+      from the mobile My Tasks screen immediately.
+    - Reverts incident RESPONDING → OPEN if no responders remain.
+    """
+    username = g.username
+    removed_something = False
+
+    # Remove from IncidentResponder (best-effort — might already be gone)
+    responder = IncidentResponder.query.filter(
+        IncidentResponder.incident_id == incident_id,
+        db.func.lower(IncidentResponder.responder_name) == username.lower(),
+    ).first()
+    if responder:
+        db.session.delete(responder)
+        removed_something = True
+
+    # Delete the AssignmentNotification so the task vanishes on mobile
+    notif = AssignmentNotification.query.filter(
+        AssignmentNotification.incident_id         == incident_id,
+        AssignmentNotification.assigned_to_user_id == g.user_id,
+    ).first()
+    if notif:
+        db.session.delete(notif)
+        removed_something = True
+
+    if not removed_something:
+        return jsonify({'error': 'No active assignment found for this incident.'}), 404
+
+    # Revert RESPONDING → OPEN if no confirmed responders remain
+    incident = IncidentArchive.query.get(incident_id)
+    if incident:
+        remaining = IncidentResponder.query.filter_by(incident_id=incident_id).count()
+        if remaining == 0 and incident.incident_status == 'RESPONDING':
+            incident.incident_status = 'OPEN'
+            _log_status(incident_id, 'OPEN', username)
 
     db.session.commit()
     return jsonify({'success': True})
